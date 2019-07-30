@@ -7,7 +7,7 @@ constexpr unsigned warp_size = 32;
 __global__ void wlv_matrix_a_test_kernel(const float* const ptr) {
 	nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, N, N, N, half, nvcuda::wmma::col_major> frag_a;
 	//nvcuda::wmma::load_matrix_sync(frag_a, ptr, N);
-	mtk::wmma::load_vector_sync(frag_a, ptr);
+	mtk::wmma::load_vector_sync_sm70(frag_a, ptr);
 
 	for(unsigned i = 0; i < warp_size; i++) {
 		if(i == threadIdx.x) {
@@ -23,7 +23,7 @@ __global__ void wlv_matrix_a_test_kernel(const float* const ptr) {
 __global__ void wlv_matrix_b_test_kernel(const float* const ptr) {
 	nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, N, N, N, half, nvcuda::wmma::col_major> frag_b;
 	//nvcuda::wmma::load_matrix_sync(frag_a, ptr, N);
-	mtk::wmma::load_vector_sync(frag_b, ptr);
+	mtk::wmma::load_vector_sync_sm70(frag_b, ptr);
 
 	for(unsigned i = 0; i < warp_size; i++) {
 		if(i == threadIdx.x) {
