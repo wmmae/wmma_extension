@@ -69,6 +69,22 @@ __device__ inline void load_vector_sync_sm70(nvcuda::wmma::fragment<nvcuda::wmma
 	}
 	__syncthreads();
 }
+
+template <class T>
+__device__ inline void make_identity_matrix_sm70(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag) {
+	nvcuda::wmma::fill_fragment(frag, utils::cast<T>(0.0f));
+	const auto warp_id = threadIdx.x & 0x1f;
+
+	unsigned index_offset = 0;
+	if(warp_id >> 4) {
+		index_offset = 4;
+	}
+
+	const auto p0 = (warp_id >> 2) & 0x3;
+	if(p0 == 0 || p0 == 3) {
+		frag.x[(warp_id & 0x3) + index_offset] = utils::cast<T>(1.0f);
+	}
+}
 } // namespace wmma
 } // namespace mtk
 
