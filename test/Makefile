@@ -4,7 +4,7 @@ NVCCFLAGS=-std=c++11 -I../ -arch=sm_$(TEST_ARCH) -DCUDA_ARCH=$(TEST_ARCH)0
 TARGET=wlv-test
 
 
-$(TARGET) : main.cu ../wmma_load_vector.hpp
+$(TARGET) : main.cu ../wmma_extension.hpp
 	$(NVCC) $(NVCCFLAGS) -o $@ $<
 
 clean:

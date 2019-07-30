@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include <wmma_load_vector.hpp>
+#include <wmma_extension.hpp>
 
 constexpr std::size_t N = 16;
 constexpr unsigned warp_size = 32;
