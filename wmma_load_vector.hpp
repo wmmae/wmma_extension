@@ -55,7 +55,7 @@ __device__ void load_vector_sync_sm70(nvcuda::wmma::fragment<nvcuda::wmma::matri
 }
 
 template <class T>
-__device__ void load_vector_sync_sm_70(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>& frag, const T* const ptr) {
+__device__ void load_vector_sync_sm70(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>& frag, const T* const ptr) {
 	nvcuda::wmma::fill_fragment(frag, __float2half(0));
 	const auto warp_id = threadIdx.x & 0x1f;
 	unsigned long index_offset = ((warp_id >> 4) << 2) + (((warp_id >> 2) & 0x1) << 3) + ((warp_id & 0x3) << 4);
