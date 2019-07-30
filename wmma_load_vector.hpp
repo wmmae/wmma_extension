@@ -1,4 +1,4 @@
-#include <wmma.h>
+#include <mma.h>
 
 namespace mtk {
 namespace wmma {
