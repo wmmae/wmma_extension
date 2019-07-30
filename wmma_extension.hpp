@@ -1,3 +1,5 @@
+#ifndef __WMMA_EXTENSION_HPP__
+#define __WMMA_EXTENSION_HPP__
 #include <mma.h>
 
 namespace mtk {
@@ -69,3 +71,5 @@ __device__ void load_vector_sync_sm70(nvcuda::wmma::fragment<nvcuda::wmma::matri
 }
 } // namespace wmma
 } // namespace mtk
+
+#endif /* end of include guard */
