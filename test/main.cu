@@ -36,6 +36,22 @@ __global__ void wlv_matrix_b_test_kernel(const float* const ptr) {
 	}
 }
 
+__global__ void make_identity_test_kernel() {
+	nvcuda::wmma::fragment<nvcuda::wmma::accumulator, N, N, N, half> frag_c;
+	//nvcuda::wmma::load_matrix_sync(frag_a, ptr, N);
+	mtk::wmma::make_identity_matrix_sm70(frag_c);
+
+	for(unsigned i = 0; i < warp_size; i++) {
+		if(i == threadIdx.x) {
+			for(unsigned j = 0; j < frag_c.num_elements; j++) {
+				printf("%03d ", (int)__half2float(frag_c.x[j]));
+			}
+			printf("\n");
+		}
+		__syncthreads();
+	}
+}
+
 int main() {
 	float *matrix;
 	cudaMallocHost((void**)&matrix, sizeof(float) * N * N);
@@ -49,5 +65,7 @@ int main() {
 	cudaDeviceSynchronize();
 	printf("matrix_b test\n");
 	wlv_matrix_b_test_kernel<<<1, warp_size>>>(matrix);
+	printf("matrix_c test\n");
+	make_identity_test_kernel<<<1, warp_size>>>();
 	cudaDeviceSynchronize();
 }
