@@ -16,8 +16,8 @@ template <class T>
 __device__ inline void load_vector_sync_sm70(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, const T* const ptr) {
 	nvcuda::wmma::fill_fragment(frag, __float2half(0));
 	const auto warp_id = threadIdx.x & 0x1f;
-	unsigned long index_offset = ((warp_id >> 4) << 2) + (((warp_id >> 2) & 0x1) << 3) + ((warp_id & 0x3) << 4);
-	bool load_flag = (warp_id & 0x2) == 0;
+	unsigned long index_offset = ((warp_id >> 4) << 2) + (((warp_id >> 2) & 0x1) << 3);
+	bool load_flag = (warp_id & 0x3) == 0;
 	if(load_flag) {
 		for(unsigned i = 0; i < 4; i++) {
 			frag.x[i] = utils::cast<T>(ptr[i + index_offset]);
@@ -32,7 +32,7 @@ __device__ inline void load_vector_sync_sm70(nvcuda::wmma::fragment<nvcuda::wmma
 	const auto warp_id = threadIdx.x & 0x1f;
 	unsigned long index_offset = (warp_id & 0x3) << 4;
 
-	bool load_flag = (warp_id == 0) || (warp_id == 1) || (warp_id == 4) || (warp_id == 5);
+	bool load_flag = (warp_id == 0) || (warp_id == 4);
 	if(load_flag) {
 		for(unsigned i = 0; i < 16; i++) {
 			frag.x[i] = utils::cast<T>(ptr[i + index_offset]);
@@ -47,7 +47,7 @@ __device__ inline void load_vector_sync_sm70(nvcuda::wmma::fragment<nvcuda::wmma
 	const auto warp_id = threadIdx.x & 0x1f;
 	unsigned long index_offset = (warp_id & 0x3) << 4;
 
-	bool load_flag = (warp_id == 0) || (warp_id == 1) || (warp_id == 4) || (warp_id == 5);
+	bool load_flag = (warp_id == 0) || (warp_id == 4);
 	if(load_flag) {
 		for(unsigned i = 0; i < 16; i++) {
 			frag.x[i] = utils::cast<T>(ptr[i + index_offset]);
@@ -60,8 +60,8 @@ template <class T>
 __device__ inline void load_vector_sync_sm70(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>& frag, const T* const ptr) {
 	nvcuda::wmma::fill_fragment(frag, __float2half(0));
 	const auto warp_id = threadIdx.x & 0x1f;
-	unsigned long index_offset = ((warp_id >> 4) << 2) + (((warp_id >> 3) & 0x1) << 3) + ((warp_id & 0x3) << 4);
-	bool load_flag = (warp_id & 0x2) == 0;
+	unsigned long index_offset = ((warp_id >> 4) << 2) + (((warp_id >> 3) & 0x1) << 3);
+	bool load_flag = (warp_id & 0x3) == 0;
 	if(load_flag) {
 		for(unsigned i = 0; i < 4; i++) {
 			frag.x[i] = utils::cast<T>(ptr[i + index_offset]);
