@@ -173,8 +173,8 @@ __device__ inline void make_identity_matrix_sm70(nvcuda::wmma::fragment<nvcuda::
 }
 
 // arch switch
-template <class MatrixType, int M, int N, int K, class T, class MemMajor, class S>
-__device__ inline void load_vector_sync(nvcuda::wmma::fragment<MatrixType, M, N, K, T, MemMajor>& frag, const S* const ptr) {
+template <class MatrixType, int M, int N, int K, class MemMajor, class T>
+__device__ inline void load_vector_sync(nvcuda::wmma::fragment<MatrixType, M, N, K, half, MemMajor>& frag, const T* const ptr) {
 #if __CUDA_ARCH__ < 750
 	load_vector_sync_sm70(frag, ptr);
 #else
