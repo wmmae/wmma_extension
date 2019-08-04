@@ -95,6 +95,7 @@ __device__ inline void make_identity_matrix_sm75(nvcuda::wmma::fragment<nvcuda::
 		frag.x[index_offset] = utils::cast<T>(1.0f);
 		frag.x[index_offset + 6] = utils::cast<T>(1.0f);
 	}
+	__syncthreads();
 }
 
 // For sm70
@@ -170,6 +171,7 @@ __device__ inline void make_identity_matrix_sm70(nvcuda::wmma::fragment<nvcuda::
 	if(p0 == 0 || p0 == 3) {
 		frag.x[(warp_id & 0x3) + index_offset] = utils::cast<T>(1.0f);
 	}
+	__syncthreads();
 }
 
 // arch switch
