@@ -87,6 +87,7 @@ int main() {
 	cudaDeviceSynchronize();
 	printf("syrk test\n");
 	syrk_test_kernel<<<1, warp_size>>>(matrix, result_matrix);
+	cudaDeviceSynchronize();
 	for(std::size_t i = 0; i < N; i++) {
 		for(std::size_t j = 0; j < N; j++) {
 			printf("%03.f ", __half2float(result_matrix[j * N + i]));
