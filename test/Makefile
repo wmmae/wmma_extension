@@ -1,6 +1,6 @@
 TEST_ARCH=70
 NVCC=nvcc
-NVCCFLAGS=-std=c++11 -I../ -arch=sm_$(TEST_ARCH) -DCUDA_ARCH=$(TEST_ARCH)0
+NVCCFLAGS=-std=c++11 -I../ -arch=sm_$(TEST_ARCH)
 TARGET=wlv-test
 
 
