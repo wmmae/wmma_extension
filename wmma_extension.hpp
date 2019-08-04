@@ -156,6 +156,16 @@ __device__ inline void make_identity_matrix_sm70(nvcuda::wmma::fragment<nvcuda::
 		frag.x[(warp_id & 0x3) + index_offset] = utils::cast<T>(1.0f);
 	}
 }
+
+// arch switch
+template <class MatrixType, int M, int N, int K, class T, class MemMajor, class S>
+__device__ inline void load_vector_sync(nvcuda::wmma::fragment<MatrixType, M, N, K, T, MemMajor>& frag, const S* const ptr) {
+#if __CUDA_ARCH__ < 750
+	load_vector_sync_sm70(frag, ptr);
+#else
+	load_vector_sync_sm75(frag, ptr);
+#endif
+}
 } // namespace wmma
 } // namespace mtk
 
