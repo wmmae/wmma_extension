@@ -39,7 +39,7 @@ __global__ void wlv_matrix_b_test_kernel(const float* const ptr) {
 __global__ void make_identity_test_kernel() {
 	nvcuda::wmma::fragment<nvcuda::wmma::accumulator, N, N, N, half> frag_c;
 	//nvcuda::wmma::load_matrix_sync(frag_a, ptr, N);
-	mtk::wmma::make_identity_matrix_sm70(frag_c);
+	mtk::wmma::make_identity_matrix(frag_c);
 
 	for(unsigned i = 0; i < warp_size; i++) {
 		if(i == threadIdx.x) {
@@ -57,9 +57,9 @@ __global__ void syrk_test_kernel(const float* const ptr, half* const result_ptr)
 	nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, N, N, N, half, nvcuda::wmma::col_major> frag_a;
 	nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, N, N, N, half, nvcuda::wmma::row_major> frag_b;
 	nvcuda::wmma::fill_fragment(frag_c, __float2half(0.0f));
-	mtk::wmma::load_vector_sync_sm70(frag_a, ptr);
-	mtk::wmma::load_vector_sync_sm70(frag_b, ptr);
-	mtk::wmma::make_identity_matrix_sm70(frag_c);
+	mtk::wmma::load_vector_sync(frag_a, ptr);
+	mtk::wmma::load_vector_sync(frag_b, ptr);
+	mtk::wmma::make_identity_matrix(frag_c);
 
 	nvcuda::wmma::mma_sync(frag_c, frag_a, frag_b, frag_c);
 
