@@ -181,6 +181,15 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<MatrixType, M, N,
 	load_vector_sync_sm75(frag, ptr);
 #endif
 }
+
+template <class T>
+__device__ inline void make_identity_matrix(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag) {
+#if __CUDA_ARCH__ < 750
+	make_identity_matrix_sm70(frag);
+#else
+	make_identity_matrix_sm75(frag);
+#endif
+}
 } // namespace wmma
 } // namespace mtk
 
