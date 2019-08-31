@@ -82,6 +82,73 @@ __device__ inline void load_vector_sync_sm75(nvcuda::wmma::fragment<nvcuda::wmma
 }
 
 template <class T>
+__device__ inline void load_vector_sync_sm75(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, const T* const ptr, const T mul) {
+	nvcuda::wmma::fill_fragment(frag, __float2half(0));
+	const auto warp_id = threadIdx.x & 0x1f;
+	unsigned long index_offset = warp_id >> 2;
+	bool load_flag = (warp_id & 0x3) == 0;
+	if(load_flag) {
+		for(unsigned i = 0; i < 2; i++) {
+			frag.x[i * 8] = utils::cast<half>(ptr[index_offset] * mul);
+			frag.x[i * 8 + 2] = utils::cast<half>(ptr[index_offset + 8] * mul);
+		}
+	}
+	__syncthreads();
+}
+
+template <class T>
+__device__ inline void load_vector_sync_sm75(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::row_major>& frag, const T* const ptr, const T mul) {
+	nvcuda::wmma::fill_fragment(frag, __float2half(0));
+	const auto warp_id = threadIdx.x & 0x1f;
+	unsigned long index_offset = warp_id * 2;
+
+	bool load_flag = warp_id < 4;
+	if(load_flag) {
+		for(unsigned i = 0; i < 2; i++) {
+			frag.x[i * 8    ] = utils::cast<half>(ptr[index_offset] * mul);
+			frag.x[i * 8 + 1] = utils::cast<half>(ptr[index_offset + 1] * mul);
+			frag.x[i * 8 + 4] = utils::cast<half>(ptr[index_offset + 8] * mul);
+			frag.x[i * 8 + 5] = utils::cast<half>(ptr[index_offset + 9] * mul);
+		}
+	}
+	__syncthreads();
+}
+
+template <class T>
+__device__ inline void load_vector_sync_sm75(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, const T* const ptr, const T mul) {
+	nvcuda::wmma::fill_fragment(frag, __float2half(0));
+	const auto warp_id = threadIdx.x & 0x1f;
+	unsigned long index_offset = warp_id * 2;
+
+	bool load_flag = warp_id < 4;
+	if(load_flag) {
+		for(unsigned i = 0; i < 2; i++) {
+			frag.x[i * 8    ] = utils::cast<half>(ptr[index_offset] * mul);
+			frag.x[i * 8 + 1] = utils::cast<half>(ptr[index_offset + 1] * mul);
+			frag.x[i * 8 + 2] = utils::cast<half>(ptr[index_offset + 8] * mul);
+			frag.x[i * 8 + 3] = utils::cast<half>(ptr[index_offset + 9] * mul);
+		}
+	}
+	__syncthreads();
+}
+
+template <class T>
+__device__ inline void load_vector_sync_sm75(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>& frag, const T* const ptr, const T mul) {
+	nvcuda::wmma::fill_fragment(frag, __float2half(0));
+	const auto warp_id = threadIdx.x & 0x1f;
+	unsigned long index_offset = warp_id >> 2;
+
+	bool load_flag = (warp_id & 0x3) == 0;
+	if(load_flag) {
+		for(unsigned i = 0; i < 2; i++) {
+			frag.x[i * 8] = utils::cast<half>(ptr[index_offset] * mul);
+			frag.x[i * 8 + 4] = utils::cast<half>(ptr[index_offset + 8] * mul);
+		}
+	}
+	__syncthreads();
+}
+
+template <class T>
 __device__ inline void make_identity_matrix_sm75(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag) {
 	nvcuda::wmma::fill_fragment(frag, utils::cast<T>(0.0f));
 	const auto warp_id = threadIdx.x & 0x1f;
@@ -158,6 +225,64 @@ __device__ inline void load_vector_sync_sm70(nvcuda::wmma::fragment<nvcuda::wmma
 }
 
 template <class T>
+__device__ inline void load_vector_sync_sm70(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, const T* const ptr, const T mul) {
+	nvcuda::wmma::fill_fragment(frag, __float2half(0));
+	const auto warp_id = threadIdx.x & 0x1f;
+	unsigned long index_offset = ((warp_id >> 4) << 2) + (((warp_id >> 2) & 0x1) << 3);
+	bool load_flag = (warp_id & 0x3) == 0;
+	if(load_flag) {
+		for(unsigned i = 0; i < 4; i++) {
+			frag.x[i] = utils::cast<half>(ptr[i + index_offset] * mul);
+		}
+	}
+	__syncthreads();
+}
+
+template <class T>
+__device__ inline void load_vector_sync_sm70(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::row_major>& frag, const T* const ptr, const T mul) {
+	nvcuda::wmma::fill_fragment(frag, __float2half(0));
+	const auto warp_id = threadIdx.x & 0x1f;
+	unsigned long index_offset = (warp_id & 0x3) << 4;
+
+	bool load_flag = (warp_id == 0) || (warp_id == 4);
+	if(load_flag) {
+		for(unsigned i = 0; i < 16; i++) {
+			frag.x[i] = utils::cast<half>(ptr[i + index_offset] * mul);
+		}
+	}
+	__syncthreads();
+}
+
+template <class T>
+__device__ inline void load_vector_sync_sm70(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, const T* const ptr, const T mul) {
+	nvcuda::wmma::fill_fragment(frag, __float2half(0));
+	const auto warp_id = threadIdx.x & 0x1f;
+	unsigned long index_offset = (warp_id & 0x3) << 4;
+
+	bool load_flag = (warp_id == 0) || (warp_id == 4);
+	if(load_flag) {
+		for(unsigned i = 0; i < 16; i++) {
+			frag.x[i] = utils::cast<half>(ptr[i + index_offset] * mul);
+		}
+	}
+	__syncthreads();
+}
+
+template <class T>
+__device__ inline void load_vector_sync_sm70(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>& frag, const T* const ptr, const T mul) {
+	nvcuda::wmma::fill_fragment(frag, __float2half(0));
+	const auto warp_id = threadIdx.x & 0x1f;
+	unsigned long index_offset = ((warp_id >> 4) << 2) + (((warp_id >> 3) & 0x1) << 3);
+	bool load_flag = (warp_id & 0x3) == 0;
+	if(load_flag) {
+		for(unsigned i = 0; i < 4; i++) {
+			frag.x[i] = utils::cast<half>(ptr[i + index_offset] * mul);
+		}
+	}
+	__syncthreads();
+}
+
+template <class T>
 __device__ inline void make_identity_matrix_sm70(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag) {
 	nvcuda::wmma::fill_fragment(frag, utils::cast<T>(0.0f));
 	const auto warp_id = threadIdx.x & 0x1f;
@@ -181,6 +306,15 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<MatrixType, M, N,
 	load_vector_sync_sm70(frag, ptr);
 #else
 	load_vector_sync_sm75(frag, ptr);
+#endif
+}
+
+template <class MatrixType, int M, int N, int K, class MemMajor, class T>
+__device__ inline void load_vector_sync(nvcuda::wmma::fragment<MatrixType, M, N, K, half, MemMajor>& frag, const T* const ptr, const T mul) {
+#if __CUDA_ARCH__ < 710
+	load_vector_sync_sm70(frag, ptr, mul);
+#else
+	load_vector_sync_sm75(frag, ptr, mul);
 #endif
 }
 
