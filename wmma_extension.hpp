@@ -22,8 +22,8 @@ __device__ inline void load_vector_sync_sm75(nvcuda::wmma::fragment<nvcuda::wmma
 	bool load_flag = (warp_id & 0x3) == 0;
 	if(load_flag) {
 		for(unsigned i = 0; i < 2; i++) {
-			frag.x[i * 8] = utils::cast<T>(ptr[index_offset]);
-			frag.x[i * 8 + 2] = utils::cast<T>(ptr[index_offset + 8]);
+			frag.x[i * 8] = utils::cast<halh>(ptr[index_offset]);
+			frag.x[i * 8 + 2] = utils::cast<halh>(ptr[index_offset + 8]);
 		}
 	}
 	__syncthreads();
@@ -38,10 +38,10 @@ __device__ inline void load_vector_sync_sm75(nvcuda::wmma::fragment<nvcuda::wmma
 	bool load_flag = warp_id < 4;
 	if(load_flag) {
 		for(unsigned i = 0; i < 2; i++) {
-			frag.x[i * 8    ] = utils::cast<T>(ptr[index_offset]);
-			frag.x[i * 8 + 1] = utils::cast<T>(ptr[index_offset + 1]);
-			frag.x[i * 8 + 4] = utils::cast<T>(ptr[index_offset + 8]);
-			frag.x[i * 8 + 5] = utils::cast<T>(ptr[index_offset + 9]);
+			frag.x[i * 8    ] = utils::cast<halh>(ptr[index_offset]);
+			frag.x[i * 8 + 1] = utils::cast<halh>(ptr[index_offset + 1]);
+			frag.x[i * 8 + 4] = utils::cast<halh>(ptr[index_offset + 8]);
+			frag.x[i * 8 + 5] = utils::cast<halh>(ptr[index_offset + 9]);
 		}
 	}
 	__syncthreads();
@@ -56,10 +56,10 @@ __device__ inline void load_vector_sync_sm75(nvcuda::wmma::fragment<nvcuda::wmma
 	bool load_flag = warp_id < 4;
 	if(load_flag) {
 		for(unsigned i = 0; i < 2; i++) {
-			frag.x[i * 8    ] = utils::cast<T>(ptr[index_offset]);
-			frag.x[i * 8 + 1] = utils::cast<T>(ptr[index_offset + 1]);
-			frag.x[i * 8 + 2] = utils::cast<T>(ptr[index_offset + 8]);
-			frag.x[i * 8 + 3] = utils::cast<T>(ptr[index_offset + 9]);
+			frag.x[i * 8    ] = utils::cast<halh>(ptr[index_offset]);
+			frag.x[i * 8 + 1] = utils::cast<halh>(ptr[index_offset + 1]);
+			frag.x[i * 8 + 2] = utils::cast<halh>(ptr[index_offset + 8]);
+			frag.x[i * 8 + 3] = utils::cast<halh>(ptr[index_offset + 9]);
 		}
 	}
 	__syncthreads();
@@ -74,8 +74,8 @@ __device__ inline void load_vector_sync_sm75(nvcuda::wmma::fragment<nvcuda::wmma
 	bool load_flag = (warp_id & 0x3) == 0;
 	if(load_flag) {
 		for(unsigned i = 0; i < 2; i++) {
-			frag.x[i * 8] = utils::cast<T>(ptr[index_offset]);
-			frag.x[i * 8 + 4] = utils::cast<T>(ptr[index_offset + 8]);
+			frag.x[i * 8] = utils::cast<halh>(ptr[index_offset]);
+			frag.x[i * 8 + 4] = utils::cast<halh>(ptr[index_offset + 8]);
 		}
 	}
 	__syncthreads();
@@ -174,7 +174,7 @@ __device__ inline void load_vector_sync_sm70(nvcuda::wmma::fragment<nvcuda::wmma
 	bool load_flag = (warp_id & 0x3) == 0;
 	if(load_flag) {
 		for(unsigned i = 0; i < 4; i++) {
-			frag.x[i] = utils::cast<T>(ptr[i + index_offset]);
+			frag.x[i] = utils::cast<halh>(ptr[i + index_offset]);
 		}
 	}
 	__syncthreads();
@@ -189,7 +189,7 @@ __device__ inline void load_vector_sync_sm70(nvcuda::wmma::fragment<nvcuda::wmma
 	bool load_flag = (warp_id == 0) || (warp_id == 4);
 	if(load_flag) {
 		for(unsigned i = 0; i < 16; i++) {
-			frag.x[i] = utils::cast<T>(ptr[i + index_offset]);
+			frag.x[i] = utils::cast<halh>(ptr[i + index_offset]);
 		}
 	}
 	__syncthreads();
@@ -204,7 +204,7 @@ __device__ inline void load_vector_sync_sm70(nvcuda::wmma::fragment<nvcuda::wmma
 	bool load_flag = (warp_id == 0) || (warp_id == 4);
 	if(load_flag) {
 		for(unsigned i = 0; i < 16; i++) {
-			frag.x[i] = utils::cast<T>(ptr[i + index_offset]);
+			frag.x[i] = utils::cast<halh>(ptr[i + index_offset]);
 		}
 	}
 	__syncthreads();
@@ -218,7 +218,7 @@ __device__ inline void load_vector_sync_sm70(nvcuda::wmma::fragment<nvcuda::wmma
 	bool load_flag = (warp_id & 0x3) == 0;
 	if(load_flag) {
 		for(unsigned i = 0; i < 4; i++) {
-			frag.x[i] = utils::cast<T>(ptr[i + index_offset]);
+			frag.x[i] = utils::cast<halh>(ptr[i + index_offset]);
 		}
 	}
 	__syncthreads();
