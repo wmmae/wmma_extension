@@ -391,7 +391,7 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<MatrixType, M, N,
 template <class MatrixType, int M, int N, int K, class MemMajor, class T, class Func>
 __device__ inline void load_matrix_with_operation_sync(nvcuda::wmma::fragment<MatrixType, M, N, K, half, MemMajor>& frag, const T* const ptr, unsigned ldm, Func func) {
 #if __CUDA_ARCH__ < 710
-	//load_vector_sync_sm70(frag, ptr);
+	load_matrix_with_operation_sync_sm70(frag, ptr, ldm, func);
 #else
 	load_matrix_with_operation_sync_sm75(frag, ptr, ldm, func);
 #endif
