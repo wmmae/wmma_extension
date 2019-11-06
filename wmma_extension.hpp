@@ -338,6 +338,20 @@ __device__ inline void load_vector_sync_sm70(nvcuda::wmma::fragment<nvcuda::wmma
 	__syncthreads();
 }
 
+template <class T, class Func>
+__device__ inline void load_matrix_with_operation_sync_sm70(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, const T* const ptr, const unsigned ldm, Func func) {
+	nvcuda::wmma::fill_fragment(frag, __float2half(0));
+	const auto warp_id = threadIdx.x & 0x1f;
+	const auto start_index = (((warp_id >> 2) & 0b1) << 3) + (((warp_id >> 4) & 0b1) << 2) + ((warp_id & 0b11) << 4);
+	for (std::size_t x = 0; x < frag.num_elements; x++) {
+		const auto i = x & 0b111;
+		const auto offset = ((i >> 2) << 6) + (i & 0b11);
+		const auto index = start_index + offset;
+		frag.x[x] = func(x, ptr[(index >> 4) * ldm + (index & 0xf)]);
+	}
+	__syncthreads();
+}
+
 template <class T>
 __device__ inline void make_identity_matrix_sm70(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag) {
 	nvcuda::wmma::fill_fragment(frag, utils::cast<T>(0.0f));
