@@ -36,6 +36,22 @@ __global__ void wlv_matrix_b_test_kernel(const float* const ptr) {
 	}
 }
 
+__global__ void wlv_matrix_a_op_test_kernel(const half* const ptr) {
+	nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, N, N, N, half, nvcuda::wmma::col_major> frag_a, frag_a_correct;
+	nvcuda::wmma::load_matrix_sync(frag_a_correct, ptr, N);
+	mtk::wmma::load_matrix_with_operation_sync(frag_a, ptr, N, [&frag_a_correct](const unsigned index, const half v){return v - frag_a_correct.x[index];});
+
+	for(unsigned i = 0; i < warp_size; i++) {
+		if(i == threadIdx.x) {
+			for(unsigned j = 0; j < frag_a.num_elements; j++) {
+				printf("%03d ", (int)__half2float(frag_a.x[j]));
+			}
+			printf("\n");
+		}
+		__syncthreads();
+	}
+}
+
 __global__ void make_identity_test_kernel() {
 	nvcuda::wmma::fragment<nvcuda::wmma::accumulator, N, N, N, half> frag_c;
 	//nvcuda::wmma::load_matrix_sync(frag_a, ptr, N);
@@ -68,12 +84,15 @@ __global__ void syrk_test_kernel(const float* const ptr, half* const result_ptr)
 
 int main() {
 	float *matrix;
+	half *matrix_fp16;
 	cudaMallocHost((void**)&matrix, sizeof(float) * N * N);
+	cudaMallocHost((void**)&matrix_fp16, sizeof(half) * N * N);
 	half *result_matrix;
 	cudaMallocHost((void**)&result_matrix, sizeof(half) * N * N);
 
 	for(std::size_t i = 0; i < N * N; i++) {
 		matrix[i] = static_cast<float>(i + 1);
+		matrix_fp16[i] = __float2half(matrix[i]);
 	}
 
 	printf("matrix_a test\n");
@@ -81,6 +100,9 @@ int main() {
 	cudaDeviceSynchronize();
 	printf("matrix_b test\n");
 	wlv_matrix_b_test_kernel<<<1, warp_size>>>(matrix);
+	cudaDeviceSynchronize();
+	printf("load matrix op test (expected to be all zero)\n");
+	wlv_matrix_a_op_test_kernel<<<1, warp_size>>>(matrix_fp16);
 	cudaDeviceSynchronize();
 	printf("matrix_c test\n");
 	make_identity_test_kernel<<<1, warp_size>>>();
