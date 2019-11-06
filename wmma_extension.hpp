@@ -153,11 +153,13 @@ __device__ inline void load_matrix_with_operation_sync_sm75(nvcuda::wmma::fragme
 	nvcuda::wmma::fill_fragment(frag, __float2half(0));
 	const auto warp_id = threadIdx.x & 0x1f;
 	const auto start_index = (warp_id >> 2) + ((warp_id & 0b11) << 5);
-	for (std::size_t x = 0; x < frag.num_elements; x++) {
-		const auto i = x & 0b111;
+	for (std::size_t i = 0; i < (frag.num_elements >> 1); i++) {
 		const auto offset = ((i & 0b1) << 4) + ((i & 0b10) << 2) + ((i & 0b100) << 5);
 		const auto index = start_index + offset;
-		frag.x[x] = func(x, ptr[(index >> 4) * ldm + (index & 0xf)]);
+		const auto j = i + (frag.num_elements >> 1);
+		const auto v = ptr[(index >> 4) * ldm + (index & 0xf)];
+		frag.x[i] = func(i, v);
+		frag.x[j] = func(j, v);
 	}
 	__syncthreads();
 }
@@ -167,11 +169,13 @@ __device__ inline void load_matrix_with_operation_sync_sm75(nvcuda::wmma::fragme
 	nvcuda::wmma::fill_fragment(frag, __float2half(0));
 	const auto warp_id = threadIdx.x & 0x1f;
 	const auto start_index = ((warp_id >> 2) << 4) + ((warp_id & 0b11) << 1);
-	for (std::size_t x = 0; x < frag.num_elements; x++) {
-		const auto i = x & 0b111;
+	for (std::size_t i = 0; i < (frag.num_elements >> 1); i++) {
 		const auto offset = (i & 0b1) + ((i & 0b10) << 6) + ((i & 0b100) << 1);
 		const auto index = start_index + offset;
-		frag.x[x] = func(x, ptr[(index >> 4) * ldm + (index & 0xf)]);
+		const auto j = i + (frag.num_elements >> 1);
+		const auto v = ptr[(index >> 4) * ldm + (index & 0xf)];
+		frag.x[i] = func(i, v);
+		frag.x[j] = func(j, v);
 	}
 	__syncthreads();
 }
@@ -181,11 +185,13 @@ __device__ inline void load_matrix_with_operation_sync_sm75(nvcuda::wmma::fragme
 	nvcuda::wmma::fill_fragment(frag, __float2half(0));
 	const auto warp_id = threadIdx.x & 0x1f;
 	const auto start_index = ((warp_id >> 2) << 4) + ((warp_id & 0b11) << 1);
-	for (std::size_t x = 0; x < frag.num_elements; x++) {
-		const auto i = x & 0b111;
+	for (std::size_t i = 0; i < (frag.num_elements >> 1); i++) {
 		const auto offset = (i & 0b1) + ((i & 0b10) << 2) + ((i & 0b100) << 5);
 		const auto index = start_index + offset;
-		frag.x[x] = func(x, ptr[(index >> 4) * ldm + (index & 0xf)]);
+		const auto j = i + (frag.num_elements >> 1);
+		const auto v = ptr[(index >> 4) * ldm + (index & 0xf)];
+		frag.x[i] = func(i, v);
+		frag.x[j] = func(j, v);
 	}
 	__syncthreads();
 }
@@ -195,11 +201,13 @@ __device__ inline void load_matrix_with_operation_sync_sm75(nvcuda::wmma::fragme
 	nvcuda::wmma::fill_fragment(frag, __float2half(0));
 	const auto warp_id = threadIdx.x & 0x1f;
 	const auto start_index = (warp_id >> 2) + ((warp_id & 0b11) << 5);
-	for (std::size_t x = 0; x < frag.num_elements; x++) {
-		const auto i = x & 0b111;
+	for (std::size_t i = 0; i < (frag.num_elements >> 1); i++) {
 		const auto offset = ((i & 0b1) << 4) + ((i & 0b10) << 6) + ((i & 0b100) << 1);
 		const auto index = start_index + offset;
-		frag.x[x] = func(x, ptr[(index >> 4) * ldm + (index & 0xf)]);
+		const auto j = i + (frag.num_elements >> 1);
+		const auto v = ptr[(index >> 4) * ldm + (index & 0xf)];
+		frag.x[i] = func(i, v);
+		frag.x[j] = func(j, v);
 	}
 	__syncthreads();
 }
