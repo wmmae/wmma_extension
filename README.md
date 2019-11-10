@@ -38,10 +38,10 @@ __global__ void kernel() {
 ### load_matrix_with_operation_sync
 ```cuda
 nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major> frag_b;
-__shared__ compute_t vec16[16 * 16];
+__shared__ compute_t matrix[16 * 16];
 mtk::wmma::load_matrix_with_operation_sync(
 		frag,
-		ptr,
+		matrix,
 		[](const unsigned index, const compute_t value) {return static_cast<half>(value * 2.0f);}
 	);
 ```
