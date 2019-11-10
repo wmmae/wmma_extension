@@ -12,7 +12,7 @@ without using shared memory.
 ## Sample
 ```cuda
 #include <mma.h>
-#incldue <wmma_extension.hpp>
+#include <wmma_extension.hpp>
 
 __global__ void kernel() {
 	nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major> frag_a;
