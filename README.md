@@ -48,7 +48,7 @@ mtk::wmma::load_matrix_with_operation_sync(
 - Arguments
   - dst_fragment : Destination fragment (matrix_a / matrix_b, (16, 16, 16), half / float, col_major / row_major)
   - src_pointer  : Source pointer (No alignment restriction)
-  - func         : Element-wise function. Return type must be `half`.
+  - func         : Element-wise function. Return type has to be `half`.
 
 ### make_identity_matrix
 - Arguments
