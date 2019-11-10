@@ -2,6 +2,7 @@
 This extension provides a function for
 - loading vector as a fragment
 - making identity matrix fragment
+- loading matrix with operation
 
 without using shared memory.
 
