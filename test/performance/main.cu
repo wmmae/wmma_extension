@@ -97,7 +97,7 @@ __global__ void direct_product16x16<true>(float* const c_ptr, const half* const 
 template <>
 __global__ void direct_product16x16<false>(float* const c_ptr, const half* const a_ptr, const half* const b_ptr, unsigned dim) {
 	constexpr unsigned FDIM = 16;
-	__shared__ half B_smem[block_size * warp_size];
+	__shared__ half B_smem[block_size * FDIM];
 	half* const A_smem = B_smem;
 	__shared__ float C_smem[warp_size * block_size];
 
@@ -114,7 +114,7 @@ __global__ void direct_product16x16<false>(float* const c_ptr, const half* const
 	// load A
 	if (warp_id == 0) {
 		A_smem[unique_id] = a_ptr[a_start + unique_id];
-		for (unsigned i = 1; i < warp_size; i++) {
+		for (unsigned i = 1; i < FDIM; i++) {
 			A_smem[unique_id + i * warp_size] = __float2half(0.0f);
 		}
 	}
@@ -122,8 +122,8 @@ __global__ void direct_product16x16<false>(float* const c_ptr, const half* const
 	nvcuda::wmma::load_matrix_sync(A_frag[0], A_smem, warp_size);
 	nvcuda::wmma::load_matrix_sync(A_frag[1], A_smem + FDIM, warp_size);
 	// init B
-	for (unsigned i = 0; i < warp_size; i++) {
-		B_smem[(warp_id * warp_size + i) * warp_size + unique_id] = __float2half(0.0f);
+	for (unsigned i = 0; i < FDIM; i += (warp_size / FDIM)) {
+		B_smem[(warp_id * warp_size + i) * FDIM + unique_id] = __float2half(0.0f);
 	}
 	__syncthreads();
 
@@ -135,8 +135,8 @@ __global__ void direct_product16x16<false>(float* const c_ptr, const half* const
 		nvcuda::wmma::fill_fragment(C_frag[3], __float2half(0.0f));
 		// load B
 		B_smem[unique_id] = __ldg(&b_ptr[b_start + threadIdx.x]);
-		nvcuda::wmma::load_matrix_sync(B_frag[0], B_smem, warp_size);
-		nvcuda::wmma::load_matrix_sync(B_frag[1], B_smem + FDIM * warp_size, warp_size);
+		nvcuda::wmma::load_matrix_sync(B_frag[0], B_smem, FDIM);
+		nvcuda::wmma::load_matrix_sync(B_frag[1], B_smem + FDIM * FDIM, FDIM);
 
 		nvcuda::wmma::mma_sync(C_frag[0], A_frag[0], B_frag[0], C_frag[0]);
 		nvcuda::wmma::store_matrix_sync(C_smem_ptr, C_frag[0], warp_size, nvcuda::wmma::mem_col_major);
