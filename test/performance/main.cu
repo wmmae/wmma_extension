@@ -69,7 +69,7 @@ __global__ void direct_product16x16<true>(float* const c_ptr, const half* const 
 
 	for (unsigned b_start = 0; b_start < dim; b_start += block_size) {
 		// load B
-		B_smem[unique_id] = b_ptr[unique_id];
+		B_smem[unique_id] = b_ptr[unique_id + b_start];
 		mtk::wmma::load_vector_sync(B_frag, B_smem);
 
 		nvcuda::wmma::fill_fragment(C_frag[0], __float2half(0.0f));
@@ -125,7 +125,7 @@ __global__ void direct_product16x16<false>(float* const c_ptr, const half* const
 
 	for (unsigned b_start = 0; b_start < dim; b_start += block_size) {
 		// load B
-		B_smem[unique_id] = b_ptr[unique_id];
+		B_smem[unique_id] = b_ptr[b_start + unique_id];
 		nvcuda::wmma::load_matrix_sync(B_frag, B_smem, warp_size);
 
 		nvcuda::wmma::fill_fragment(C_frag[0], __float2half(0.0f));
