@@ -150,7 +150,6 @@ __device__ inline void load_vector_sync_sm75(nvcuda::wmma::fragment<nvcuda::wmma
 
 template <class T, class Func>
 __device__ inline void load_matrix_with_operation_sync_sm75(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, const T* const ptr, const unsigned ldm, Func func) {
-	nvcuda::wmma::fill_fragment(frag, __float2half(0));
 	const unsigned warp_id = threadIdx.x & 0x1f;
 	const unsigned skew = warp_id & 0xf;
 	const unsigned start_index = (warp_id >> 2) + ((warp_id & 0b11) << 5);
@@ -168,7 +167,6 @@ __device__ inline void load_matrix_with_operation_sync_sm75(nvcuda::wmma::fragme
 
 template <class T, class Func>
 __device__ inline void load_matrix_with_operation_sync_sm75(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::row_major>& frag, const T* const ptr, const unsigned ldm, Func func) {
-	nvcuda::wmma::fill_fragment(frag, __float2half(0));
 	const unsigned warp_id = threadIdx.x & 0x1f;
 	const unsigned skew = (warp_id & 0x3) + ((warp_id & 0xf) >> 3) + (warp_id >> 4) << 2;
 	const unsigned start_index = ((warp_id >> 2) << 4) + ((warp_id & 0b11) << 1);
@@ -186,7 +184,6 @@ __device__ inline void load_matrix_with_operation_sync_sm75(nvcuda::wmma::fragme
 
 template <class T, class Func>
 __device__ inline void load_matrix_with_operation_sync_sm75(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, const T* const ptr, const unsigned ldm, Func func) {
-	nvcuda::wmma::fill_fragment(frag, __float2half(0));
 	const unsigned warp_id = threadIdx.x & 0x1f;
 	const unsigned skew = (warp_id & 0x3) + ((warp_id & 0xf) >> 3) + (warp_id >> 4) << 2;
 	const unsigned start_index = ((warp_id >> 2) << 4) + ((warp_id & 0b11) << 1);
@@ -204,7 +201,6 @@ __device__ inline void load_matrix_with_operation_sync_sm75(nvcuda::wmma::fragme
 
 template <class T, class Func>
 __device__ inline void load_matrix_with_operation_sync_sm75(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>& frag, const T* const ptr, const unsigned ldm, Func func) {
-	nvcuda::wmma::fill_fragment(frag, __float2half(0));
 	const unsigned warp_id = threadIdx.x & 0x1f;
 	const unsigned skew = warp_id & 0xf;
 	const unsigned start_index = (warp_id >> 2) + ((warp_id & 0b11) << 5);
@@ -356,7 +352,6 @@ __device__ inline void load_vector_sync_sm70(nvcuda::wmma::fragment<nvcuda::wmma
 
 template <class T, class Func>
 __device__ inline void load_matrix_with_operation_sync_sm70(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, const T* const ptr, const unsigned ldm, Func func) {
-	nvcuda::wmma::fill_fragment(frag, __float2half(0));
 	const unsigned warp_id = threadIdx.x & 0x1f;
 	const unsigned skew = (warp_id & 0x7) + ((warp_id & 0xf) >> 3);
 	const unsigned start_index = (((warp_id >> 2) & 0b1) << 3) + ((warp_id >> 4) << 2) + ((warp_id & 0b11) << 4);
@@ -371,7 +366,6 @@ __device__ inline void load_matrix_with_operation_sync_sm70(nvcuda::wmma::fragme
 
 template <class T, class Func>
 __device__ inline void load_matrix_with_operation_sync_sm70(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::row_major>& frag, const T* const ptr, const unsigned ldm, Func func) {
-	nvcuda::wmma::fill_fragment(frag, __float2half(0));
 	const unsigned warp_id = threadIdx.x & 0x1f;
 	const unsigned skew = (warp_id & 0xf) + (warp_id >> 4);
 	const unsigned start_index = (((warp_id >> 2) & 0b1) << 7) + ((warp_id >> 4) << 6) + ((warp_id & 0b11) << 4);
@@ -386,7 +380,6 @@ __device__ inline void load_matrix_with_operation_sync_sm70(nvcuda::wmma::fragme
 
 template <class T, class Func>
 __device__ inline void load_matrix_with_operation_sync_sm70(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, const T* const ptr, const unsigned ldm, Func func) {
-	nvcuda::wmma::fill_fragment(frag, __float2half(0));
 	const unsigned warp_id = threadIdx.x & 0x1f;
 	const unsigned skew = (warp_id & 0xf) + (warp_id >> 4);
 	const unsigned start_index = (((warp_id >> 3) & 0b1) << 7) + ((warp_id >> 4) << 6) + ((warp_id & 0b11) << 4);
@@ -401,7 +394,6 @@ __device__ inline void load_matrix_with_operation_sync_sm70(nvcuda::wmma::fragme
 
 template <class T, class Func>
 __device__ inline void load_matrix_with_operation_sync_sm70(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>& frag, const T* const ptr, const unsigned ldm, Func func) {
-	nvcuda::wmma::fill_fragment(frag, __float2half(0));
 	const unsigned warp_id = threadIdx.x & 0x1f;
 	const unsigned skew = (warp_id & 0x7) + ((warp_id & 0xf) >> 3);
 	const unsigned start_index = (((warp_id >> 3) & 0b1) << 3) + ((warp_id >> 4) << 2) + ((warp_id & 0b11) << 4);
