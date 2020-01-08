@@ -7,6 +7,10 @@
 constexpr std::size_t block_size = 256;
 constexpr unsigned warp_size = 32;
 
+#ifndef CUDA_ARCH_SM
+#define CUDA_ARCH_SM 0
+#endif
+
 //#define KERNEL_BREAKDOWN
 
 template <class T>
@@ -64,16 +68,15 @@ __global__ void direct_product16x16<true>(float* const c_ptr, const half* const 
 
 
 	for (unsigned b_start = 0; b_start < dim; b_start += block_size) {
-		nvcuda::wmma::fill_fragment(C_frag[0], __float2half(0.0f));
-		nvcuda::wmma::fill_fragment(C_frag[1], __float2half(0.0f));
 		// load B
 		B_smem[unique_id] = b_ptr[unique_id];
 		mtk::wmma::load_vector_sync(B_frag, B_smem);
 
+		nvcuda::wmma::fill_fragment(C_frag[0], __float2half(0.0f));
 		nvcuda::wmma::mma_sync(C_frag[0], A_frag[0], B_frag, C_frag[0]);
-		nvcuda::wmma::mma_sync(C_frag[1], A_frag[1], B_frag, C_frag[1]);
-
 		nvcuda::wmma::store_matrix_sync(C_smem_ptr, C_frag[0], warp_size, nvcuda::wmma::mem_col_major);
+		nvcuda::wmma::fill_fragment(C_frag[1], __float2half(0.0f));
+		nvcuda::wmma::mma_sync(C_frag[1], A_frag[1], B_frag, C_frag[1]);
 		nvcuda::wmma::store_matrix_sync(C_smem_ptr + FDIM, C_frag[1], warp_size, nvcuda::wmma::mem_col_major);
 
 		const unsigned h = block_size / warp_size;
@@ -121,16 +124,15 @@ __global__ void direct_product16x16<false>(float* const c_ptr, const half* const
 
 
 	for (unsigned b_start = 0; b_start < dim; b_start += block_size) {
-		nvcuda::wmma::fill_fragment(C_frag[0], __float2half(0.0f));
-		nvcuda::wmma::fill_fragment(C_frag[1], __float2half(0.0f));
 		// load B
 		B_smem[unique_id] = b_ptr[unique_id];
 		nvcuda::wmma::load_matrix_sync(B_frag, B_smem, warp_size);
 
+		nvcuda::wmma::fill_fragment(C_frag[0], __float2half(0.0f));
 		nvcuda::wmma::mma_sync(C_frag[0], A_frag[0], B_frag, C_frag[0]);
-		nvcuda::wmma::mma_sync(C_frag[1], A_frag[1], B_frag, C_frag[1]);
-
 		nvcuda::wmma::store_matrix_sync(C_smem_ptr, C_frag[0], warp_size, nvcuda::wmma::mem_col_major);
+		nvcuda::wmma::fill_fragment(C_frag[1], __float2half(0.0f));
+		nvcuda::wmma::mma_sync(C_frag[1], A_frag[1], B_frag, C_frag[1]);
 		nvcuda::wmma::store_matrix_sync(C_smem_ptr + FDIM, C_frag[1], warp_size, nvcuda::wmma::mem_col_major);
 
 		const unsigned c_start = warp_id * h;
@@ -141,10 +143,10 @@ __global__ void direct_product16x16<false>(float* const c_ptr, const half* const
 }
 
 template <bool UseWMMAe>
-void test_direct_product() {
-	constexpr unsigned DIM = 1lu << 14;
+void test_direct_product(const unsigned size_power) {
 	constexpr std::size_t C = 1lu << 10;
-	constexpr std::size_t grid_size = DIM / warp_size;
+	const unsigned DIM = 1lu << size_power;
+	const std::size_t grid_size = DIM / warp_size;
 
 	half *dA, *dB;
 	float *dC;
@@ -152,16 +154,12 @@ void test_direct_product() {
 	cudaMalloc(&dB, sizeof(half) * DIM);
 	cudaMalloc(&dC, sizeof(float) * DIM * DIM);
 
-#ifdef KERNEL_BREAKDOWN
-	std::printf("init_p,init_ca_frag,init_b_smem,init_b_frag,mma,store_c\n");
-#endif
-
 	const auto start_clock = std::chrono::system_clock::now();
 	for (std::size_t c = 0; c < C; c++) {
 		direct_product16x16<UseWMMAe><<<grid_size, block_size>>>(
 				dC,
 				dA,
-				dA,
+				dB,
 				DIM
 				);
 	}
@@ -172,7 +170,9 @@ void test_direct_product() {
 	}
 	const auto end_clock = std::chrono::system_clock::now();
 	const auto elapsed_time = std::chrono::duration_cast<std::chrono::microseconds>(end_clock - start_clock).count() / 1.e6 / C;
-	std::printf("%u,%e,%e\n",
+	std::printf("%u,%u,%u,%e,%e\n",
+			static_cast<unsigned>(CUDA_ARCH_SM),
+			DIM,
 			(UseWMMAe ? 1u : 0u),
 			elapsed_time,
 			(2 * DIM * DIM / elapsed_time / (1lu<<40)));
@@ -181,8 +181,19 @@ void test_direct_product() {
 	cudaFree(dC);
 }
 
+void test_direct_product(const unsigned min_p, const unsigned max_p) {
+	for (unsigned i = min_p; i <= max_p; i++) {
+		test_direct_product<false>(i);
+	}
+	for (unsigned i = min_p; i <= max_p; i++) {
+		test_direct_product<true>(i);
+	}
+	for (unsigned i = min_p; i <= max_p; i++) {
+		test_direct_product<false>(i);
+	}
+}
+
 
 int main() {
-	test_direct_product<false>();
-	test_direct_product<true>();
+	test_direct_product(5, 14);
 }
