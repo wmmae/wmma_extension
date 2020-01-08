@@ -67,14 +67,14 @@ __global__ void direct_product16x16<true>(float* const c_ptr, const half* const 
 	mtk::wmma::load_vector_sync(A_frag[1], A_smem + FDIM);
 
 	for (unsigned b_start = 0; b_start < dim; b_start += block_size) {
+		nvcuda::wmma::fill_fragment(C_frag[0], __float2half(0.0f));
+		nvcuda::wmma::fill_fragment(C_frag[1], __float2half(0.0f));
 		// load B
-		B_smem[unique_id] = b_ptr[threadIdx.x + b_start];
+		B_smem[unique_id] = __ldg(&b_ptr[threadIdx.x + b_start]);
 		mtk::wmma::load_vector_sync(B_frag, B_smem);
 
-		nvcuda::wmma::fill_fragment(C_frag[0], __float2half(0.0f));
 		nvcuda::wmma::mma_sync(C_frag[0], A_frag[0], B_frag, C_frag[0]);
 		nvcuda::wmma::store_matrix_sync(C_smem_ptr, C_frag[0], warp_size, nvcuda::wmma::mem_col_major);
-		nvcuda::wmma::fill_fragment(C_frag[1], __float2half(0.0f));
 		nvcuda::wmma::mma_sync(C_frag[1], A_frag[1], B_frag, C_frag[1]);
 		nvcuda::wmma::store_matrix_sync(C_smem_ptr + FDIM, C_frag[1], warp_size, nvcuda::wmma::mem_col_major);
 
@@ -123,14 +123,14 @@ __global__ void direct_product16x16<false>(float* const c_ptr, const half* const
 
 
 	for (unsigned b_start = 0; b_start < dim; b_start += block_size) {
+		nvcuda::wmma::fill_fragment(C_frag[0], __float2half(0.0f));
+		nvcuda::wmma::fill_fragment(C_frag[1], __float2half(0.0f));
 		// load B
-		B_smem[unique_id] = b_ptr[b_start + threadIdx.x];
+		B_smem[unique_id] = __ldg(b_ptr[b_start + threadIdx.x]);
 		nvcuda::wmma::load_matrix_sync(B_frag, B_smem, warp_size);
 
-		nvcuda::wmma::fill_fragment(C_frag[0], __float2half(0.0f));
 		nvcuda::wmma::mma_sync(C_frag[0], A_frag[0], B_frag, C_frag[0]);
 		nvcuda::wmma::store_matrix_sync(C_smem_ptr, C_frag[0], warp_size, nvcuda::wmma::mem_col_major);
-		nvcuda::wmma::fill_fragment(C_frag[1], __float2half(0.0f));
 		nvcuda::wmma::mma_sync(C_frag[1], A_frag[1], B_frag, C_frag[1]);
 		nvcuda::wmma::store_matrix_sync(C_smem_ptr + FDIM, C_frag[1], warp_size, nvcuda::wmma::mem_col_major);
 
