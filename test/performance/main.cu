@@ -50,7 +50,6 @@ __global__ void direct_product16x16<true>(float* const c_ptr, const half* const 
 
 	const unsigned warp_id = threadIdx.x >> 5;
 	const unsigned unique_id = threadIdx.x & 0x1;
-	const unsigned a_start = blockIdx.x * warp_size;
 
 	float* const C_smem_ptr = C_smem + warp_size * FDIM * warp_id;
 
@@ -59,6 +58,7 @@ __global__ void direct_product16x16<true>(float* const c_ptr, const half* const 
 	nvcuda::wmma::fragment<nvcuda::wmma::accumulator, FDIM, FDIM, FDIM, float> C_frag[2];
 
 	// load A
+	const unsigned a_start = blockIdx.x * warp_size;
 	if (warp_id == 0) {
 		A_smem[unique_id] = a_ptr[a_start + unique_id];
 	}
@@ -66,10 +66,9 @@ __global__ void direct_product16x16<true>(float* const c_ptr, const half* const 
 	mtk::wmma::load_vector_sync(A_frag[0], A_smem);
 	mtk::wmma::load_vector_sync(A_frag[1], A_smem + FDIM);
 
-
 	for (unsigned b_start = 0; b_start < dim; b_start += block_size) {
 		// load B
-		B_smem[unique_id] = b_ptr[unique_id + b_start];
+		B_smem[unique_id] = b_ptr[threadIdx.x + b_start];
 		mtk::wmma::load_vector_sync(B_frag, B_smem);
 
 		nvcuda::wmma::fill_fragment(C_frag[0], __float2half(0.0f));
@@ -82,7 +81,7 @@ __global__ void direct_product16x16<true>(float* const c_ptr, const half* const 
 		const unsigned h = block_size / warp_size;
 		const unsigned c_start = warp_id * h;
 		for (unsigned i = 0; i < h; i++) {
-			c_ptr[dim * (b_start + c_start + i) + unique_id] = C_smem_ptr[i * warp_size + unique_id];
+			c_ptr[dim * (b_start + c_start + i) + threadIdx.x] = C_smem_ptr[i * warp_size + unique_id];
 		}
 
 	}
@@ -125,7 +124,7 @@ __global__ void direct_product16x16<false>(float* const c_ptr, const half* const
 
 	for (unsigned b_start = 0; b_start < dim; b_start += block_size) {
 		// load B
-		B_smem[unique_id] = b_ptr[b_start + unique_id];
+		B_smem[unique_id] = b_ptr[b_start + threadIdx.x];
 		nvcuda::wmma::load_matrix_sync(B_frag, B_smem, warp_size);
 
 		nvcuda::wmma::fill_fragment(C_frag[0], __float2half(0.0f));
@@ -137,14 +136,14 @@ __global__ void direct_product16x16<false>(float* const c_ptr, const half* const
 
 		const unsigned c_start = warp_id * h;
 		for (unsigned i = 0; i < h; i++) {
-			c_ptr[dim * (b_start + c_start + i) + unique_id] = C_smem_ptr[i * warp_size + unique_id];
+			c_ptr[dim * (b_start + c_start + i) + threadIdx.x] = C_smem_ptr[i * warp_size + unique_id];
 		}
 	}
 }
 
 template <bool UseWMMAe>
 void test_direct_product(const unsigned size_power) {
-	constexpr std::size_t C = 1lu << 10;
+	constexpr std::size_t C = 1lu << 16;
 	const unsigned DIM = 1lu << size_power;
 	const std::size_t grid_size = DIM / warp_size;
 
