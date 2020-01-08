@@ -65,6 +65,8 @@ __global__ void direct_product16x16<true>(float* const c_ptr, const half* const 
 	__syncthreads();
 	mtk::wmma::load_vector_sync(A_frag[0], A_smem);
 	mtk::wmma::load_vector_sync(A_frag[1], A_smem + FDIM);
+	nvcuda::wmma::fill_fragment(B_frag[0], __float2half(0.0f));
+	nvcuda::wmma::fill_fragment(B_frag[1], __float2half(0.0f));
 
 	for (unsigned b_start = 0; b_start < dim; b_start += block_size) {
 		nvcuda::wmma::fill_fragment(C_frag[0], __float2half(0.0f));
@@ -73,8 +75,8 @@ __global__ void direct_product16x16<true>(float* const c_ptr, const half* const 
 		nvcuda::wmma::fill_fragment(C_frag[3], __float2half(0.0f));
 		// load B
 		B_smem[unique_id] = __ldg(&b_ptr[threadIdx.x + b_start]);
-		mtk::wmma::load_vector_sync(B_frag[0], B_smem);
-		mtk::wmma::load_vector_sync(B_frag[1], B_smem + FDIM);
+		mtk::wmma::load_vector_sync(B_frag[0], B_smem, false);
+		mtk::wmma::load_vector_sync(B_frag[1], B_smem + FDIM, false);
 
 		nvcuda::wmma::mma_sync(C_frag[0], A_frag[0], B_frag[0], C_frag[0]);
 		nvcuda::wmma::store_matrix_sync(C_smem_ptr, C_frag[0], warp_size, nvcuda::wmma::mem_col_major);
