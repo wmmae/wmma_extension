@@ -166,6 +166,14 @@ void test_direct_product(const unsigned size_power) {
 	cudaMalloc(&dB, sizeof(half) * DIM);
 	cudaMalloc(&dC, sizeof(float) * DIM * DIM);
 
+	half *hA;
+	float *hC;
+	cudaMallocHost(&hA, sizeof(half) * DIM);
+	cudaMallocHost(&hC, sizeof(float) * DIM * DIM);
+	for (unsigned i = 0; i < DIM; i++) hA[i] = __float2half(static_cast<float>(i) / DIM);
+	cudaMemcpy(dA, hA, sizeof(half) * DIM, cudaMemcpyDefault);
+	cudaMemcpy(dB, hA, sizeof(half) * DIM, cudaMemcpyDefault);
+
 	const auto start_clock = std::chrono::system_clock::now();
 	for (std::size_t c = 0; c < C; c++) {
 		direct_product16x16<UseWMMAe><<<grid_size, block_size>>>(
@@ -182,12 +190,37 @@ void test_direct_product(const unsigned size_power) {
 	}
 	const auto end_clock = std::chrono::system_clock::now();
 	const auto elapsed_time = std::chrono::duration_cast<std::chrono::microseconds>(end_clock - start_clock).count() / 1.e6 / C;
-	std::printf("%u,%u,%u,%e,%e\n",
+
+	cudaMemcpy(hC, dC, sizeof(float) * DIM * DIM, cudaMemcpyDefault);
+	float diff_norm = 0.0f;
+	float base_norm = 0.0f;
+	for (std::size_t i = 0; i < DIM ;i++) {
+		for (std::size_t j = 0; j < DIM; j++) {
+			const auto corr = __half2float(hA[i]) * __half2float(hA[j]);
+			const auto diff = hC[i + DIM * j] - corr;
+			base_norm += corr * corr;
+			diff_norm += diff * diff;
+			//printf("%e ", hC[i + DIM * j]);
+		}
+		//printf("\n");
+	}
+	//for (std::size_t i = 0; i < DIM ;i++) {
+	//	for (std::size_t j = 0; j < DIM; j++) {
+	//		const auto corr = __half2float(hA[i]) * __half2float(hA[j]);
+	//		printf("%e ", corr);
+	//	}
+	//	printf("\n");
+	//}
+	std::printf("%u,%u,%u,%e,%e,%e\n",
 			static_cast<unsigned>(CUDA_ARCH_SM),
 			DIM,
 			(UseWMMAe ? 1u : 0u),
 			elapsed_time,
-			(2 * DIM * DIM / elapsed_time / (1lu<<40)));
+			(2 * DIM * DIM / elapsed_time / (1lu<<40)),
+			sqrt(diff_norm / base_norm)
+			);
+
+	cudaFreeHost(hA);
 	cudaFree(dA);
 	cudaFree(dB);
 	cudaFree(dC);
@@ -200,12 +233,16 @@ void test_direct_product(const unsigned min_p, const unsigned max_p) {
 	for (unsigned i = min_p; i <= max_p; i++) {
 		test_direct_product<true>(i);
 	}
+	std::printf("--\n");
 	for (unsigned i = min_p; i <= max_p; i++) {
 		test_direct_product<false>(i);
+	}
+	for (unsigned i = min_p; i <= max_p; i++) {
+		test_direct_product<true>(i);
 	}
 }
 
 
 int main() {
-	test_direct_product(5, 14);
+	test_direct_product(8, 15);
 }
