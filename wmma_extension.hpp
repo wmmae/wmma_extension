@@ -162,7 +162,7 @@ __device__ inline void load_matrix_with_operation_sync_sm75(nvcuda::wmma::fragme
 	const unsigned skew = warp_id & 0xf;
 	const unsigned start_index = (warp_id >> 2) + ((warp_id & 0b11) << 5);
 	for (std::size_t x = 0; x < (frag.num_elements >> 1); x++) {
-		const unsigned i = (x + skew) & 0xf;
+		const unsigned i = (x + skew) & 0x7;
 		const unsigned offset = ((i & 0b1) << 4) + ((i & 0b10) << 2) + ((i & 0b100) << 5);
 		const unsigned index = start_index + offset;
 		const unsigned j = i + (frag.num_elements >> 1);
@@ -213,7 +213,7 @@ __device__ inline void load_matrix_with_operation_sync_sm75(nvcuda::wmma::fragme
 	const unsigned skew = warp_id & 0xf;
 	const unsigned start_index = (warp_id >> 2) + ((warp_id & 0b11) << 5);
 	for (std::size_t x = 0; x < (frag.num_elements >> 1); x++) {
-		const unsigned i = (x + skew) & 0xf;
+		const unsigned i = (x + skew) & 0x7;
 		const unsigned offset = ((i & 0b1) << 4) + ((i & 0b10) << 6) + ((i & 0b100) << 1);
 		const unsigned index = start_index + offset;
 		const unsigned j = i + (frag.num_elements >> 1);
