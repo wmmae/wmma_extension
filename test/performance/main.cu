@@ -392,7 +392,181 @@ void test_householder(const unsigned min_p, const unsigned max_p) {
 	}
 }
 
+template <bool UseWMMAe>
+__global__ void matmul_16x16(float* const c_ptr, const float* const a_ptr, const float* const b_ptr);
+
+template <>
+__global__ void matmul_16x16<true>(float* const c_ptr, const float* const a_ptr, const float* const b_ptr) {
+	constexpr unsigned DIM = 16;
+	constexpr unsigned block_matrix_size = DIM * DIM * (block_size / warp_size);
+	__shared__ float A_smem[block_matrix_size];
+	__shared__ half h_smem[block_matrix_size];
+
+	const unsigned warp_id = threadIdx.x >> 5;
+
+	auto* const A_smem_ptr = A_smem + warp_id * DIM * DIM;
+	auto* const B_smem_ptr = A_smem + warp_id * DIM * DIM;
+	auto* const C_smem_ptr = A_smem + warp_id * DIM * DIM;
+	auto* const h_smem_ptr = h_smem + warp_id * DIM * DIM;
+
+	nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, DIM, DIM, DIM, half, nvcuda::wmma::col_major> frag_a, frag_da;
+	nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, DIM, DIM, DIM, half, nvcuda::wmma::col_major> frag_b, frag_db;
+	nvcuda::wmma::fragment<nvcuda::wmma::accumulator, DIM, DIM, DIM, float> frag_c;
+	nvcuda::wmma::fill_fragment(frag_c, 0.0f);
+
+	const auto block_matrix_offset = blockIdx.x * block_matrix_size;
+	for (unsigned i = 0; i < block_matrix_size; i += block_size) {
+		const auto v = a_ptr[block_matrix_offset + i + threadIdx.x];
+		A_smem[i + threadIdx.x] = v;
+		h_smem[i + threadIdx.x] = __float2half(v);
+	}
+	__syncthreads();
+	nvcuda::wmma::load_matrix_sync(frag_a, h_smem_ptr, DIM);
+
+	for (unsigned i = 0; i < block_matrix_size; i += block_size) {
+		const auto v = b_ptr[block_matrix_offset + i + threadIdx.x];
+		A_smem[i + threadIdx.x] = v;
+		h_smem[i + threadIdx.x] = __float2half(v);
+	}
+	__syncthreads();
+	nvcuda::wmma::load_matrix_sync(frag_b, h_smem_ptr, DIM);
+
+
+	nvcuda::wmma::mma_sync(frag_c, frag_a, frag_b, frag_c);
+	mtk::wmma::load_matrix_with_operation_sync(frag_da, A_smem_ptr, DIM,
+			[&frag_a](const unsigned index, const float v){return __float2half(v - __half2float(frag_a.x[index]));});
+	nvcuda::wmma::mma_sync(frag_c, frag_da, frag_b, frag_c);
+	mtk::wmma::load_matrix_with_operation_sync(frag_db, B_smem_ptr, DIM,
+			[&frag_b](const unsigned index, const float v){return __float2half(v - __half2float(frag_b.x[index]));});
+	nvcuda::wmma::mma_sync(frag_c, frag_a, frag_db, frag_c);
+
+	nvcuda::wmma::store_matrix_sync(C_smem_ptr, frag_c, DIM, nvcuda::wmma::mem_col_major);
+	__syncthreads();
+
+	for (unsigned i = 0; i < block_matrix_size; i += block_size) {
+		c_ptr[block_matrix_offset + i + threadIdx.x] = A_smem[i + threadIdx.x];
+	}
+}
+
+template <>
+__global__ void matmul_16x16<false>(float* const c_ptr, const float* const a_ptr, const float* const b_ptr) {
+	constexpr unsigned DIM = 16;
+	constexpr unsigned block_matrix_size = DIM * DIM * (block_size / warp_size);
+	__shared__ float A_smem[block_matrix_size];
+	__shared__ half h_smem[block_matrix_size];
+
+	const unsigned warp_id = threadIdx.x >> 5;
+	const unsigned unique_id = threadIdx.x & 0x1f;
+
+	auto* const A_smem_ptr = A_smem + warp_id * DIM * DIM;
+	auto* const B_smem_ptr = A_smem + warp_id * DIM * DIM;
+	auto* const C_smem_ptr = A_smem + warp_id * DIM * DIM;
+	auto* const h_smem_ptr = h_smem + warp_id * DIM * DIM;
+
+	nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, DIM, DIM, DIM, half, nvcuda::wmma::col_major> frag_a, frag_da;
+	nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, DIM, DIM, DIM, half, nvcuda::wmma::col_major> frag_b, frag_db;
+	nvcuda::wmma::fragment<nvcuda::wmma::accumulator, DIM, DIM, DIM, float> frag_c;
+	nvcuda::wmma::fill_fragment(frag_c, 0.0f);
+
+	const auto block_matrix_offset = blockIdx.x * block_matrix_size;
+	for (unsigned i = 0; i < block_matrix_size; i += block_size) {
+		const auto v = a_ptr[block_matrix_offset + i + threadIdx.x];
+		A_smem[i + threadIdx.x] = v;
+		h_smem[i + threadIdx.x] = __float2half(v);
+	}
+	__syncthreads();
+	nvcuda::wmma::load_matrix_sync(frag_a, h_smem_ptr, DIM);
+	__syncthreads();
+	for (unsigned i = 0; i < block_matrix_size; i += block_size) {
+		h_smem[i + threadIdx.x] = __float2half(A_smem[i + threadIdx.x] - __half2float(h_smem[i + threadIdx.x]));
+	}
+	nvcuda::wmma::load_matrix_sync(frag_da, h_smem_ptr, DIM);
+	__syncthreads();
+
+	for (unsigned i = 0; i < block_matrix_size; i += block_size) {
+		const auto v = b_ptr[block_matrix_offset + i + threadIdx.x];
+		A_smem[i + threadIdx.x] = v;
+		h_smem[i + threadIdx.x] = __float2half(v);
+	}
+	__syncthreads();
+	nvcuda::wmma::load_matrix_sync(frag_b, h_smem_ptr, DIM);
+	__syncthreads();
+	for (unsigned i = 0; i < block_matrix_size; i += block_size) {
+		h_smem[i + threadIdx.x] = __float2half(A_smem[i + threadIdx.x] - __half2float(h_smem[i + threadIdx.x]));
+	}
+	nvcuda::wmma::load_matrix_sync(frag_db, h_smem_ptr, DIM);
+	__syncthreads();
+
+	nvcuda::wmma::mma_sync(frag_c, frag_a, frag_b, frag_c);
+	nvcuda::wmma::mma_sync(frag_c, frag_da, frag_b, frag_c);
+	nvcuda::wmma::mma_sync(frag_c, frag_a, frag_db, frag_c);
+
+	nvcuda::wmma::store_matrix_sync(C_smem_ptr, frag_c, DIM, nvcuda::wmma::mem_col_major);
+	__syncthreads();
+
+	for (unsigned i = 0; i < block_matrix_size; i += block_size) {
+		c_ptr[block_matrix_offset + i + threadIdx.x] = A_smem[i + threadIdx.x];
+	}
+}
+
+template <bool UseWMMAe>
+void test_matmul(const unsigned size_power) {
+	constexpr std::size_t C = 1lu << 6;
+	constexpr unsigned dim = 16;
+	const unsigned batch_size = 1lu << size_power;
+	const std::size_t grid_size = batch_size / (block_size / warp_size);
+
+	float *dA, *dB, *dC;
+	cudaMalloc(&dA, sizeof(float) * batch_size * dim * dim);
+	cudaMalloc(&dB, sizeof(float) * batch_size * dim * dim);
+	cudaMalloc(&dC, sizeof(float) * batch_size * dim * dim);
+
+
+	const auto start_clock = std::chrono::system_clock::now();
+	for (std::size_t c = 0; c < C; c++) {
+		matmul_16x16<UseWMMAe><<<grid_size, block_size>>>(
+				dC,
+				dA,
+				dB
+				);
+	}
+	const auto status = cudaGetLastError();
+	cudaDeviceSynchronize();
+	if (status != 0) {
+		std::fprintf(stderr, "%s\n", cudaGetErrorString(status));
+	}
+	const auto end_clock = std::chrono::system_clock::now();
+	const auto elapsed_time = std::chrono::duration_cast<std::chrono::microseconds>(end_clock - start_clock).count() / 1.e6 / C;
+
+	std::printf("%u,%u,%u,%e\n",
+			static_cast<unsigned>(CUDA_ARCH_SM),
+			batch_size,
+			(UseWMMAe ? 1u : 0u),
+			elapsed_time
+			);
+
+	cudaFree(dA);
+	cudaFree(dB);
+	cudaFree(dC);
+}
+
+void test_matmul(const unsigned min_p, const unsigned max_p) {
+	for (unsigned i = min_p; i <= max_p; i++) {
+		test_matmul<false>(i);
+	}
+	for (unsigned i = min_p; i <= max_p; i++) {
+		test_matmul<true>(i);
+	}
+	std::printf("--\n");
+	for (unsigned i = min_p; i <= max_p; i++) {
+		test_matmul<false>(i);
+	}
+	for (unsigned i = min_p; i <= max_p; i++) {
+		test_matmul<true>(i);
+	}
+}
+
 int main() {
 	//test_direct_product(8, 15);
-	test_householder(8, 20);
+	test_matmul(8, 20);
 }
