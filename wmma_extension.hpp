@@ -13,6 +13,25 @@ template <> inline __device__ half cast(const float v){return __float2half(v);}
 template <> inline __device__ half cast(const half v){return v;}
 } // namespace utils
 
+// Common for sm_70 and sm_75
+template <class Use, int M, int N, int K, class Layout>
+__device__ inline void fill_zero(nvcuda::wmma::fragment<Use, M, N, K, float, Layout>& frag) {
+	int4* const i4 = reinterpret_cast<int4*>(frag.x);
+	const unsigned size = sizeof(float) * nvcuda::wmma::fragment<Use, M, N, K, float, Layout>::num_elements;
+	for (unsigned i = 0; i < size / sizeof(int4); i++) {
+		i4[i] = make_int4(0, 0, 0, 0);
+	}
+}
+template <class Use, int M, int N, int K, class Layout>
+__device__ inline void fill_zero(nvcuda::wmma::fragment<Use, M, N, K, half, Layout>& frag) {
+	int4* const i4 = reinterpret_cast<int4*>(frag.x);
+	const unsigned size = sizeof(half) * nvcuda::wmma::fragment<Use, M, N, K, half, Layout>::num_elements;
+	for (unsigned i = 0; i < size / sizeof(int4); i++) {
+		i4[i] = make_int4(0, 0, 0, 0);
+	}
+}
+
+
 // For sm75
 template <class T>
 __device__ inline void load_vector_sync_sm75(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, const T* const ptr, const bool fill) {
