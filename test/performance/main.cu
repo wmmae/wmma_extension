@@ -156,7 +156,7 @@ __global__ void direct_product16x16<false>(float* const c_ptr, const half* const
 
 template <bool UseWMMAe>
 void test_direct_product(const unsigned size_power) {
-	constexpr std::size_t C = 1lu << 16;
+	constexpr std::size_t C = 1lu << 6;
 	const unsigned DIM = 1lu << size_power;
 	const std::size_t grid_size = DIM / warp_size;
 
