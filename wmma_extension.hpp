@@ -226,8 +226,15 @@ __device__ inline void load_matrix_with_operation_sync_sm75(nvcuda::wmma::fragme
 
 template <class T>
 __device__ inline void make_identity_matrix_sm75(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag) {
-	nvcuda::wmma::fill_fragment(frag, utils::cast<T>(0.0f));
 	const unsigned warp_id = threadIdx.x & 0x1f;
+	if (std::is_same<T, float>::value) {
+		int4* const i4 = reinterpret_cast<int4*>(frag.x);
+		i4[0] = make_int4(0, 0, 0, 0);
+		i4[1] = make_int4(0, 0, 0, 0);
+	} else {
+		int4* const i4 = reinterpret_cast<int4*>(frag.x);
+		i4[0] = make_int4(0, 0, 0, 0);
+	}
 
 	const unsigned mod9 = warp_id % 9;
 
@@ -235,10 +242,8 @@ __device__ inline void make_identity_matrix_sm75(nvcuda::wmma::fragment<nvcuda::
 	bool set_flag = mod9 == 0 || mod9 == 4;
 
 	if(set_flag) {
-		frag.x[index_offset] = utils::cast<T>(1.0f);
-		frag.x[index_offset + 6] = utils::cast<T>(1.0f);
+		frag.x[index_offset] = frag.x[index_offset + 6] = utils::cast<T>(1.0f);
 	}
-	__syncthreads();
 }
 
 // For sm70
@@ -424,8 +429,15 @@ __device__ inline void load_matrix_with_operation_sync_sm70(nvcuda::wmma::fragme
 
 template <class T>
 __device__ inline void make_identity_matrix_sm70(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag) {
-	nvcuda::wmma::fill_fragment(frag, utils::cast<T>(0.0f));
 	const unsigned warp_id = threadIdx.x & 0x1f;
+	if (std::is_same<T, float>::value) {
+		int4* const i4 = reinterpret_cast<int4*>(frag.x);
+		i4[0] = make_int4(0, 0, 0, 0);
+		i4[1] = make_int4(0, 0, 0, 0);
+	} else {
+		int4* const i4 = reinterpret_cast<int4*>(frag.x);
+		i4[0] = make_int4(0, 0, 0, 0);
+	}
 
 	unsigned index_offset = 0;
 	if(warp_id >> 4) {
