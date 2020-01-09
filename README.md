@@ -54,3 +54,7 @@ mtk::wmma::load_matrix_with_operation_sync(
 ### make_identity_matrix
 - Arguments
   - dst_fragment : Destination fragment (accumulator, (16, 16, 16), half / float)
+
+### fill_zero
+- Argument
+  - dst_fragment : Destination fragment (float / half)
