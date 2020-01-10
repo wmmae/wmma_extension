@@ -425,13 +425,19 @@ __global__ void matmul<true>(float* const c_ptr, const float* const a_ptr, const
 			for (unsigned j = 0; j < 2; j++) {
 				unsigned long offset = warp_id * warp_size * warp_size + i * FDIM + j * FDIM * warp_size;
 				nvcuda::wmma::load_matrix_sync(frag_a[i + 2 * j], F16_smem + offset, warp_size);
-				mtk::wmma::load_matrix_with_operation_sync(
-						frag_da[i + 2 * j], F32_smem + offset, warp_size,
-						[&](const unsigned index, const float v) {return __float2half(v - __half2float(frag_a[i + j * 2].x[index]));}
-						);
 			}
 		}
+		const float* matrix_a_block_head = F32_smem + warp_id * warp_size * warp_size;
+		mtk::wmma::foreach(
+				frag_a[0],
+				[&](const unsigned f_index, const unsigned m_index) {
+					frag_da[0].x[f_index] = __float2half(matrix_a_block_head[m_index] - __half2float(frag_a[0].x[f_index]));
+					frag_da[1].x[f_index] = __float2half(matrix_a_block_head[m_index + FDIM] - __half2float(frag_a[1].x[f_index]));
+					frag_da[2].x[f_index] = __float2half(matrix_a_block_head[m_index + FDIM * warp_size] - __half2float(frag_a[2].x[f_index]));
+					frag_da[3].x[f_index] = __float2half(matrix_a_block_head[m_index + FDIM * warp_size + FDIM] - __half2float(frag_a[3].x[f_index]));
+				});
 
+		__syncthreads();
 		for (unsigned i = 0; i < block_size * warp_size; i += block_size) {
 			const auto v = b_ptr[(block_c_col + i / block_size) * n + kb + threadIdx.x];
 			const unsigned smem_index = threadIdx.x + i;
@@ -444,12 +450,20 @@ __global__ void matmul<true>(float* const c_ptr, const float* const a_ptr, const
 			for (unsigned j = 0; j < 2; j++) {
 				unsigned long offset = warp_id * warp_size + i * FDIM + j * FDIM * block_size;
 				nvcuda::wmma::load_matrix_sync(frag_b[i + 2 * j], F16_smem + offset, block_size);
-				mtk::wmma::load_matrix_with_operation_sync(
-						frag_db[i + 2 * j], F32_smem + offset, block_size,
-						[&](const unsigned index, const float v) {return __float2half(v - __half2float(frag_b[i + j * 2].x[index]));}
-						);
 			}
 		}
+		const float* matrix_b_block_head = F32_smem + warp_id * warp_size;
+		mtk::wmma::foreach(
+				frag_a[0],
+				[&](const unsigned f_index, const unsigned m_index) {
+					const unsigned r = m_index & 0xf;
+					const unsigned c = m_index >> 4;
+					const unsigned long i = r + c * block_size;
+					frag_db[0].x[f_index] = __float2half(matrix_b_block_head[i] - __half2float(frag_b[0].x[f_index]));
+					frag_db[1].x[f_index] = __float2half(matrix_b_block_head[i + FDIM] - __half2float(frag_b[1].x[f_index]));
+					frag_db[2].x[f_index] = __float2half(matrix_b_block_head[i + FDIM * block_size] - __half2float(frag_b[2].x[f_index]));
+					frag_db[3].x[f_index] = __float2half(matrix_b_block_head[i + FDIM * block_size + FDIM] - __half2float(frag_b[3].x[f_index]));
+				});
 
 		for (unsigned i = 0; i < 2; i++) {
 			for (unsigned j = 0; j < 2; j++) {
