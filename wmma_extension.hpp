@@ -175,6 +175,59 @@ __device__ inline void load_vector_sync_sm75(nvcuda::wmma::fragment<nvcuda::wmma
 	__syncthreads();
 }
 
+template <class Func>
+__device__ inline void foreach_sm75(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, Func func) {
+	const unsigned warp_id = threadIdx.x & 0x1f;
+	const unsigned start_index = (warp_id >> 2) + ((warp_id & 0b11) << 5);
+	for (std::size_t i = 0; i < (frag.num_elements >> 1); i++) {
+		const unsigned offset = ((i & 0b1) << 4) + ((i & 0b10) << 2) + ((i & 0b100) << 5);
+		const unsigned index = start_index + offset;
+		const unsigned j = i + (frag.num_elements >> 1);
+		func(i, index);
+		func(j, index);
+	}
+}
+
+template <class Func>
+__device__ inline void foreach_sm75(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::row_major>& frag, Func func) {
+	const unsigned warp_id = threadIdx.x & 0x1f;
+	const unsigned start_index = ((warp_id >> 2) << 4) + ((warp_id & 0b11) << 1);
+	for (std::size_t i = 0; i < (frag.num_elements >> 1); i++) {
+		const unsigned offset = (i & 0b1) + ((i & 0b10) << 6) + ((i & 0b100) << 1);
+		const unsigned index = start_index + offset;
+		const unsigned j = i + (frag.num_elements >> 1);
+		func(i, index);
+		func(j, index);
+	}
+}
+
+template <class Func>
+__device__ inline void foreach_sm75(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, Func func) {
+	const unsigned warp_id = threadIdx.x & 0x1f;
+	const unsigned start_index = ((warp_id >> 2) << 4) + ((warp_id & 0b11) << 1);
+	for (std::size_t i = 0; i < (frag.num_elements >> 1); i++) {
+		const unsigned offset = (i & 0b1) + ((i & 0b10) << 2) + ((i & 0b100) << 5);
+		const unsigned index = start_index + offset;
+		const unsigned j = i + (frag.num_elements >> 1);
+		func(i, index);
+		func(j, index);
+	}
+}
+
+template <class Func>
+__device__ inline void foreach_sm75(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>& frag, Func func) {
+	const unsigned warp_id = threadIdx.x & 0x1f;
+	const unsigned start_index = (warp_id >> 2) + ((warp_id & 0b11) << 5);
+	for (std::size_t i = 0; i < (frag.num_elements >> 1); i++) {
+		const unsigned offset = ((i & 0b1) << 4) + ((i & 0b10) << 6) + ((i & 0b100) << 1);
+		const unsigned index = start_index + offset;
+		const unsigned j = i + (frag.num_elements >> 1);
+		func(i, index);
+		func(j, index);
+	}
+	__syncthreads();
+}
+
 template <class T, class Func>
 __device__ inline void load_matrix_with_operation_sync_sm75(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, const T* const ptr, const unsigned ldm, Func func) {
 	const unsigned warp_id = threadIdx.x & 0x1f;
@@ -390,6 +443,58 @@ __device__ inline void load_vector_sync_sm70(nvcuda::wmma::fragment<nvcuda::wmma
 	__syncthreads();
 }
 
+template <class Func>
+__device__ inline void foreach_sm70(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, Func func) {
+	const unsigned warp_id = threadIdx.x & 0x1f;
+	const unsigned skew = (warp_id & 0x7) + ((warp_id & 0xf) >> 3);
+	const unsigned start_index = (((warp_id >> 2) & 0b1) << 3) + ((warp_id >> 4) << 2) + ((warp_id & 0b11) << 4);
+	for (std::size_t i = 0; i < frag.num_elements; i++) {
+		const unsigned x = (i + skew) & 0xf;
+		const unsigned offset = ((x >> 2) << 6) + (x & 0b11);
+		const unsigned index = start_index + offset;
+		func(x, index);
+	}
+}
+
+template <class Func>
+__device__ inline void foreach_sm70(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::row_major>& frag, Func func) {
+	const unsigned warp_id = threadIdx.x & 0x1f;
+	const unsigned skew = (warp_id & 0xf) + (warp_id >> 4);
+	const unsigned start_index = (((warp_id >> 2) & 0b1) << 7) + ((warp_id >> 4) << 6) + ((warp_id & 0b11) << 4);
+	for (std::size_t i = 0; i < frag.num_elements; i++) {
+		const unsigned x = (i + skew) & 0xf;
+		const unsigned offset = x;
+		const unsigned index = start_index + offset;
+		func(x, index);
+	}
+}
+
+template <class Func>
+__device__ inline void foreach_sm70(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, Func func) {
+	const unsigned warp_id = threadIdx.x & 0x1f;
+	const unsigned skew = (warp_id & 0xf) + (warp_id >> 4);
+	const unsigned start_index = (((warp_id >> 3) & 0b1) << 7) + ((warp_id >> 4) << 6) + ((warp_id & 0b11) << 4);
+	for (std::size_t i = 0; i < frag.num_elements; i++) {
+		const unsigned x = (i + skew) & 0xf;
+		const unsigned offset = x;
+		const unsigned index = start_index + offset;
+		func(x, index);
+	}
+}
+
+template <class Func>
+__device__ inline void foreach_sm70(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>& frag, Func func) {
+	const unsigned warp_id = threadIdx.x & 0x1f;
+	const unsigned skew = (warp_id & 0x7) + ((warp_id & 0xf) >> 3);
+	const unsigned start_index = (((warp_id >> 3) & 0b1) << 3) + ((warp_id >> 4) << 2) + ((warp_id & 0b11) << 4);
+	for (std::size_t i = 0; i < frag.num_elements; i++) {
+		const unsigned x = (i + skew) & 0xf;
+		const unsigned offset = ((x >> 2) << 6) + (x & 0b11);
+		const unsigned index = start_index + offset;
+		func(x, index);
+	}
+}
+
 template <class T, class Func>
 __device__ inline void load_matrix_with_operation_sync_sm70(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, const T* const ptr, const unsigned ldm, Func func) {
 	const unsigned warp_id = threadIdx.x & 0x1f;
@@ -486,6 +591,15 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<MatrixType, M, N,
 	load_vector_sync_sm70(frag, ptr, mul, fill);
 #else
 	load_vector_sync_sm75(frag, ptr, mul, fill);
+#endif
+}
+
+template <class MatrixType, int M, int N, int K, class MemMajor, class Func>
+__device__ inline void foreach(nvcuda::wmma::fragment<MatrixType, M, N, K, half, MemMajor>& frag, Func func) {
+#if __CUDA_ARCH__ < 710
+	foreach_sm70(frag, func);
+#else
+	foreach_sm75(frag, func);
 #endif
 }
 
