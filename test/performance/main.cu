@@ -200,17 +200,8 @@ void test_direct_product(const unsigned size_power) {
 			const auto diff = hC[i + DIM * j] - corr;
 			base_norm += corr * corr;
 			diff_norm += diff * diff;
-			//printf("%e ", hC[i + DIM * j]);
 		}
-		//printf("\n");
 	}
-	//for (std::size_t i = 0; i < DIM ;i++) {
-	//	for (std::size_t j = 0; j < DIM; j++) {
-	//		const auto corr = __half2float(hA[i]) * __half2float(hA[j]);
-	//		printf("%e ", corr);
-	//	}
-	//	printf("\n");
-	//}
 	std::printf("%u,%u,%u,%e,%e,%e\n",
 			static_cast<unsigned>(CUDA_ARCH_SM),
 			DIM,
@@ -227,13 +218,15 @@ void test_direct_product(const unsigned size_power) {
 }
 
 void test_direct_product(const unsigned min_p, const unsigned max_p) {
+	std::printf("# %s\n", __func__);
+	std::printf("-- 1\n");
 	for (unsigned i = min_p; i <= max_p; i++) {
 		test_direct_product<false>(i);
 	}
 	for (unsigned i = min_p; i <= max_p; i++) {
 		test_direct_product<true>(i);
 	}
-	std::printf("--\n");
+	std::printf("-- 2\n");
 	for (unsigned i = min_p; i <= max_p; i++) {
 		test_direct_product<false>(i);
 	}
@@ -377,13 +370,15 @@ void test_householder(const unsigned size_power) {
 }
 
 void test_householder(const unsigned min_p, const unsigned max_p) {
+	std::printf("# %s\n", __func__);
+	std::printf("-- 1\n");
 	for (unsigned i = min_p; i <= max_p; i++) {
 		test_householder<false>(i);
 	}
 	for (unsigned i = min_p; i <= max_p; i++) {
 		test_householder<true>(i);
 	}
-	std::printf("--\n");
+	std::printf("-- 2\n");
 	for (unsigned i = min_p; i <= max_p; i++) {
 		test_householder<false>(i);
 	}
@@ -627,13 +622,15 @@ void test_matmul(const unsigned size_power) {
 }
 
 void test_matmul(const unsigned min_p, const unsigned max_p) {
+	std::printf("# %s\n", __func__);
+	std::printf("-- 1\n");
 	for (unsigned i = min_p; i <= max_p; i++) {
 		test_matmul<false>(i);
 	}
 	for (unsigned i = min_p; i <= max_p; i++) {
 		test_matmul<true>(i);
 	}
-	std::printf("--\n");
+	std::printf("-- 2\n");
 	for (unsigned i = min_p; i <= max_p; i++) {
 		test_matmul<false>(i);
 	}
@@ -643,6 +640,7 @@ void test_matmul(const unsigned min_p, const unsigned max_p) {
 }
 
 int main() {
-	//test_direct_product(8, 15);
-	test_matmul(8, 12);
+	test_householder(8, 14);
+	test_direct_product(8, 15);
+	test_matmul(8, 14);
 }
