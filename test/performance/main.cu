@@ -218,13 +218,15 @@ void test_direct_product(const unsigned size_power) {
 }
 
 void test_direct_product(const unsigned min_p, const unsigned max_p) {
+	std::printf("# %s\n", __func__);
+	std::printf("-- 1\n");
 	for (unsigned i = min_p; i <= max_p; i++) {
 		test_direct_product<false>(i);
 	}
 	for (unsigned i = min_p; i <= max_p; i++) {
 		test_direct_product<true>(i);
 	}
-	std::printf("--\n");
+	std::printf("-- 2\n");
 	for (unsigned i = min_p; i <= max_p; i++) {
 		test_direct_product<false>(i);
 	}
@@ -368,13 +370,15 @@ void test_householder(const unsigned size_power) {
 }
 
 void test_householder(const unsigned min_p, const unsigned max_p) {
+	std::printf("# %s\n", __func__);
+	std::printf("-- 1\n");
 	for (unsigned i = min_p; i <= max_p; i++) {
 		test_householder<false>(i);
 	}
 	for (unsigned i = min_p; i <= max_p; i++) {
 		test_householder<true>(i);
 	}
-	std::printf("--\n");
+	std::printf("-- 2\n");
 	for (unsigned i = min_p; i <= max_p; i++) {
 		test_householder<false>(i);
 	}
@@ -618,13 +622,15 @@ void test_matmul(const unsigned size_power) {
 }
 
 void test_matmul(const unsigned min_p, const unsigned max_p) {
+	std::printf("# %s\n", __func__);
+	std::printf("-- 1\n");
 	for (unsigned i = min_p; i <= max_p; i++) {
 		test_matmul<false>(i);
 	}
 	for (unsigned i = min_p; i <= max_p; i++) {
 		test_matmul<true>(i);
 	}
-	std::printf("--\n");
+	std::printf("-- 2\n");
 	for (unsigned i = min_p; i <= max_p; i++) {
 		test_matmul<false>(i);
 	}
