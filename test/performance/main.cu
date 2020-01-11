@@ -640,6 +640,7 @@ void test_matmul(const unsigned min_p, const unsigned max_p) {
 }
 
 int main() {
-	//test_direct_product(8, 15);
-	test_matmul(8, 12);
+	test_householder(8, 14);
+	test_direct_product(8, 15);
+	test_matmul(8, 14);
 }
