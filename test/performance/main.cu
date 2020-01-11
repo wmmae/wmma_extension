@@ -200,17 +200,8 @@ void test_direct_product(const unsigned size_power) {
 			const auto diff = hC[i + DIM * j] - corr;
 			base_norm += corr * corr;
 			diff_norm += diff * diff;
-			//printf("%e ", hC[i + DIM * j]);
 		}
-		//printf("\n");
 	}
-	//for (std::size_t i = 0; i < DIM ;i++) {
-	//	for (std::size_t j = 0; j < DIM; j++) {
-	//		const auto corr = __half2float(hA[i]) * __half2float(hA[j]);
-	//		printf("%e ", corr);
-	//	}
-	//	printf("\n");
-	//}
 	std::printf("%u,%u,%u,%e,%e,%e\n",
 			static_cast<unsigned>(CUDA_ARCH_SM),
 			DIM,
