@@ -446,10 +446,8 @@ __device__ inline void load_vector_sync_sm70(nvcuda::wmma::fragment<nvcuda::wmma
 template <class Func>
 __device__ inline void foreach_sm70(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, Func func) {
 	const unsigned warp_id = threadIdx.x & 0x1f;
-	const unsigned skew = (warp_id & 0x7) + ((warp_id & 0xf) >> 3);
 	const unsigned start_index = (((warp_id >> 2) & 0b1) << 3) + ((warp_id >> 4) << 2) + ((warp_id & 0b11) << 4);
-	for (std::size_t i = 0; i < frag.num_elements; i++) {
-		const unsigned x = (i + skew) & 0xf;
+	for (std::size_t x = 0; x < frag.num_elements; x++) {
 		const unsigned offset = ((x >> 2) << 6) + (x & 0b11);
 		const unsigned index = start_index + offset;
 		func(x, index);
@@ -459,10 +457,8 @@ __device__ inline void foreach_sm70(nvcuda::wmma::fragment<nvcuda::wmma::matrix_
 template <class Func>
 __device__ inline void foreach_sm70(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::row_major>& frag, Func func) {
 	const unsigned warp_id = threadIdx.x & 0x1f;
-	const unsigned skew = (warp_id & 0xf) + (warp_id >> 4);
 	const unsigned start_index = (((warp_id >> 2) & 0b1) << 7) + ((warp_id >> 4) << 6) + ((warp_id & 0b11) << 4);
-	for (std::size_t i = 0; i < frag.num_elements; i++) {
-		const unsigned x = (i + skew) & 0xf;
+	for (std::size_t x = 0; x < frag.num_elements; x++) {
 		const unsigned offset = x;
 		const unsigned index = start_index + offset;
 		func(x, index);
@@ -472,10 +468,8 @@ __device__ inline void foreach_sm70(nvcuda::wmma::fragment<nvcuda::wmma::matrix_
 template <class Func>
 __device__ inline void foreach_sm70(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, Func func) {
 	const unsigned warp_id = threadIdx.x & 0x1f;
-	const unsigned skew = (warp_id & 0xf) + (warp_id >> 4);
 	const unsigned start_index = (((warp_id >> 3) & 0b1) << 7) + ((warp_id >> 4) << 6) + ((warp_id & 0b11) << 4);
-	for (std::size_t i = 0; i < frag.num_elements; i++) {
-		const unsigned x = (i + skew) & 0xf;
+	for (std::size_t x = 0; x < frag.num_elements; x++) {
 		const unsigned offset = x;
 		const unsigned index = start_index + offset;
 		func(x, index);
@@ -485,10 +479,8 @@ __device__ inline void foreach_sm70(nvcuda::wmma::fragment<nvcuda::wmma::matrix_
 template <class Func>
 __device__ inline void foreach_sm70(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>& frag, Func func) {
 	const unsigned warp_id = threadIdx.x & 0x1f;
-	const unsigned skew = (warp_id & 0x7) + ((warp_id & 0xf) >> 3);
 	const unsigned start_index = (((warp_id >> 3) & 0b1) << 3) + ((warp_id >> 4) << 2) + ((warp_id & 0b11) << 4);
-	for (std::size_t i = 0; i < frag.num_elements; i++) {
-		const unsigned x = (i + skew) & 0xf;
+	for (std::size_t x = 0; x < frag.num_elements; x++) {
 		const unsigned offset = ((x >> 2) << 6) + (x & 0b11);
 		const unsigned index = start_index + offset;
 		func(x, index);
