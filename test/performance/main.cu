@@ -39,10 +39,10 @@ __device__ void fill16x16(T* const dst_ptr, const T v, const unsigned unique_id)
 }
 
 template <bool UseWMMAe>
-__global__ void direct_product16x16(float* const c_ptr, const half* const a_ptr, const half* const b_ptr, unsigned dim);
+__global__ void direct_product(float* const c_ptr, const half* const a_ptr, const half* const b_ptr, unsigned dim);
 
 template <>
-__global__ void direct_product16x16<true>(float* const c_ptr, const half* const a_ptr, const half* const b_ptr, unsigned dim) {
+__global__ void direct_product<true>(float* const c_ptr, const half* const a_ptr, const half* const b_ptr, unsigned dim) {
 	constexpr unsigned FDIM = 16;
 	__shared__ half A_smem[warp_size];
 	__shared__ half B_smem[block_size];
@@ -95,7 +95,7 @@ __global__ void direct_product16x16<true>(float* const c_ptr, const half* const 
 }
 
 template <>
-__global__ void direct_product16x16<false>(float* const c_ptr, const half* const a_ptr, const half* const b_ptr, unsigned dim) {
+__global__ void direct_product<false>(float* const c_ptr, const half* const a_ptr, const half* const b_ptr, unsigned dim) {
 	constexpr unsigned FDIM = 16;
 	__shared__ half B_smem[block_size * FDIM];
 	half* const A_smem = B_smem;
@@ -176,7 +176,7 @@ void test_direct_product(const unsigned size_power) {
 
 	const auto start_clock = std::chrono::system_clock::now();
 	for (std::size_t c = 0; c < C; c++) {
-		direct_product16x16<UseWMMAe><<<grid_size, block_size>>>(
+		direct_product<UseWMMAe><<<grid_size, block_size>>>(
 				dC,
 				dA,
 				dB,
