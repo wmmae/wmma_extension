@@ -9,4 +9,4 @@ all: batched_direct_product.test direct_product.test
 	$(NVCC) $(NVCCFLAGS) -o $@ $<
 
 clean:
-	rm -f $(TARGET)
+	rm -f *.test

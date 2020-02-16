@@ -9,4 +9,4 @@ all: matmul.test
 	$(NVCC) $(NVCCFLAGS) -o $@ $<
 
 clean:
-	rm -f $(TARGET)
+	rm -f *.test
