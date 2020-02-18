@@ -11,33 +11,6 @@ constexpr unsigned warp_size = 32;
 #define CUDA_ARCH_SM 0
 #endif
 
-//#define KERNEL_BREAKDOWN
-
-template <class T>
-__device__ void copy16x16(T* const dst_ptr, const T* const src_ptr, const unsigned unique_id) {
-	constexpr unsigned dim = 16;
-	for (unsigned i = 0; i < dim; i+= (warp_size / dim)) {
-		dst_ptr[i * dim + unique_id] = src_ptr[i * dim + unique_id];
-	}
-}
-
-template <class T>
-__device__ void copy16(T* const dst_ptr, const T* const src_ptr, const unsigned unique_id) {
-	constexpr unsigned dim = 16;
-	if (unique_id < dim) {
-		dst_ptr[unique_id] = src_ptr[unique_id];
-	}
-}
-
-template <class T>
-__device__ void fill16x16(T* const dst_ptr, const T v, const unsigned unique_id) {
-	constexpr unsigned DIM = 16;
-	constexpr unsigned warp_size = 32;
-	for (unsigned i = 0; i < DIM; i+= (warp_size / DIM)) {
-		dst_ptr[i * DIM + unique_id] = v;
-	}
-}
-
 template <bool UseWMMAe>
 __global__ void batched_direct_product_16x16(float* const c_ptr, const half* const u_ptr);
 
