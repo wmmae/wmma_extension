@@ -4,7 +4,7 @@ This extension provides a function for
 - making identity matrix fragment
 - loading matrix with operation
 
-without using shared memory.
+without using extra shared memory.
 
 ## Required
 - CUDA (9.2 or later)
@@ -31,7 +31,7 @@ __global__ void kernel() {
 
 ## Implemented functions
 ### load_vector_sync
-![load_matrix](https://gitlab.momo86.net/mutsuki/wmma-extension/raw/master/docs/load_matrix.svg)
+![load_matrix](docs/load_vector-en.svg)
 - Arguments
   - dst_fragment : Destination fragment (matrix_a / matrix_b, (16, 16, 16), half / float, col_major / row_major)
   - src_pointer  : Source pointer (No alignment restriction)
@@ -43,7 +43,7 @@ __shared__ compute_t matrix[16 * 16];
 mtk::wmma::load_matrix_with_operation_sync(
 		frag,
 		matrix,
-		[](const unsigned index, const compute_t value) {return static_cast<half>(value * 2.0f);}
+		[](const unsigned index, const compute_t value) -> half {return static_cast<half>(value * 2.0f);}
 	);
 ```
 - Arguments
@@ -52,8 +52,10 @@ mtk::wmma::load_matrix_with_operation_sync(
   - func         : Element-wise function. Return type has to be `half`.
 
 ### make_identity_matrix
+![load_matrix](docs/make_identity-en.svg)
 - Arguments
   - dst_fragment : Destination fragment (accumulator, (16, 16, 16), half / float)
+  - alpha : diagonal element
 
 ### fill_zero
 - Argument
