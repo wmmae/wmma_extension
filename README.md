@@ -43,7 +43,7 @@ __shared__ compute_t matrix[16 * 16];
 mtk::wmma::load_matrix_with_operation_sync(
 		frag,
 		matrix,
-		[](const unsigned index, const compute_t value) {return static_cast<half>(value * 2.0f);}
+		[](const unsigned index, const compute_t value) -> half {return static_cast<half>(value * 2.0f);}
 	);
 ```
 - Arguments
