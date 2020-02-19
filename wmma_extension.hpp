@@ -3,7 +3,7 @@
 #include <mma.h>
 
 namespace mtk {
-namespace sm_wmma {
+namespace detail {
 namespace utils {
 template <class T> inline __device__ T cast(const float v);
 template <class T> inline __device__ T cast(const half v);
@@ -558,45 +558,45 @@ namespace wmma {
 template <class MatrixType, int M, int N, int K, class MemMajor, class T>
 __device__ inline void load_vector_sync(nvcuda::wmma::fragment<MatrixType, M, N, K, half, MemMajor>& frag, const T* const ptr, const bool fill = true) {
 #if __CUDA_ARCH__ < 710
-	sm_wmma::load_vector_sync_sm70(frag, ptr, fill);
+	detail::load_vector_sync_sm70(frag, ptr, fill);
 #else
-	sm_wmma::load_vector_sync_sm75(frag, ptr, fill);
+	detail::load_vector_sync_sm75(frag, ptr, fill);
 #endif
 }
 
 template <class MatrixType, int M, int N, int K, class MemMajor, class T>
 __device__ inline void load_vector_sync(nvcuda::wmma::fragment<MatrixType, M, N, K, half, MemMajor>& frag, const T* const ptr, const T mul, const bool fill = true) {
 #if __CUDA_ARCH__ < 710
-	sm_wmma::load_vector_sync_sm70(frag, ptr, mul, fill);
+	detail::load_vector_sync_sm70(frag, ptr, mul, fill);
 #else
-	sm_wmma::load_vector_sync_sm75(frag, ptr, mul, fill);
+	detail::load_vector_sync_sm75(frag, ptr, mul, fill);
 #endif
 }
 
 template <class MatrixType, int M, int N, int K, class MemMajor, class Func>
 __device__ inline void foreach(nvcuda::wmma::fragment<MatrixType, M, N, K, half, MemMajor>& frag, Func func) {
 #if __CUDA_ARCH__ < 710
-	sm_wmma::foreach_sm70(frag, func);
+	detail::foreach_sm70(frag, func);
 #else
-	sm_wmma::foreach_sm75(frag, func);
+	detail::foreach_sm75(frag, func);
 #endif
 }
 
 template <class MatrixType, int M, int N, int K, class MemMajor, class T, class Func>
 __device__ inline void load_matrix_with_operation_sync(nvcuda::wmma::fragment<MatrixType, M, N, K, half, MemMajor>& frag, const T* const ptr, unsigned ldm, Func func) {
 #if __CUDA_ARCH__ < 710
-	sm_wmma::load_matrix_with_operation_sync_sm70(frag, ptr, ldm, func);
+	detail::load_matrix_with_operation_sync_sm70(frag, ptr, ldm, func);
 #else
-	sm_wmma::load_matrix_with_operation_sync_sm75(frag, ptr, ldm, func);
+	detail::load_matrix_with_operation_sync_sm75(frag, ptr, ldm, func);
 #endif
 }
 
 template <class T>
 __device__ inline void make_identity_matrix(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag) {
 #if __CUDA_ARCH__ < 710
-	sm_wmma::make_identity_matrix_sm70(frag);
+	detail::make_identity_matrix_sm70(frag);
 #else
-	sm_wmma::make_identity_matrix_sm75(frag);
+	detail::make_identity_matrix_sm75(frag);
 #endif
 }
 } // namespace wmma
