@@ -13,6 +13,7 @@ template <> inline __device__ half cast(const float v){return __float2half(v);}
 template <> inline __device__ half cast(const half v){return v;}
 } // namespace utils
 
+namespace wmma {
 // Common for sm_70 and sm_75
 template <class Use, int M, int N, int K, class Layout>
 __device__ inline void fill_zero(nvcuda::wmma::fragment<Use, M, N, K, float, Layout>& frag) {
@@ -30,7 +31,7 @@ __device__ inline void fill_zero(nvcuda::wmma::fragment<Use, M, N, K, half, Layo
 		i4[i] = make_int4(0, 0, 0, 0);
 	}
 }
-
+} // namespace wmma
 
 // For sm75
 template <class T>
