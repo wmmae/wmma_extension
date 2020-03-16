@@ -3,16 +3,6 @@
 #include <mma.h>
 
 namespace mtk {
-namespace detail {
-namespace utils {
-template <class T> inline __device__ T cast(const float v);
-template <class T> inline __device__ T cast(const half v);
-template <> inline __device__ float cast(const float v){return v;}
-template <> inline __device__ float cast(const half v){return __half2float(v);}
-template <> inline __device__ half cast(const float v){return __float2half(v);}
-template <> inline __device__ half cast(const half v){return v;}
-} // namespace utils
-
 namespace wmma {
 // Common for sm_70 and sm_75
 template <class Use, int M, int N, int K, class Layout>
@@ -32,6 +22,16 @@ __device__ inline void fill_zero(nvcuda::wmma::fragment<Use, M, N, K, half, Layo
 	}
 }
 } // namespace wmma
+
+namespace detail {
+namespace utils {
+template <class T> inline __device__ T cast(const float v);
+template <class T> inline __device__ T cast(const half v);
+template <> inline __device__ float cast(const float v){return v;}
+template <> inline __device__ float cast(const half v){return __half2float(v);}
+template <> inline __device__ half cast(const float v){return __float2half(v);}
+template <> inline __device__ half cast(const half v){return v;}
+} // namespace utils
 
 // For sm75
 template <class T>
