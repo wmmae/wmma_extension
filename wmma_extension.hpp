@@ -660,8 +660,8 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<MatrixType, M, N,
 #endif
 }
 
-template <class MatrixType, int M, int N, int K, class MemMajor, class T>
-__device__ inline void store_vector_sync(const T* const ptr, nvcuda::wmma::fragment<MatrixType, M, N, K, half, MemMajor>& frag, const nvcuda::wmma::layout_t layout) {
+template <int M, int N, int K, class T>
+__device__ inline void store_vector_sync(T* const ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, T>& frag, const nvcuda::wmma::layout_t layout) {
 #if __CUDA_ARCH__ < 710
 	detail::store_vector_sync_sm70(ptr, frag, layout);
 #else
@@ -669,8 +669,8 @@ __device__ inline void store_vector_sync(const T* const ptr, nvcuda::wmma::fragm
 #endif
 }
 
-template <class MatrixType, int M, int N, int K, class MemMajor, class T>
-__device__ inline void store_vector_sync(const T* const ptr, nvcuda::wmma::fragment<MatrixType, M, N, K, half, MemMajor>& frag, const T mul, const nvcuda::wmma::layout_t layout) {
+template <int M, int N, int K, class T>
+__device__ inline void store_vector_sync(T* const ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, T>& frag, const T mul, const nvcuda::wmma::layout_t layout) {
 #if __CUDA_ARCH__ < 710
 	detail::store_vector_sync_sm70(ptr, frag, mul, layout);
 #else
