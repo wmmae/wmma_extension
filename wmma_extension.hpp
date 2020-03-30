@@ -180,7 +180,7 @@ template <class T>
 __device__ inline void store_vector_sync_sm75(T* const ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag, const nvcuda::wmma::layout_t layout) {
 	const auto tid = threadIdx.x & 0x1f;
 	if (layout == nvcuda::wmma::mem_col_major) {
-		if (tid & 0x3 == 0) {
+		if ((tid & 0x3) == 0) {
 			const auto mem_index = tid >> 2;
 			ptr[mem_index + 0] = frag.x[0];
 			ptr[mem_index + 8] = frag.x[2];
@@ -200,7 +200,7 @@ template <class T>
 __device__ inline void store_vector_sync_sm75(T* const ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag, const T mul, const nvcuda::wmma::layout_t layout) {
 	const auto tid = threadIdx.x & 0x1f;
 	if (layout == nvcuda::wmma::mem_col_major) {
-		if (tid & 0x3 == 0) {
+		if ((tid & 0x3) == 0) {
 			const auto mem_index = tid >> 2;
 			ptr[mem_index + 0] = frag.x[0] * mul;
 			ptr[mem_index + 8] = frag.x[2] * mul;
