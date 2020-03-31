@@ -36,6 +36,13 @@ __global__ void kernel() {
   - dst_fragment : Destination fragment (`nvcuda::wmma::matrix_a` / `nvcuda::wmma::matrix_b`, (16, 16, 16), `half`, `nvcuda::wmma::col_major` / `nvcuda::wmma::row_major`)
   - src_pointer  : Source pointer (No alignment restriction)
 
+### store_vector_sync
+![store_matrix](docs/store_vector-en.svg)
+- Arguments
+  - dst_pointer  : Destination pointer (No alignment restriction)
+  - src_fragment : Source fragment (`nvcuda::wmma::accumulator` , (16, 16, 16), `half` / `float`)
+  - layout       : `nvcuda::wmma::mem_col_major` / `nvcuda::wmma::mem_row_major`
+
 ### load_matrix_with_operation_sync
 ```cuda
 nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major> frag_b;
