@@ -480,6 +480,11 @@ template <class T>
 __device__ inline void store_vector_sync_sm70(T* const ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag, const nvcuda::wmma::layout_t layout) {
 	const auto tid = threadIdx.x & 0x1f;
 	if (layout == nvcuda::wmma::mem_col_major) {
+		if (!(tid & 0b01000)) {
+			const auto mem_index = ((tid & 0b10000) >> 2) + (tid & 0x3) + ((tid & 0x4) << 1);
+			ptr[mem_index + 0] = frag.x[0];
+		}
+	} else {
 		if (tid == 0 || tid == 8) {
 			const auto mem_index = tid;
 			ptr[mem_index + 0] = frag.x[0];
@@ -503,6 +508,11 @@ template <class T>
 __device__ inline void store_vector_sync_sm70(T* const ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag, const T mul, const nvcuda::wmma::layout_t layout) {
 	const auto tid = threadIdx.x & 0x1f;
 	if (layout == nvcuda::wmma::mem_col_major) {
+		if (!(tid & 0b01000)) {
+			const auto mem_index = ((tid & 0b10000) >> 2) + (tid & 0x3) + ((tid & 0x4) << 1);
+			ptr[mem_index + 0] = frag.x[0] * mul;
+		}
+	} else {
 		if (tid == 0 || tid == 8) {
 			const auto mem_index = tid;
 			ptr[mem_index + 0] = frag.x[0] * mul;
