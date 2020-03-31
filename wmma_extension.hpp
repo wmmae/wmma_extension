@@ -496,10 +496,26 @@ __device__ inline void store_vector_sync_sm70(T* const ptr, nvcuda::wmma::fragme
 			ptr[mem_index + 6] = frag.x[6];
 			ptr[mem_index + 7] = frag.x[7];
 		}
-	} else {
-		if (!(tid & 0b01000)) {
-			const auto mem_index = ((tid & 0b10000) >> 2) + (tid & 0x3) + ((tid & 0x4) << 1);
+	}
+}
+
+// partial specialization
+template <>
+__device__ inline void store_vector_sync_sm70<float>(float* const ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, float>& frag, const nvcuda::wmma::layout_t layout) {
+	const auto tid = threadIdx.x & 0x1f;
+	if (layout == nvcuda::wmma::mem_col_major) {
+		if (!(tid & 0b10) && !(tid & 0b1000)) {
+			const auto mem_index = ((tid & 0b10000) >> 2) + (tid & 0b1) + ((tid & 0b100) << 1);
 			ptr[mem_index + 0] = frag.x[0];
+			ptr[mem_index + 2] = frag.x[2];
+		}
+	} else {
+		if (!(tid & 0b1) && !(tid & 0b10000) && !(tid & 0b100)) {
+			const auto mem_index = tid;
+			ptr[mem_index + 0] = frag.x[0];
+			ptr[mem_index + 1] = frag.x[1];
+			ptr[mem_index + 4] = frag.x[4];
+			ptr[mem_index + 5] = frag.x[5];
 		}
 	}
 }
@@ -524,10 +540,26 @@ __device__ inline void store_vector_sync_sm70(T* const ptr, nvcuda::wmma::fragme
 			ptr[mem_index + 6] = frag.x[6] * mul;
 			ptr[mem_index + 7] = frag.x[7] * mul;
 		}
-	} else {
-		if (!(tid & 0b01000)) {
-			const auto mem_index = ((tid & 0b10000) >> 2) + (tid & 0x3) + ((tid & 0x4) << 1);
+	}
+}
+
+// partial specialization
+template <>
+__device__ inline void store_vector_sync_sm70<float>(float* const ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, float>& frag, const float mul, const nvcuda::wmma::layout_t layout) {
+	const auto tid = threadIdx.x & 0x1f;
+	if (layout == nvcuda::wmma::mem_col_major) {
+		if (!(tid & 0b10) && !(tid & 0b1000)) {
+			const auto mem_index = ((tid & 0b10000) >> 2) + (tid & 0b1) + ((tid & 0b100) << 1);
 			ptr[mem_index + 0] = frag.x[0] * mul;
+			ptr[mem_index + 2] = frag.x[2] * mul;
+		}
+	} else {
+		if (!(tid & 0b1) && !(tid & 0b10000) && !(tid & 0b100)) {
+			const auto mem_index = tid;
+			ptr[mem_index + 0] = frag.x[0] * mul;
+			ptr[mem_index + 1] = frag.x[1] * mul;
+			ptr[mem_index + 4] = frag.x[4] * mul;
+			ptr[mem_index + 5] = frag.x[5] * mul;
 		}
 	}
 }
