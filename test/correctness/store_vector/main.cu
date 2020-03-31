@@ -3,11 +3,11 @@
 #include <wmma_extension.hpp>
 
 template <class T, class S>
-T convert(const S);
-template <> float convert<float, float>(const float a) {return a;}
-template <> float convert<float, half >(const half  a) {return __half2float(a);}
-template <> half  convert<half , float>(const float a) {return __float2half(a);}
-template <> half  convert<half , half >(const half  a) {return a;}
+__device__ __host__ T convert(const S);
+template <> __device__ __host__ float convert<float, float>(const float a) {return a;}
+template <> __device__ __host__ float convert<float, half >(const half  a) {return __half2float(a);}
+template <> __device__ __host__ half  convert<half , float>(const float a) {return __float2half(a);}
+template <> __device__ __host__ half  convert<half , half >(const half  a) {return a;}
 
 template <class T>
 __global__ void test_load_vector_kernel(
