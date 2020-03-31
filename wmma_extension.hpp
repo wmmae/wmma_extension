@@ -176,6 +176,46 @@ __device__ inline void load_vector_sync_sm75(nvcuda::wmma::fragment<nvcuda::wmma
 	__syncthreads();
 }
 
+template <class T>
+__device__ inline void store_vector_sync_sm75(T* const ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag, const nvcuda::wmma::layout_t layout) {
+	const auto tid = threadIdx.x & 0x1f;
+	if (layout == nvcuda::wmma::mem_col_major) {
+		if ((tid & 0x3) == 0) {
+			const auto mem_index = tid >> 2;
+			ptr[mem_index + 0] = frag.x[0];
+			ptr[mem_index + 8] = frag.x[2];
+		}
+	} else {
+		if (!(tid & 0b11100)) {
+			const auto mem_index = tid << 1;
+			ptr[mem_index + 0] = frag.x[0];
+			ptr[mem_index + 1] = frag.x[1];
+			ptr[mem_index + 8] = frag.x[4];
+			ptr[mem_index + 9] = frag.x[5];
+		}
+	}
+}
+
+template <class T>
+__device__ inline void store_vector_sync_sm75(T* const ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag, const T mul, const nvcuda::wmma::layout_t layout) {
+	const auto tid = threadIdx.x & 0x1f;
+	if (layout == nvcuda::wmma::mem_col_major) {
+		if ((tid & 0x3) == 0) {
+			const auto mem_index = tid >> 2;
+			ptr[mem_index + 0] = frag.x[0] * mul;
+			ptr[mem_index + 8] = frag.x[2] * mul;
+		}
+	} else {
+		if (!(tid & 0b11100)) {
+			const auto mem_index = tid << 1;
+			ptr[mem_index + 0] = frag.x[0] * mul;
+			ptr[mem_index + 1] = frag.x[1] * mul;
+			ptr[mem_index + 8] = frag.x[4] * mul;
+			ptr[mem_index + 9] = frag.x[5] * mul;
+		}
+	}
+}
+
 template <class Func>
 __device__ inline void foreach_sm75(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, Func func) {
 	const unsigned warp_id = threadIdx.x & 0x1f;
@@ -436,6 +476,94 @@ __device__ inline void load_vector_sync_sm70(nvcuda::wmma::fragment<nvcuda::wmma
 	__syncthreads();
 }
 
+template <class T>
+__device__ inline void store_vector_sync_sm70(T* const ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag, const nvcuda::wmma::layout_t layout) {
+	const auto tid = threadIdx.x & 0x1f;
+	if (layout == nvcuda::wmma::mem_col_major) {
+		if (!(tid & 0b01000)) {
+			const auto mem_index = ((tid & 0b10000) >> 2) + (tid & 0x3) + ((tid & 0x4) << 1);
+			ptr[mem_index + 0] = frag.x[0];
+		}
+	} else {
+		if (tid == 0 || tid == 8) {
+			const auto mem_index = tid;
+			ptr[mem_index + 0] = frag.x[0];
+			ptr[mem_index + 1] = frag.x[1];
+			ptr[mem_index + 2] = frag.x[2];
+			ptr[mem_index + 3] = frag.x[3];
+			ptr[mem_index + 4] = frag.x[4];
+			ptr[mem_index + 5] = frag.x[5];
+			ptr[mem_index + 6] = frag.x[6];
+			ptr[mem_index + 7] = frag.x[7];
+		}
+	}
+}
+
+// partial specialization
+template <>
+__device__ inline void store_vector_sync_sm70<float>(float* const ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, float>& frag, const nvcuda::wmma::layout_t layout) {
+	const auto tid = threadIdx.x & 0x1f;
+	if (layout == nvcuda::wmma::mem_col_major) {
+		if (!(tid & 0b10) && !(tid & 0b1000)) {
+			const auto mem_index = ((tid & 0b10000) >> 2) + (tid & 0b1) + ((tid & 0b100) << 1);
+			ptr[mem_index + 0] = frag.x[0];
+			ptr[mem_index + 2] = frag.x[2];
+		}
+	} else {
+		if (!(tid & 0b1) && !(tid & 0b10000) && !(tid & 0b100)) {
+			const auto mem_index = tid;
+			ptr[mem_index + 0] = frag.x[0];
+			ptr[mem_index + 1] = frag.x[1];
+			ptr[mem_index + 4] = frag.x[4];
+			ptr[mem_index + 5] = frag.x[5];
+		}
+	}
+}
+
+template <class T>
+__device__ inline void store_vector_sync_sm70(T* const ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag, const T mul, const nvcuda::wmma::layout_t layout) {
+	const auto tid = threadIdx.x & 0x1f;
+	if (layout == nvcuda::wmma::mem_col_major) {
+		if (!(tid & 0b01000)) {
+			const auto mem_index = ((tid & 0b10000) >> 2) + (tid & 0x3) + ((tid & 0x4) << 1);
+			ptr[mem_index + 0] = frag.x[0] * mul;
+		}
+	} else {
+		if (tid == 0 || tid == 8) {
+			const auto mem_index = tid;
+			ptr[mem_index + 0] = frag.x[0] * mul;
+			ptr[mem_index + 1] = frag.x[1] * mul;
+			ptr[mem_index + 2] = frag.x[2] * mul;
+			ptr[mem_index + 3] = frag.x[3] * mul;
+			ptr[mem_index + 4] = frag.x[4] * mul;
+			ptr[mem_index + 5] = frag.x[5] * mul;
+			ptr[mem_index + 6] = frag.x[6] * mul;
+			ptr[mem_index + 7] = frag.x[7] * mul;
+		}
+	}
+}
+
+// partial specialization
+template <>
+__device__ inline void store_vector_sync_sm70<float>(float* const ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, float>& frag, const float mul, const nvcuda::wmma::layout_t layout) {
+	const auto tid = threadIdx.x & 0x1f;
+	if (layout == nvcuda::wmma::mem_col_major) {
+		if (!(tid & 0b10) && !(tid & 0b1000)) {
+			const auto mem_index = ((tid & 0b10000) >> 2) + (tid & 0b1) + ((tid & 0b100) << 1);
+			ptr[mem_index + 0] = frag.x[0] * mul;
+			ptr[mem_index + 2] = frag.x[2] * mul;
+		}
+	} else {
+		if (!(tid & 0b1) && !(tid & 0b10000) && !(tid & 0b100)) {
+			const auto mem_index = tid;
+			ptr[mem_index + 0] = frag.x[0] * mul;
+			ptr[mem_index + 1] = frag.x[1] * mul;
+			ptr[mem_index + 4] = frag.x[4] * mul;
+			ptr[mem_index + 5] = frag.x[5] * mul;
+		}
+	}
+}
+
 template <class Func>
 __device__ inline void foreach_sm70(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, Func func) {
 	const unsigned warp_id = threadIdx.x & 0x1f;
@@ -571,6 +699,24 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<MatrixType, M, N,
 	detail::load_vector_sync_sm70(frag, ptr, mul, fill);
 #else
 	detail::load_vector_sync_sm75(frag, ptr, mul, fill);
+#endif
+}
+
+template <int M, int N, int K, class T>
+__device__ inline void store_vector_sync(T* const ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, T>& frag, const nvcuda::wmma::layout_t layout) {
+#if __CUDA_ARCH__ < 710
+	detail::store_vector_sync_sm70(ptr, frag, layout);
+#else
+	detail::store_vector_sync_sm75(ptr, frag, layout);
+#endif
+}
+
+template <int M, int N, int K, class T>
+__device__ inline void store_vector_sync(T* const ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, T>& frag, const T mul, const nvcuda::wmma::layout_t layout) {
+#if __CUDA_ARCH__ < 710
+	detail::store_vector_sync_sm70(ptr, frag, mul, layout);
+#else
+	detail::store_vector_sync_sm75(ptr, frag, mul, layout);
 #endif
 }
 
