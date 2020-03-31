@@ -1,5 +1,13 @@
 #include <iostream>
+#include <type_traits>
 #include <wmma_extension.hpp>
+
+template <class T, class S>
+T convert(const S);
+template <> float convert<float, float>(const float a) {return a;}
+template <> float convert<float, half >(const half  a) {return __half2float(a);}
+template <> half  convert<half , float>(const float a) {return __float2half(a);}
+template <> half  convert<half , half >(const half  a) {return a;}
 
 template <class T>
 __global__ void test_load_vector_kernel(
@@ -7,11 +15,12 @@ __global__ void test_load_vector_kernel(
 		const T* const src,
 		const nvcuda::wmma::layout_t layout
 		) {
-	nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, float> frag_c;
+	nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T> frag_c;
 	nvcuda::wmma::load_matrix_sync(frag_c, src, 16, layout);
 	mtk::wmma::store_vector_sync(dst, frag_c, layout);
 }
 
+template <class T>
 void test(const nvcuda::wmma::layout_t layout) {
 	std::printf("-- store_vector test --\n");
 	if (layout == nvcuda::wmma::mem_col_major) {
@@ -19,26 +28,33 @@ void test(const nvcuda::wmma::layout_t layout) {
 	} else {
 		std::printf("layout : row_major\n");
 	}
-	float* src_mem;
-	float* dst_mem;
+	if (std::is_same<float, T>::value)
+		std::printf("type   : float\n");
+	if (std::is_same<half, T>::value)
+		std::printf("type   : half\n");
+	T* src_mem;
+	T* dst_mem;
 
-	cudaMallocHost(&src_mem, 16 * 16 * sizeof(float));
-	cudaMallocHost(&dst_mem, 16 * sizeof(float));
+	cudaMallocHost(&src_mem, 16 * 16 * sizeof(T));
+	cudaMallocHost(&dst_mem, 16 * sizeof(T));
 
 	for (std::size_t i = 0; i < 16 * 16; i++) {
-		src_mem[i] = i;
+			src_mem[i] = convert<T, float>(i);
 	}
 
+	cudaDeviceSynchronize();
 	test_load_vector_kernel<<<1, 32>>>(dst_mem, src_mem, layout);
 	cudaDeviceSynchronize();
 
 	for (std::size_t i = 0; i < 16; i++) {
-		std::printf("%3.1f ", dst_mem[i]);
+		std::printf("%3.1f ", convert<float, T>(dst_mem[i]));
 	}
 	std::printf("\n");
 }
 
 int main() {
-	test(nvcuda::wmma::mem_col_major);
-	test(nvcuda::wmma::mem_row_major);
+	test<float>(nvcuda::wmma::mem_row_major);
+	test<float>(nvcuda::wmma::mem_col_major);
+	test<half >(nvcuda::wmma::mem_row_major);
+	test<half >(nvcuda::wmma::mem_col_major);
 }
