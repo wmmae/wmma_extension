@@ -10,7 +10,7 @@ template <> __device__ __host__ half  convert<half , float>(const float a) {retu
 template <> __device__ __host__ half  convert<half , half >(const half  a) {return a;}
 
 template <class T>
-__global__ void test_load_vector_kernel(
+__global__ void test_store_vector_kernel(
 		T* const dst,
 		const T* const src,
 		const nvcuda::wmma::layout_t layout
@@ -43,7 +43,7 @@ void test(const nvcuda::wmma::layout_t layout) {
 	}
 
 	cudaDeviceSynchronize();
-	test_load_vector_kernel<<<1, 32>>>(dst_mem, src_mem, layout);
+	test_store_vector_kernel<<<1, 32>>>(dst_mem, src_mem, layout);
 	cudaDeviceSynchronize();
 
 	for (std::size_t i = 0; i < 16; i++) {
