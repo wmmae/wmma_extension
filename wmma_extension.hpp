@@ -1,6 +1,7 @@
 #ifndef __WMMA_EXTENSION_HPP__
 #define __WMMA_EXTENSION_HPP__
 #include <mma.h>
+#include <stdio.h>
 
 namespace mtk {
 namespace wmma {
