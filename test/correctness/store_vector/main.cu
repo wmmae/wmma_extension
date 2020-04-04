@@ -2,6 +2,10 @@
 #include <type_traits>
 #include <wmma_extension.hpp>
 
+#ifndef TEST_ARCH
+#define TEST_ARCH (-1)
+#endif
+
 template <class T, class S>
 __device__ __host__ T convert(const S);
 template <> __device__ __host__ float convert<float, float>(const float a) {return a;}
@@ -23,6 +27,7 @@ __global__ void test_store_vector_kernel(
 template <class T>
 void test(const nvcuda::wmma::layout_t layout) {
 	std::printf("-- store_vector test --\n");
+	std::printf("arch   : %d\n", TEST_ARCH);
 	if (layout == nvcuda::wmma::mem_col_major) {
 		std::printf("layout : col_major\n");
 	} else {
