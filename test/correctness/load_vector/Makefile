@@ -1,7 +1,7 @@
-TEST_ARCH=75
+TEST_ARCH=70
 NVCC=nvcc
-NVCCFLAGS=-std=c++11 -I../../../ -arch=sm_$(TEST_ARCH)  -DTEST_ARCH=$(TEST_ARCH)
-TARGET=store_vector-test
+NVCCFLAGS=-std=c++11 -I../../../ -arch=sm_$(TEST_ARCH) -DTEST_ARCH=$(TEST_ARCH)
+TARGET=load_vector-test
 
 
 $(TARGET) : main.cu ../../../wmma_extension.hpp Makefile

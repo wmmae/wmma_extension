@@ -2,6 +2,10 @@
 #include <type_traits>
 #include <wmma_extension.hpp>
 
+#ifndef TEST_ARCH
+#define TEST_ARCH (-1)
+#endif
+
 template <class T, class S>
 __device__ __host__ T convert(const S);
 template <> __device__ __host__ float convert<float, float>(const float a) {return a;}
@@ -10,7 +14,7 @@ template <> __device__ __host__ half  convert<half , float>(const float a) {retu
 template <> __device__ __host__ half  convert<half , half >(const half  a) {return a;}
 
 template <class T>
-__global__ void test_load_vector_kernel(
+__global__ void test_store_vector_kernel(
 		T* const dst,
 		const T* const src,
 		const nvcuda::wmma::layout_t layout
@@ -23,6 +27,7 @@ __global__ void test_load_vector_kernel(
 template <class T>
 void test(const nvcuda::wmma::layout_t layout) {
 	std::printf("-- store_vector test --\n");
+	std::printf("arch   : %d\n", TEST_ARCH);
 	if (layout == nvcuda::wmma::mem_col_major) {
 		std::printf("layout : col_major\n");
 	} else {
@@ -43,7 +48,7 @@ void test(const nvcuda::wmma::layout_t layout) {
 	}
 
 	cudaDeviceSynchronize();
-	test_load_vector_kernel<<<1, 32>>>(dst_mem, src_mem, layout);
+	test_store_vector_kernel<<<1, 32>>>(dst_mem, src_mem, layout);
 	cudaDeviceSynchronize();
 
 	for (std::size_t i = 0; i < 16; i++) {
