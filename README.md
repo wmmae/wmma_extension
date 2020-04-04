@@ -67,3 +67,9 @@ mtk::wmma::load_matrix_with_operation_sync(
 ### fill_zero
 - Argument
   - dst_fragment : Destination fragment (float / half)
+
+### print_fragment
+This function output the elements of a fragment.
+- Arguments
+  - frag : Target fragment
+  - name : printing name of fragment (`char*`)
