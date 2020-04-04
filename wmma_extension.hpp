@@ -388,12 +388,11 @@ __device__ inline void load_vector_sync_sm70(nvcuda::wmma::fragment<nvcuda::wmma
 	if (fill)
 		nvcuda::wmma::fill_fragment(frag, __float2half(0));
 	const unsigned warp_id = threadIdx.x & 0x1f;
-	unsigned long index_offset = (warp_id & 0x3) << 4;
 
 	bool load_flag = (warp_id == 0) || (warp_id == 4);
 	if(load_flag) {
 		for(unsigned i = 0; i < 16; i++) {
-			frag.x[i] = utils::cast<half>(ptr[i + index_offset]);
+			frag.x[i] = utils::cast<half>(ptr[i]);
 		}
 	}
 	__syncthreads();
