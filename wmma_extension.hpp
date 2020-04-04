@@ -746,6 +746,25 @@ __device__ inline void make_identity_matrix(nvcuda::wmma::fragment<nvcuda::wmma:
 	detail::make_identity_matrix_sm75(frag);
 #endif
 }
+
+template <class MatrixType, int M, int N, int K, class MemMajor, class T>
+__device__ inline void print_fragment(const nvcuda::wmma::fragment<MatrixType, M, N, K, T, MemMajor>& frag, const char* name = "") {
+	if ((threadIdx.x & 0x1f) == 0) {
+		if (name[0] != '\0') {
+			printf("%s = \n", name);
+		}
+	}
+	for (unsigned i = 0; i < warpSize; i++) {
+		if (i == (threadIdx.x & 0x1f)) {
+			for (unsigned j = 0; j < frag.num_elements; j++) {
+				printf("%.3e ", mtk::detail::utils::cast<float>(frag.x[j]));
+			}
+			printf("\n");
+		}
+		__syncthreads();
+	}
+}
+
 } // namespace wmma
 } // namespace mtk
 
