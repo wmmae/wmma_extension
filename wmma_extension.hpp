@@ -1,6 +1,7 @@
 #ifndef __WMMA_EXTENSION_HPP__
 #define __WMMA_EXTENSION_HPP__
 #include <mma.h>
+#include <stdio.h>
 
 namespace mtk {
 namespace wmma {
@@ -757,7 +758,14 @@ __device__ inline void print_fragment(const nvcuda::wmma::fragment<MatrixType, M
 	for (unsigned i = 0; i < warpSize; i++) {
 		if (i == (threadIdx.x & 0x1f)) {
 			for (unsigned j = 0; j < frag.num_elements; j++) {
-				printf("%.3e ", mtk::detail::utils::cast<float>(frag.x[j]));
+				const auto v = mtk::detail::utils::cast<float>(frag.x[j]);
+				if (v == 0.0f) {
+					printf(" %.3e ", 0.0f);
+				} else if (v > 0) {
+					printf(" %.3e ", v);
+				} else {
+					printf("%.3e ", v);
+				}
 			}
 			printf("\n");
 		}
