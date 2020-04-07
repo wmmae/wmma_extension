@@ -1,1 +1,1 @@
-# Alternative implementation of `load_vector_with_error` using `load_vector_with_op`
+# Alternative implementation of `make_dirext_product_fragments` using `foreach`
