@@ -58,6 +58,19 @@ mtk::wmma::load_matrix_with_operation_sync(
   - src_pointer  : Source pointer (No alignment restriction)
   - func         : Element-wise function. Return type has to be `half`.
 
+### make_direct_product_fragments
+This function is used for computing direct product of two vectors (u and v) with accuracy correction.
+
+![make_direct_product_fragments](docs/make_direct_product_fragments-en.svg)
+
+- Arguments
+  - frag_a : Destination fragment (`matrix_a`, (16, 16, 16), `half`, `col_major`)
+  - frag_b : Destination fragment (`matrix_b`, (16, 16, 16), `half`, `row_major`)
+  - u      : u (`float` / `half`)
+  - du     : diff vector of `u` (`u` - toFloat(toHalf(`u`))) (`float` / `half`)
+  - v      : v (`float` / `half`)
+  - dv     : diff vector of `v` (`v` - toFloat(toHalf(`v`))) (`float` / `half`)
+
 ### make_identity_matrix
 ![load_matrix](docs/make_identity-en.svg)
 - Arguments
