@@ -724,7 +724,42 @@ __device__ inline void make_identity_matrix_sm70(nvcuda::wmma::fragment<nvcuda::
 	}
 	__syncthreads();
 }
-} // namespace wmma
+
+template <class T>
+__device__ inline void make_direct_product_fragment_sm70(
+		nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half>& frag_a,
+		nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half>& frag_b,
+		const T* const a, const T* const da,
+		const T* const b, const T* const db,
+		const bool fill
+		) {
+	if (fill) {
+		mtk::wmma::fill_zero(frag_a);
+		mtk::wmma::fill_zero(frag_b);
+	}
+	const unsigned warp_id = threadIdx.x & 0x1f;
+
+	if (warp_id & 0x3 == 0x3) {
+		return;
+	}
+
+	const half* const a_ptr = ((warp_id & 0x1) == 0) ? a : da;
+	const unsigned a_offset = ((warp_id & 0x10) >> 3) + ((warp_id & 0x4) << 1);
+
+	frag_a.x[0] = detail::utils::cast<half>(a_ptr[a_offset + 0]);
+	frag_a.x[1] = detail::utils::cast<half>(a_ptr[a_offset + 1]);
+	frag_a.x[2] = detail::utils::cast<half>(a_ptr[a_offset + 2]);
+	frag_a.x[3] = detail::utils::cast<half>(a_ptr[a_offset + 3]);
+
+	const half* const b_ptr = ((warp_id & 0x1) == 0) ? b : db;
+	const unsigned b_offset = ((warp_id & 0x10) >> 3) + ((warp_id & 0x4) << 1);
+
+	frag_b.x[0] = detail::utils::cast<half>(b_ptr[b_offset + 0]);
+	frag_b.x[1] = detail::utils::cast<half>(b_ptr[b_offset + 1]);
+	frag_b.x[2] = detail::utils::cast<half>(b_ptr[b_offset + 2]);
+	frag_b.x[3] = detail::utils::cast<half>(b_ptr[b_offset + 3]);
+}
+} // namespace detail
 
 namespace wmma {
 
