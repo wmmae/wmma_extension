@@ -752,7 +752,7 @@ __device__ inline void make_direct_product_fragment_sm70(
 	frag_a.x[3] = detail::utils::cast<half>(a_ptr[a_offset + 3]);
 
 	const half* const b_ptr = ((warp_id & 0x1) == 0) ? b : db;
-	const unsigned b_offset = ((warp_id & 0x10) >> 3) + ((warp_id & 0x4) << 1);
+	const unsigned b_offset = ((warp_id & 0x10) >> 3) + (warp_id & 0x8);
 
 	frag_b.x[0] = detail::utils::cast<half>(b_ptr[b_offset + 0]);
 	frag_b.x[1] = detail::utils::cast<half>(b_ptr[b_offset + 1]);
