@@ -370,31 +370,30 @@ __device__ inline void make_direct_product_fragment_sm75(
 
 	// load a
 	const unsigned offset = (warp_id >> 2);
-	const T* const a_ptr = (warp_id & 0x1) ? da : a;
 
-	frag_a.x[ 0] = detail::utils::cast<half>(a_ptr[offset + 0]);
-	frag_a.x[ 2] = detail::utils::cast<half>(a_ptr[offset + 8]);
+	frag_a.x[ 0] = detail::utils::cast<half>(a[offset + 0]);
+	frag_a.x[ 2] = detail::utils::cast<half>(a[offset + 8]);
 	frag_a.x[ 8] = frag_a.x[ 0];
 	frag_a.x[10] = frag_a.x[ 2];
 	if ((warp_id & 0x1) == 0) {
-		frag_a.x[ 0 + 1] = frag_a.x[ 0];
-		frag_a.x[ 2 + 1] = frag_a.x[ 2];
-		frag_a.x[ 8 + 1] = frag_a.x[ 0];
-		frag_a.x[10 + 1] = frag_a.x[ 2];
+		frag_a.x[ 0 + 1] = detail::utils::cast<half>(da[offset + 0]);
+		frag_a.x[ 2 + 1] = detail::utils::cast<half>(da[offset + 8]);
+		frag_a.x[ 8 + 1] = frag_a.x[ 0 + 1];
+		frag_a.x[10 + 1] = frag_a.x[ 2 + 1];
 	}
 
 	// load b
 	const T* const b_ptr = (warp_id & 0x1) ? db : b;
 
 	frag_b.x[ 0] = detail::utils::cast<half>(b_ptr[offset + 0]);
-	frag_b.x[ 1] = detail::utils::cast<half>(b_ptr[offset + 8]);
+	frag_b.x[ 4] = detail::utils::cast<half>(b_ptr[offset + 8]);
 	frag_b.x[ 8] = frag_b.x[ 0];
-	frag_b.x[ 9] = frag_b.x[ 1];
+	frag_b.x[12] = frag_b.x[ 4];
 	if ((warp_id & 0x1) == 0) {
-		frag_a.x[ 0 + 1] = frag_a.x[ 0];
-		frag_a.x[ 1 + 1] = frag_a.x[ 1];
-		frag_a.x[ 8 + 1] = frag_a.x[ 0];
-		frag_a.x[ 9 + 1] = frag_a.x[ 1];
+		frag_b.x[ 0 + 1] = frag_b.x[ 0];
+		frag_b.x[ 4 + 1] = frag_b.x[ 4];
+		frag_b.x[ 8 + 1] = frag_b.x[ 0];
+		frag_b.x[12 + 1] = frag_b.x[ 4];
 	}
 }
 
