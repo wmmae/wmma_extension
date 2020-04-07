@@ -352,12 +352,12 @@ __device__ inline void make_identity_matrix_sm75(nvcuda::wmma::fragment<nvcuda::
 	}
 }
 
-template <class T>
+template <class T, class S>
 __device__ inline void make_direct_product_fragments_sm75(
 		nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag_a,
 		nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>& frag_b,
-		const T* const a, const T* const da,
-		const T* const b, const T* const db,
+		const T* const a, const S* const da,
+		const T* const b, const S* const db,
 		const bool fill
 		) {
 	if (fill) {
@@ -724,12 +724,12 @@ __device__ inline void make_identity_matrix_sm70(nvcuda::wmma::fragment<nvcuda::
 	__syncthreads();
 }
 
-template <class T>
+template <class T, class S>
 __device__ inline void make_direct_product_fragments_sm70(
 		nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag_a,
 		nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>& frag_b,
-		const T* const a, const T* const da,
-		const T* const b, const T* const db,
+		const T* const a, const S* const da,
+		const T* const b, const S* const db,
 		const bool fill
 		) {
 	if (fill) {
@@ -826,12 +826,12 @@ __device__ inline void make_identity_matrix(nvcuda::wmma::fragment<nvcuda::wmma:
 #endif
 }
 
-template <class T>
+template <class T, class S>
 __device__ inline void make_direct_product_fragments(
 		nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag_a,
 		nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>& frag_b,
-		const T* const a, const T* const da,
-		const T* const b, const T* const db,
+		const T* const a, const S* const da,
+		const T* const b, const S* const db,
 		const bool fill = true
 		) {
 #if __CUDA_ARCH__ < 710
