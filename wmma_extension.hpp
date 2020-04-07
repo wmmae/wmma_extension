@@ -827,6 +827,21 @@ __device__ inline void make_identity_matrix(nvcuda::wmma::fragment<nvcuda::wmma:
 #endif
 }
 
+template <class T>
+__device__ inline void make_direct_product_fragment(
+		nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half>& frag_a,
+		nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half>& frag_b,
+		const T* const a, const T* const da,
+		const T* const b, const T* const db,
+		const bool fill = true
+		) {
+#if __CUDA_ARCH__ < 710
+	detail::make_direct_product_fragment_sm70(frag_a, frag_b, a, da, b, db, fill);
+#else
+	detail::make_direct_product_fragment_sm75(frag_a, frag_b, a, da, b, db, fill);
+#endif
+}
+
 template <class MatrixType, int M, int N, int K, class MemMajor, class T>
 __device__ inline void print_fragment(const nvcuda::wmma::fragment<MatrixType, M, N, K, T, MemMajor>& frag, const char* name = "") {
 	if ((threadIdx.x & 0x1f) == 0) {
