@@ -352,6 +352,52 @@ __device__ inline void make_identity_matrix_sm75(nvcuda::wmma::fragment<nvcuda::
 	}
 }
 
+template <class T>
+__device__ inline void make_direct_product_fragment_sm75(
+		nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half>& frag_a,
+		nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half>& frag_b,
+		const T* const a, const T* const da,
+		const T* const b, const T* const db,
+		const bool fill
+		) {
+	if (fill) {
+		mtk::wmma::fill_zero(frag_a);
+		mtk::wmma::fill_zero(frag_b);
+	}
+	const unsigned warp_id = threadIdx.x & 0x1f;
+
+	if (warp_id & 0x2) return;
+
+	// load a
+	const unsigned offset = (warp_id >> 2);
+	const T* const a_ptr = (warp_id & 0x1) ? da : a;
+
+	frag_a.x[ 0] = detail::utils::cast<half>(a_ptr[offset + 0]);
+	frag_a.x[ 2] = detail::utils::cast<half>(a_ptr[offset + 8]);
+	frag_a.x[ 8] = frag_a.x[ 0];
+	frag_a.x[10] = frag_a.x[ 2];
+	if ((warp_id & 0x1) == 0) {
+		frag_a.x[ 0 + 1] = frag_a.x[ 0];
+		frag_a.x[ 2 + 1] = frag_a.x[ 2];
+		frag_a.x[ 8 + 1] = frag_a.x[ 0];
+		frag_a.x[10 + 1] = frag_a.x[ 2];
+	}
+
+	// load b
+	const T* const b_ptr = (warp_id & 0x1) ? db : b;
+
+	frag_b.x[ 0] = detail::utils::cast<half>(b_ptr[offset + 0]);
+	frag_b.x[ 1] = detail::utils::cast<half>(b_ptr[offset + 8]);
+	frag_b.x[ 8] = frag_b.x[ 0];
+	frag_b.x[ 9] = frag_b.x[ 1];
+	if ((warp_id & 0x1) == 0) {
+		frag_a.x[ 0 + 1] = frag_a.x[ 0];
+		frag_a.x[ 1 + 1] = frag_a.x[ 1];
+		frag_a.x[ 8 + 1] = frag_a.x[ 0];
+		frag_a.x[ 9 + 1] = frag_a.x[ 1];
+	}
+}
+
 // For sm70
 template <class T>
 __device__ inline void load_vector_sync_sm70(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, const T* const ptr, const bool fill) {
