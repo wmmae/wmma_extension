@@ -352,6 +352,51 @@ __device__ inline void make_identity_matrix_sm75(nvcuda::wmma::fragment<nvcuda::
 	}
 }
 
+template <class T, class S>
+__device__ inline void make_direct_product_fragments_sm75(
+		nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag_a,
+		nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>& frag_b,
+		const T* const a, const S* const da,
+		const T* const b, const S* const db,
+		const bool fill
+		) {
+	if (fill) {
+		mtk::wmma::fill_zero(frag_a);
+		mtk::wmma::fill_zero(frag_b);
+	}
+	const unsigned warp_id = threadIdx.x & 0x1f;
+
+	if (warp_id & 0x2) return;
+
+	// load a
+	const unsigned offset = (warp_id >> 2);
+
+	frag_a.x[ 0] = detail::utils::cast<half>(a[offset + 0]);
+	frag_a.x[ 2] = detail::utils::cast<half>(a[offset + 8]);
+	frag_a.x[ 8] = frag_a.x[ 0];
+	frag_a.x[10] = frag_a.x[ 2];
+	if ((warp_id & 0x1) == 0) {
+		frag_a.x[ 0 + 1] = detail::utils::cast<half>(da[offset + 0]);
+		frag_a.x[ 2 + 1] = detail::utils::cast<half>(da[offset + 8]);
+		frag_a.x[ 8 + 1] = frag_a.x[ 0 + 1];
+		frag_a.x[10 + 1] = frag_a.x[ 2 + 1];
+	}
+
+	// load b
+	const T* const b_ptr = (warp_id & 0x1) ? db : b;
+
+	frag_b.x[ 0] = detail::utils::cast<half>(b_ptr[offset + 0]);
+	frag_b.x[ 4] = detail::utils::cast<half>(b_ptr[offset + 8]);
+	frag_b.x[ 8] = frag_b.x[ 0];
+	frag_b.x[12] = frag_b.x[ 4];
+	if ((warp_id & 0x1) == 0) {
+		frag_b.x[ 0 + 1] = frag_b.x[ 0];
+		frag_b.x[ 4 + 1] = frag_b.x[ 4];
+		frag_b.x[ 8 + 1] = frag_b.x[ 0];
+		frag_b.x[12 + 1] = frag_b.x[ 4];
+	}
+}
+
 // For sm70
 template <class T>
 __device__ inline void load_vector_sync_sm70(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, const T* const ptr, const bool fill) {
@@ -678,7 +723,42 @@ __device__ inline void make_identity_matrix_sm70(nvcuda::wmma::fragment<nvcuda::
 	}
 	__syncthreads();
 }
-} // namespace wmma
+
+template <class T, class S>
+__device__ inline void make_direct_product_fragments_sm70(
+		nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag_a,
+		nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>& frag_b,
+		const T* const a, const S* const da,
+		const T* const b, const S* const db,
+		const bool fill
+		) {
+	if (fill) {
+		mtk::wmma::fill_zero(frag_a);
+		mtk::wmma::fill_zero(frag_b);
+	}
+	const unsigned warp_id = threadIdx.x & 0x1f;
+
+	if ((warp_id & 0x3) == 0x3) {
+		return;
+	}
+
+	const T* const a_ptr = ((warp_id & 0x1) == 0) ? a : da;
+	const unsigned a_offset = ((warp_id & 0x10) >> 2) + ((warp_id & 0x4) << 1);
+
+	frag_a.x[0] = detail::utils::cast<half>(a_ptr[a_offset + 0]);
+	frag_a.x[1] = detail::utils::cast<half>(a_ptr[a_offset + 1]);
+	frag_a.x[2] = detail::utils::cast<half>(a_ptr[a_offset + 2]);
+	frag_a.x[3] = detail::utils::cast<half>(a_ptr[a_offset + 3]);
+
+	const T* const b_ptr = ((warp_id & 0x3) != 0x2) ? b : db;
+	const unsigned b_offset = ((warp_id & 0x10) >> 2) + (warp_id & 0x8);
+
+	frag_b.x[0] = detail::utils::cast<half>(b_ptr[b_offset + 0]);
+	frag_b.x[1] = detail::utils::cast<half>(b_ptr[b_offset + 1]);
+	frag_b.x[2] = detail::utils::cast<half>(b_ptr[b_offset + 2]);
+	frag_b.x[3] = detail::utils::cast<half>(b_ptr[b_offset + 3]);
+}
+} // namespace detail
 
 namespace wmma {
 
@@ -743,6 +823,21 @@ __device__ inline void make_identity_matrix(nvcuda::wmma::fragment<nvcuda::wmma:
 	detail::make_identity_matrix_sm70(frag);
 #else
 	detail::make_identity_matrix_sm75(frag);
+#endif
+}
+
+template <class T, class S>
+__device__ inline void make_direct_product_fragments(
+		nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag_a,
+		nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>& frag_b,
+		const T* const a, const S* const da,
+		const T* const b, const S* const db,
+		const bool fill = true
+		) {
+#if __CUDA_ARCH__ < 710
+	detail::make_direct_product_fragments_sm70(frag_a, frag_b, a, da, b, db, fill);
+#else
+	detail::make_direct_product_fragments_sm75(frag_a, frag_b, a, da, b, db, fill);
 #endif
 }
 
