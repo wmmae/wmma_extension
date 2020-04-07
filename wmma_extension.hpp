@@ -353,7 +353,7 @@ __device__ inline void make_identity_matrix_sm75(nvcuda::wmma::fragment<nvcuda::
 }
 
 template <class T>
-__device__ inline void make_direct_product_fragment_sm75(
+__device__ inline void make_direct_product_fragments_sm75(
 		nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag_a,
 		nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>& frag_b,
 		const T* const a, const T* const da,
@@ -725,7 +725,7 @@ __device__ inline void make_identity_matrix_sm70(nvcuda::wmma::fragment<nvcuda::
 }
 
 template <class T>
-__device__ inline void make_direct_product_fragment_sm70(
+__device__ inline void make_direct_product_fragments_sm70(
 		nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag_a,
 		nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>& frag_b,
 		const T* const a, const T* const da,
@@ -827,7 +827,7 @@ __device__ inline void make_identity_matrix(nvcuda::wmma::fragment<nvcuda::wmma:
 }
 
 template <class T>
-__device__ inline void make_direct_product_fragment(
+__device__ inline void make_direct_product_fragments(
 		nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag_a,
 		nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>& frag_b,
 		const T* const a, const T* const da,
@@ -835,9 +835,9 @@ __device__ inline void make_direct_product_fragment(
 		const bool fill = true
 		) {
 #if __CUDA_ARCH__ < 710
-	detail::make_direct_product_fragment_sm70(frag_a, frag_b, a, da, b, db, fill);
+	detail::make_direct_product_fragments_sm70(frag_a, frag_b, a, da, b, db, fill);
 #else
-	detail::make_direct_product_fragment_sm75(frag_a, frag_b, a, da, b, db, fill);
+	detail::make_direct_product_fragments_sm75(frag_a, frag_b, a, da, b, db, fill);
 #endif
 }
 
