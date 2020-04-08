@@ -31,11 +31,11 @@ __global__ void direct_product_kernel(float* const h, const float* const u) {
 		sdu[threadIdx.x] = convert<half>(fv - convert<float>(hv));
 	}
 
-	mtk::wmma::make_direct_product_fragments(
+	mtk::wmma::make_direct_product_fragment(
 			frag_a,
 			su, sdu
 			);
-	mtk::wmma::make_direct_product_fragments(
+	mtk::wmma::make_direct_product_fragment(
 			frag_b,
 			su, sdu
 			);
