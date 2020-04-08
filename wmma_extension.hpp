@@ -353,7 +353,7 @@ __device__ inline void make_identity_matrix_sm75(nvcuda::wmma::fragment<nvcuda::
 }
 
 template <class T, class S>
-__device__ inline void make_direct_product_fragments_sm75(
+__device__ inline void make_direct_product_fragment_sm75(
 		nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag_a,
 		const T* const a, const S* const da,
 		const bool fill
@@ -381,7 +381,7 @@ __device__ inline void make_direct_product_fragments_sm75(
 }
 
 template <class T, class S>
-__device__ inline void make_direct_product_fragments_sm75(
+__device__ inline void make_direct_product_fragment_sm75(
 		nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>& frag_b,
 		const T* const b, const S* const db,
 		const bool fill
@@ -739,7 +739,7 @@ __device__ inline void make_identity_matrix_sm70(nvcuda::wmma::fragment<nvcuda::
 }
 
 template <class T, class S>
-__device__ inline void make_direct_product_fragments_sm70(
+__device__ inline void make_direct_product_fragment_sm70(
 		nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag_a,
 		const T* const a, const S* const da,
 		const bool fill
@@ -763,7 +763,7 @@ __device__ inline void make_direct_product_fragments_sm70(
 }
 
 template <class T, class S>
-__device__ inline void make_direct_product_fragments_sm70(
+__device__ inline void make_direct_product_fragment_sm70(
 		nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>& frag_b,
 		const T* const b, const S* const db,
 		const bool fill
@@ -854,15 +854,15 @@ __device__ inline void make_identity_matrix(nvcuda::wmma::fragment<nvcuda::wmma:
 }
 
 template <class MatrixType, int M, int N, int K, class MemMajor, class T, class S>
-__device__ inline void make_direct_product_fragments(
+__device__ inline void make_direct_product_fragment(
 		nvcuda::wmma::fragment<MatrixType, M, N, K, half, MemMajor>& frag_x,
 		const T* const x, const S* const dx,
 		const bool fill = true
 		) {
 #if __CUDA_ARCH__ < 710
-	detail::make_direct_product_fragments_sm70(frag_x, x, dx, fill);
+	detail::make_direct_product_fragment_sm70(frag_x, x, dx, fill);
 #else
-	detail::make_direct_product_fragments_sm75(frag_x, x, dx, fill);
+	detail::make_direct_product_fragment_sm75(frag_x, x, dx, fill);
 #endif
 }
 
