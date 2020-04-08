@@ -32,8 +32,11 @@ __global__ void direct_product_kernel(float* const h, const float* const u) {
 	}
 
 	mtk::wmma::make_direct_product_fragments(
-			frag_a, frag_b,
-			su, sdu,
+			frag_a,
+			su, sdu
+			);
+	mtk::wmma::make_direct_product_fragments(
+			frag_b,
 			su, sdu
 			);
 
