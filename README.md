@@ -64,7 +64,7 @@ This function is used for computing direct product of two vectors (u and v) with
 ![make_direct_product_fragments](docs/make_direct_product_fragments-en.svg)
 
 - Arguments
-  - frag_a : Destination fragment (`matrix_a` nad `col_major` / `matrix_b` and `row_major`, (16, 16, 16), `half`)
+  - frag_a : Destination fragment (`matrix_a` and `col_major` / `matrix_b` and `row_major`, (16, 16, 16), `half`)
   - x      : x (`float` / `half`)
   - dx     : diff vector of `x` (`x` - toFloat(toHalf(`x`))) (`float` / `half`)
 
