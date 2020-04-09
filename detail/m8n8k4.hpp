@@ -24,7 +24,7 @@ template <> class fragment<nvcuda::wmma::accumulator, 8, 8, 4, half> : public __
 
 
 template <class T, int size>
-__device__ void fill_fragment(__frag_base<T, size>& f, const T v) {
+__device__ inline void fill_fragment(__frag_base<T, size>& f, const T v) {
 #pragma unroll
 	for (int i=0; i < f.num_elements; i++)
 		f.x[i] = v; 
