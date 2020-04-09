@@ -67,6 +67,7 @@ __device__ inline void load_matrix_sync(fragment<nvcuda::wmma::matrix_b, 8, 8, 4
 	f.x[3] = mtk::detail::utils::cast<half>(p[mem_offset + 3]);
 }
 
+template <class T>
 __device__ inline void load_matrix_sync(fragment<nvcuda::wmma::matrix_b, 8, 8, 4, half, nvcuda::wmma::row_major>& f, const T* const p, const unsigned ldm) {
 	const unsigned lane_id = mtk::detail::utils::get_lane_id();
 	const unsigned row = lane_id & 0x3;
