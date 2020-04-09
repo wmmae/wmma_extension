@@ -1,5 +1,5 @@
-#ifndef __M8N8K4_HPP__
-#define __M8N8K4_HPP__
+#ifndef __WMMAE_M8N8K4_HPP__
+#define __WMMAE_M8N8K4_HPP__
 
 #include <mma.h>
 
