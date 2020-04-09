@@ -2,6 +2,7 @@
 #define __WMMA_EXTENSION_HPP__
 #include <mma.h>
 #include <stdio.h>
+#include "detail/m8n8k4.hpp"
 
 namespace mtk {
 namespace wmma {
