@@ -3,7 +3,7 @@
 #include <mma.h>
 #include <stdio.h>
 #include "detail/m8n8k4.hpp"
-#include "detail/common.hpp"
+#include "detail/utils.hpp"
 
 namespace mtk {
 namespace wmma {
