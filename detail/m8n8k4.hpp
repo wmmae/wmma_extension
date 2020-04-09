@@ -30,7 +30,7 @@ __device__ inline void fill_fragment(__frag_base<T, size>& f, const T v) {
 		f.x[i] = v; 
 }
 
-__device__ inline void mma_sync(fragment<nvcuda::wmma::accumulator, 8, 8, 4, float>& d, const fragment<nvcuda::wmma::matrix_a, 8, 8, 4, half, nvcuda::wmma::col_major> a, fragment<nvcuda::wmma::matrix_b, 8, 8, 4, half, nvcuda::wmma::col_major> b, const fragment<nvcuda::wmma::accumulator, 8, 8, 4, float>& c) {
+__device__ inline void mma_sync(fragment<nvcuda::wmma::accumulator, 8, 8, 4, float>& d, const fragment<nvcuda::wmma::matrix_a, 8, 8, 4, half, nvcuda::wmma::col_major>& a, fragment<nvcuda::wmma::matrix_b, 8, 8, 4, half, nvcuda::wmma::col_major>& b, const fragment<nvcuda::wmma::accumulator, 8, 8, 4, float>& c) {
 	asm(R"({
 	mma.sync.aligned.m8n8k4.col.col.f32.f16.f16.f32
 	{%0, %1, %2, %3, %4, %5, %6, %7},
