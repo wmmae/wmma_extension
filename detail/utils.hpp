@@ -11,6 +11,12 @@ template <> inline __device__ float cast(const float v){return v;}
 template <> inline __device__ float cast(const half v){return __half2float(v);}
 template <> inline __device__ half cast(const float v){return __float2half(v);}
 template <> inline __device__ half cast(const half v){return v;}
+
+__device__ inline unsigned get_lane_id() {
+	unsigned lane_id;
+	asm(R"(mov.u32 %0 %laneid;)" : "=r"(lane_id));
+	return lane_id;
+}
 } // namespace utils
 } // namespace detail
 } // namespace mtk
