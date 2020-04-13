@@ -860,9 +860,9 @@ __device__ inline void make_direct_product_fragment(
 		const bool fill = true
 		) {
 #if __CUDA_ARCH__ < 710
-	detail::make_direct_product_fragment_sm70(frag_x, x, dx, fill);
+	detail::make_direct_product_fragment_sm70<T, S, 2>(frag_x, x, dx, fill);
 #else
-	detail::make_direct_product_fragment_sm75(frag_x, x, dx, fill);
+	detail::make_direct_product_fragment_sm75<T, S, 2>(frag_x, x, dx, fill);
 #endif
 }
 
