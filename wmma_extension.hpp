@@ -866,6 +866,19 @@ __device__ inline void make_direct_product_fragment(
 #endif
 }
 
+template <class MatrixType, int M, int N, int K, class MemMajor, class T, class S>
+__device__ inline void make_direct_product_fragment_c3(
+		nvcuda::wmma::fragment<MatrixType, M, N, K, half, MemMajor>& frag_x,
+		const T* const x, const S* const dx,
+		const bool fill = true
+		) {
+#if __CUDA_ARCH__ < 710
+	detail::make_direct_product_fragment_sm70<T, S, 3>(frag_x, x, dx, fill);
+#else
+	detail::make_direct_product_fragment_sm75<T, S, 3>(frag_x, x, dx, fill);
+#endif
+}
+
 template <class MatrixType, int M, int N, int K, class MemMajor, class T>
 __device__ inline void print_fragment(const nvcuda::wmma::fragment<MatrixType, M, N, K, T, MemMajor>& frag, const char* name = "") {
 	if ((threadIdx.x & 0x1f) == 0) {
