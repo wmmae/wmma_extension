@@ -17,6 +17,9 @@ __global__ void m8n8k4_test_kernel(T* const d, const half* const a, const half* 
 	mtk::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, T> frag_c;
 	mtk::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, S> frag_d;
 
+	mtk::wmma::load_matrix_sync(frag_a, a, M);
+	mtk::wmma::load_matrix_sync(frag_b, b, K);
+
 	mtk::wmma::mma_sync(frag_d, frag_a, frag_b, frag_d);
 }
 
