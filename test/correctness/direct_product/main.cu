@@ -16,6 +16,7 @@ template <> __device__ __host__ float convert<float, half >(const half  a) {retu
 template <> __device__ __host__ half  convert<half , float>(const float a) {return __float2half(a);}
 template <> __device__ __host__ half  convert<half , half >(const half  a) {return a;}
 
+template <unsigned CORRECTION_TERMS>
 __global__ void direct_product_kernel(float* const h, const float* const u) {
 	nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, N, N, N, half, nvcuda::wmma::col_major> frag_a;
 	nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, N, N, N, half, nvcuda::wmma::row_major> frag_b;
@@ -31,14 +32,25 @@ __global__ void direct_product_kernel(float* const h, const float* const u) {
 		sdu[threadIdx.x] = convert<half>(fv - convert<float>(hv));
 	}
 
-	mtk::wmma::make_direct_product_fragment(
-			frag_a,
-			su, sdu
-			);
-	mtk::wmma::make_direct_product_fragment(
-			frag_b,
-			su, sdu
-			);
+	if (CORRECTION_TERMS == 3) {
+		mtk::wmma::make_direct_product_fragment_c3(
+				frag_a,
+				su, sdu
+				);
+		mtk::wmma::make_direct_product_fragment_c3(
+				frag_b,
+				su, sdu
+				);
+	} else {
+		mtk::wmma::make_direct_product_fragment(
+				frag_a,
+				su, sdu
+				);
+		mtk::wmma::make_direct_product_fragment(
+				frag_b,
+				su, sdu
+				);
+	}
 
 	nvcuda::wmma::fill_fragment(frag_c, 0.0f);
 
@@ -47,9 +59,11 @@ __global__ void direct_product_kernel(float* const h, const float* const u) {
 	nvcuda::wmma::store_matrix_sync(h, frag_c, N, nvcuda::wmma::mem_col_major);
 }
 
+template <unsigned CORRECTION_TERMS>
 void test() {
 	std::printf("-- direct_product test --\n");
-	std::printf("arch   : %d\n", TEST_ARCH);
+	std::printf("arch    : %d\n", TEST_ARCH);
+	std::printf("c terms : %u\n", CORRECTION_TERMS);
 	float *u;
 	float *h;
 
@@ -64,7 +78,7 @@ void test() {
 	}
 
 	cudaDeviceSynchronize();
-	direct_product_kernel<<<1, 32>>>(h, u);
+	direct_product_kernel<CORRECTION_TERMS><<<1, 32>>>(h, u);
 	cudaDeviceSynchronize();
 
 	double max_error = 0.0;
@@ -74,9 +88,10 @@ void test() {
 			max_error = std::max(max_error, std::abs(diff));
 		}
 	}
-	std::printf("error  : %e\n", max_error);
+	std::printf("error   : %e\n", max_error);
 }
 
 int main() {
-	test();
+	test<2>();
+	test<3>();
 }

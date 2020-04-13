@@ -352,7 +352,7 @@ __device__ inline void make_identity_matrix_sm75(nvcuda::wmma::fragment<nvcuda::
 	}
 }
 
-template <class T, class S>
+template <class T, class S, unsigned CORRECTION_TERMS = 2>
 __device__ inline void make_direct_product_fragment_sm75(
 		nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag_a,
 		const T* const a, const S* const da,
@@ -372,7 +372,7 @@ __device__ inline void make_direct_product_fragment_sm75(
 	frag_a.x[ 2] = detail::utils::cast<half>(a[offset + 8]);
 	frag_a.x[ 8] = frag_a.x[ 0];
 	frag_a.x[10] = frag_a.x[ 2];
-	if ((warp_id & 0x1) == 0) {
+	if (CORRECTION_TERMS == 3 || (warp_id & 0x1) == 0) {
 		frag_a.x[ 0 + 1] = detail::utils::cast<half>(da[offset + 0]);
 		frag_a.x[ 2 + 1] = detail::utils::cast<half>(da[offset + 8]);
 		frag_a.x[ 8 + 1] = frag_a.x[ 0 + 1];
@@ -380,7 +380,7 @@ __device__ inline void make_direct_product_fragment_sm75(
 	}
 }
 
-template <class T, class S>
+template <class T, class S, unsigned CORRECTION_TERMS = 2>
 __device__ inline void make_direct_product_fragment_sm75(
 		nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>& frag_b,
 		const T* const b, const S* const db,
@@ -403,7 +403,7 @@ __device__ inline void make_direct_product_fragment_sm75(
 	frag_b.x[ 4] = detail::utils::cast<half>(b_ptr[offset + 8]);
 	frag_b.x[ 8] = frag_b.x[ 0];
 	frag_b.x[12] = frag_b.x[ 4];
-	if ((warp_id & 0x1) == 0) {
+	if (CORRECTION_TERMS == 3 || (warp_id & 0x1) == 0) {
 		frag_b.x[ 0 + 1] = frag_b.x[ 0];
 		frag_b.x[ 4 + 1] = frag_b.x[ 4];
 		frag_b.x[ 8 + 1] = frag_b.x[ 0];
@@ -738,7 +738,7 @@ __device__ inline void make_identity_matrix_sm70(nvcuda::wmma::fragment<nvcuda::
 	__syncthreads();
 }
 
-template <class T, class S>
+template <class T, class S, unsigned CORRECTION_TERMS = 2>
 __device__ inline void make_direct_product_fragment_sm70(
 		nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag_a,
 		const T* const a, const S* const da,
@@ -749,7 +749,7 @@ __device__ inline void make_direct_product_fragment_sm70(
 	}
 	const unsigned warp_id = threadIdx.x & 0x1f;
 
-	if ((warp_id & 0x3) == 0x3) {
+	if (CORRECTION_TERMS == 2 && (warp_id & 0x3) == 0x3) {
 		return;
 	}
 
@@ -762,7 +762,7 @@ __device__ inline void make_direct_product_fragment_sm70(
 	frag_a.x[3] = detail::utils::cast<half>(a_ptr[a_offset + 3]);
 }
 
-template <class T, class S>
+template <class T, class S, unsigned CORRECTION_TERMS = 2>
 __device__ inline void make_direct_product_fragment_sm70(
 		nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>& frag_b,
 		const T* const b, const S* const db,
@@ -773,11 +773,11 @@ __device__ inline void make_direct_product_fragment_sm70(
 	}
 	const unsigned warp_id = threadIdx.x & 0x1f;
 
-	if ((warp_id & 0x3) == 0x3) {
+	if (CORRECTION_TERMS == 2 && (warp_id & 0x3) == 0x3) {
 		return;
 	}
 
-	const T* const b_ptr = ((warp_id & 0x3) != 0x2) ? b : db;
+	const T* const b_ptr = ((warp_id & 0x2) != 0) ? b : db;
 	const unsigned b_offset = ((warp_id & 0x10) >> 2) + (warp_id & 0x8);
 
 	frag_b.x[0] = detail::utils::cast<half>(b_ptr[b_offset + 0]);
@@ -860,9 +860,22 @@ __device__ inline void make_direct_product_fragment(
 		const bool fill = true
 		) {
 #if __CUDA_ARCH__ < 710
-	detail::make_direct_product_fragment_sm70(frag_x, x, dx, fill);
+	detail::make_direct_product_fragment_sm70<T, S, 2>(frag_x, x, dx, fill);
 #else
-	detail::make_direct_product_fragment_sm75(frag_x, x, dx, fill);
+	detail::make_direct_product_fragment_sm75<T, S, 2>(frag_x, x, dx, fill);
+#endif
+}
+
+template <class MatrixType, int M, int N, int K, class MemMajor, class T, class S>
+__device__ inline void make_direct_product_fragment_c3(
+		nvcuda::wmma::fragment<MatrixType, M, N, K, half, MemMajor>& frag_x,
+		const T* const x, const S* const dx,
+		const bool fill = true
+		) {
+#if __CUDA_ARCH__ < 710
+	detail::make_direct_product_fragment_sm70<T, S, 3>(frag_x, x, dx, fill);
+#else
+	detail::make_direct_product_fragment_sm75<T, S, 3>(frag_x, x, dx, fill);
 #endif
 }
 
