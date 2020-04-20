@@ -352,6 +352,20 @@ __device__ inline void make_identity_matrix_sm75(nvcuda::wmma::fragment<nvcuda::
 	}
 }
 
+template <class T>
+__device__ inline void add_eye_sm75(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag, const T alpha) {
+	const unsigned warp_id = threadIdx.x & 0x1f;
+	const unsigned mod9 = warp_id % 9;
+
+	unsigned index_offset = mod9 >> 2;
+	bool set_flag = mod9 == 0 || mod9 == 4;
+
+	if(set_flag) {
+		frag.x[index_offset] += alpha;
+		frag.x[index_offset + 6] += alpha;
+	}
+}
+
 template <class T, class S, unsigned CORRECTION_TERMS = 2>
 __device__ inline void make_direct_product_fragment_sm75(
 		nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag_a,
@@ -738,6 +752,21 @@ __device__ inline void make_identity_matrix_sm70(nvcuda::wmma::fragment<nvcuda::
 	__syncthreads();
 }
 
+template <class T>
+__device__ inline void add_eye_sm70(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag, const T alpha) {
+	const unsigned warp_id = threadIdx.x & 0x1f;
+	unsigned index_offset = 0;
+	if(warp_id >> 4) {
+		index_offset = 4;
+	}
+
+	const unsigned p0 = (warp_id >> 2) & 0x3;
+	if(p0 == 0 || p0 == 3) {
+		frag.x[(warp_id & 0x3) + index_offset] += alpha;
+	}
+	__syncthreads();
+}
+
 template <class T, class S, unsigned CORRECTION_TERMS = 2>
 __device__ inline void make_direct_product_fragment_sm70(
 		nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag_a,
@@ -852,6 +881,16 @@ __device__ inline void make_identity_matrix(nvcuda::wmma::fragment<nvcuda::wmma:
 	detail::make_identity_matrix_sm75(frag);
 #endif
 }
+
+template <class T>
+__device__ inline void add_eye(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag, const T alpha) {
+#if __CUDA_ARCH__ < 710
+	detail::add_eye_sm70(frag, alpha);
+#else
+	detail::add_eye_sm75(frag, alpha);
+#endif
+}
+
 
 template <class MatrixType, int M, int N, int K, class MemMajor, class T, class S>
 __device__ inline void make_direct_product_fragment(
