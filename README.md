@@ -68,11 +68,16 @@ This function is used for computing direct product of two vectors (u and v) with
   - x      : x (`float` / `half`)
   - dx     : diff vector of `x` (`x` - toFloat(toHalf(`x`))) (`float` / `half`)
 
-### make_identity_matrix
+### make_eye
 ![load_matrix](docs/make_identity-en.svg)
 - Arguments
   - dst_fragment : Destination fragment (accumulator, (16, 16, 16), half / float)
   - alpha : diagonal element
+
+### make_identity_matrix
+This function is equivalent to `make_eye(frag, 1.0f)`
+- Arguments
+  - dst_fragment : Destination fragment (accumulator, (16, 16, 16), half / float)
 
 ### fill_zero
 - Argument
