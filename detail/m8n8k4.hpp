@@ -110,6 +110,16 @@ MMA_F32_F16(row, col);
 MMA_F32_F16(col, row);
 MMA_F32_F16(row, row);
 
+#define MMA_F16_F16(A_LAYOUT, B_LAYOUT) \
+__device__ inline void mma_sync(fragment<nvcuda::wmma::accumulator, 8, 8, 4, half>& d, const fragment<nvcuda::wmma::matrix_a, 8, 8, 4, half, nvcuda::wmma::A_LAYOUT##_major>& a, fragment<nvcuda::wmma::matrix_b, 8, 8, 4, half, nvcuda::wmma::B_LAYOUT##_major>& b, const fragment<nvcuda::wmma::accumulator, 8, 8, 4, half>& c) { \
+	asm("{mma.sync.aligned.m8n8k4."#A_LAYOUT"."#B_LAYOUT".f16.f16.f16.f16 {%%0, %%1, %%2, %%3}, {%%4, %%5}, {%%6, %%7}, {%%8, %%9, %%10, %%11};}" : "=r"(*reinterpret_cast<const unsigned*>(d.x + 0)), "=r"(*reinterpret_cast<const unsigned*>(d.x + 2)), "=r"(*reinterpret_cast<const unsigned*>(d.x + 4)), "=r"(*reinterpret_cast<const unsigned*>(d.x + 6)) : "r"(*reinterpret_cast<const unsigned*>(a.x)), "r"(*reinterpret_cast<const unsigned*>(a.x + 2)), "r"(*reinterpret_cast<const unsigned*>(b.x)), "r"(*reinterpret_cast<const unsigned*>(b.x + 2)), "r"(*reinterpret_cast<const unsigned*>(c.x + 0)), "r"(*reinterpret_cast<const unsigned*>(c.x + 2)), "r"(*reinterpret_cast<const unsigned*>(c.x + 4)), "r"(*reinterpret_cast<const unsigned*>(c.x + 6))); \
+}
+
+MMA_F16_F16(col, col);
+MMA_F16_F16(row, col);
+MMA_F16_F16(col, row);
+MMA_F16_F16(row, row);
+
 } // namespace wmma
 } // namespace mtk
 
