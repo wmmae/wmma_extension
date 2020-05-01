@@ -65,6 +65,23 @@ mtk::wmma::load_matrix_with_operation(
 
 The first argument of `func` is an index of `fragment.x[]` and the second one is a value of `fragment.x[]` if `func` is an identity function.
 
+### foreach
+This function calculates the mapping of memory and fragmrnt.
+```cuda
+nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major> frag_b;
+__shared__ compute_t matrix[16 * 16];
+mtk::wmma::foreach(
+		frag,
+		[&](const unsigned frag_index, const unsigned mem_index) {frag_b.x[frag_index] = matrix[mem_index];}
+	);
+```
+
+- Arguments
+  - frag         : fragment. This argument is used for template argument deduction.
+  - func         : like a function which sets fragments from `fragment_index` and `mem_index`.
+
+The first argument of `func` is an index of `fragment.x[]` and the second one is a value of `fragment.x[]` if `func` is an identity function.
+
 ### make_direct_product_fragments
 This function is used for computing direct product of two vectors (u and v) with accuracy correction.
 
