@@ -59,7 +59,7 @@ mtk::wmma::load_matrix_with_operation(
 ```
 
 - Arguments
-  - dst_fragment : Destination fragment (matrix_a / matrix_b, (16, 16, 16), half / float, col_major / row_major)
+  - dst_fragment : Destination fragment (`matrix_a` / `matrix_b`, (16, 16, 16), `half` / `float`, `col_major` / `row_major`)
   - src_pointer  : Source pointer (No alignment restriction)
   - func         : Element-wise function. Return type has to be `half`.
 
@@ -93,17 +93,17 @@ This function is used for computing direct product of two vectors (u and v) with
 ### make_eye
 ![load_matrix](docs/make_eye-en.svg)
 - Arguments
-  - dst_fragment : Destination fragment (accumulator, (16, 16, 16), half / float)
+  - dst_fragment : Destination fragment (`accumulator`, (16, 16, 16), `half` / `float`)
   - alpha : diagonal element
 
 ### make_identity_matrix
 This function is equivalent to `make_eye(frag, 1.0f)`
 - Arguments
-  - dst_fragment : Destination fragment (accumulator, (16, 16, 16), half / float)
+  - dst_fragment : Destination fragment (`accumulator`, (16, 16, 16), `float` / `half`)
 
 ### fill_zero
 - Argument
-  - dst_fragment : Destination fragment (float / half)
+  - dst_fragment : Destination fragment (`float` / `half`)
 
 ### print_fragment
 This function output the elements of a fragment.
