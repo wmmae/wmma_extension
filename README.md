@@ -80,8 +80,6 @@ mtk::wmma::foreach(
   - frag         : fragment. This argument is used for template argument deduction.
   - func         : like a function which sets fragments from `fragment_index` and `mem_index`.
 
-The first argument of `func` is an index of `fragment.x[]` and the second one is a value of `fragment.x[]` if `func` is an identity function.
-
 ### make_direct_product_fragments
 This function is used for computing direct product of two vectors (u and v) with accuracy correction.
 
