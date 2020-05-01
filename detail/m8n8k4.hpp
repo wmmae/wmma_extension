@@ -92,7 +92,7 @@ MMA_F32_F32(row, row);
 
 #define MMA_F16_F32(A_LAYOUT, B_LAYOUT) \
 __device__ inline void mma_sync(fragment<nvcuda::wmma::accumulator, 8, 8, 4, half>& d, const fragment<nvcuda::wmma::matrix_a, 8, 8, 4, half, nvcuda::wmma::A_LAYOUT##_major>& a, fragment<nvcuda::wmma::matrix_b, 8, 8, 4, half, nvcuda::wmma::B_LAYOUT##_major>& b, const fragment<nvcuda::wmma::accumulator, 8, 8, 4, float>& c) { \
-	asm("{mma.sync.aligned.m8n8k4."#A_LAYOUT"."#B_LAYOUT".f16.f16.f16.f32 {%%0, %%1, %%2, %%3}, {%%4, %%5}, {%%6, %%7}, {%%8, %%9, %%10, %%11, %%12, %%13, %%14, %%15};}" : "=f"(d.x[0]), "=f"(d.x[1]), "=f"(d.x[2]), "=f"(d.x[3]) : "r"(*reinterpret_cast<const unsigned*>(a.x)), "r"(*reinterpret_cast<const unsigned*>(a.x + 2)), "r"(*reinterpret_cast<const unsigned*>(b.x)), "r"(*reinterpret_cast<const unsigned*>(b.x + 2)), "f"(c.x[0]), "f"(c.x[1]), "f"(c.x[2]), "f"(c.x[3]), "f"(c.x[4]), "f"(c.x[5]), "f"(c.x[6]), "f"(c.x[7])); \
+	asm("{mma.sync.aligned.m8n8k4."#A_LAYOUT"."#B_LAYOUT".f16.f16.f16.f32 {%%0, %%1, %%2, %%3}, {%%4, %%5}, {%%6, %%7}, {%%8, %%9, %%10, %%11, %%12, %%13, %%14, %%15};}" : "=f"(*reinterpret_cast<const unsigned*>(d.x + 0)), "=f"(*reinterpret_cast<const unsigned*>(d.x + 2)), "=f"(*reinterpret_cast<const unsigned*>(d.x + 4)), "=f"(*reinterpret_cast<const unsigned*>(d.x + 6)) : "r"(*reinterpret_cast<const unsigned*>(a.x)), "r"(*reinterpret_cast<const unsigned*>(a.x + 2)), "r"(*reinterpret_cast<const unsigned*>(b.x)), "r"(*reinterpret_cast<const unsigned*>(b.x + 2)), "f"(c.x[0]), "f"(c.x[1]), "f"(c.x[2]), "f"(c.x[3]), "f"(c.x[4]), "f"(c.x[5]), "f"(c.x[6]), "f"(c.x[7])); \
 }
 
 MMA_F16_F32(col, col);
