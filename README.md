@@ -46,20 +46,24 @@ __global__ void kernel() {
   - src_fragment : Source fragment (`nvcuda::wmma::accumulator` , (16, 16, 16), `half` / `float`)
   - layout       : `nvcuda::wmma::mem_col_major` / `nvcuda::wmma::mem_row_major`
 
-### load_matrix_with_operation_sync
+### load_matrix_with_operation
+This function is used for making a fragment of a matrix with element-wise operations.
 ```cuda
 nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major> frag_b;
 __shared__ compute_t matrix[16 * 16];
-mtk::wmma::load_matrix_with_operation_sync(
+mtk::wmma::load_matrix_with_operation(
 		frag,
 		matrix,
 		[](const unsigned index, const compute_t value) -> half {return static_cast<half>(value * 2.0f);}
 	);
 ```
+
 - Arguments
   - dst_fragment : Destination fragment (matrix_a / matrix_b, (16, 16, 16), half / float, col_major / row_major)
   - src_pointer  : Source pointer (No alignment restriction)
   - func         : Element-wise function. Return type has to be `half`.
+
+The first argument of `func` is an index of `fragment.x[]` and the second one is a value of `fragment.x[]` if `func` is an identity function.
 
 ### make_direct_product_fragments
 This function is used for computing direct product of two vectors (u and v) with accuracy correction.
