@@ -1,3 +1,5 @@
+<img src='./docs/wmmae.svg' width=200>
+
 # WMMA API Extension
 
 This extension provides a function for
