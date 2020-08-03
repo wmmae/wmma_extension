@@ -961,6 +961,8 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<MatrixType, M, N,
 	detail::load_vector_sync_sm70(frag, ptr, fill);
 #elif __CUDA_ARCH__ < 800
 	detail::load_vector_sync_sm75(frag, ptr, fill);
+#elif __CUDA_ARCH__ < 850
+	detail::load_vector_sync_sm80(frag, ptr, fill);
 #endif
 }
 
@@ -970,6 +972,8 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<MatrixType, M, N,
 	detail::load_vector_sync_sm70(frag, ptr, mul, fill);
 #elif __CUDA_ARCH__ < 800
 	detail::load_vector_sync_sm75(frag, ptr, mul, fill);
+#elif __CUDA_ARCH__ < 850
+	detail::load_vector_sync_sm80(frag, ptr, mul, fill);
 #endif
 }
 
@@ -979,6 +983,8 @@ __device__ inline void store_vector_sync(T* const ptr, nvcuda::wmma::fragment<nv
 	detail::store_vector_sync_sm70(ptr, frag, layout);
 #elif __CUDA_ARCH__ < 800
 	detail::store_vector_sync_sm75(ptr, frag, layout);
+#elif __CUDA_ARCH__ < 850
+	detail::store_vector_sync_sm80(ptr, frag, fill);
 #endif
 }
 
@@ -988,6 +994,8 @@ __device__ inline void store_vector_sync(T* const ptr, nvcuda::wmma::fragment<nv
 	detail::store_vector_sync_sm70(ptr, frag, mul, layout);
 #elif __CUDA_ARCH__ < 800
 	detail::store_vector_sync_sm75(ptr, frag, mul, layout);
+#elif __CUDA_ARCH__ < 850
+	detail::store_vector_sync_sm80(ptr, frag, mul, layout);
 #endif
 }
 
@@ -997,6 +1005,8 @@ __device__ inline void foreach(nvcuda::wmma::fragment<MatrixType, M, N, K, half,
 	detail::foreach_sm70(frag, func);
 #elif __CUDA_ARCH__ < 800
 	detail::foreach_sm75(frag, func);
+#elif __CUDA_ARCH__ < 850
+	detail::foreach_sm80(frag, func);
 #endif
 }
 
@@ -1014,8 +1024,9 @@ __device__ inline void make_identity_matrix(nvcuda::wmma::fragment<nvcuda::wmma:
 #if __CUDA_ARCH__ < 710
 	detail::make_identity_matrix_sm70(frag);
 #elif __CUDA_ARCH__ < 800
-#else
 	detail::make_identity_matrix_sm75(frag);
+#elif __CUDA_ARCH__ < 850
+	detail::make_identity_matrix_sm80(frag);
 #endif
 }
 
@@ -1025,6 +1036,8 @@ __device__ inline void add_eye(nvcuda::wmma::fragment<nvcuda::wmma::accumulator,
 	detail::add_eye_sm70(frag, alpha);
 #elif __CUDA_ARCH__ < 800
 	detail::add_eye_sm75(frag, alpha);
+#elif __CUDA_ARCH__ < 850
+	detail::add_eye_sm80(frag, alpha);
 #endif
 }
 
@@ -1039,6 +1052,8 @@ __device__ inline void make_direct_product_fragment(
 	detail::make_direct_product_fragment_sm70<T, S, 2>(frag_x, x, dx, fill);
 #elif __CUDA_ARCH__ < 800
 	detail::make_direct_product_fragment_sm75<T, S, 2>(frag_x, x, dx, fill);
+#elif __CUDA_ARCH__ < 850
+	detail::make_direct_product_fragment_sm80<T, S, 2>(frag_x, x, dx, fill);
 #endif
 }
 
@@ -1052,6 +1067,8 @@ __device__ inline void make_direct_product_fragment_c3(
 	detail::make_direct_product_fragment_sm70<T, S, 3>(frag_x, x, dx, fill);
 #elif __CUDA_ARCH__ < 800
 	detail::make_direct_product_fragment_sm75<T, S, 3>(frag_x, x, dx, fill);
+#elif __CUDA_ARCH__ < 850
+	detail::make_direct_product_fragment_sm80<T, S, 3>(frag_x, x, dx, fill);
 #endif
 }
 
