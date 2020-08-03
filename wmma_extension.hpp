@@ -887,6 +887,62 @@ __device__ inline void make_direct_product_fragment_sm70(
 	frag_b.x[2] = detail::utils::cast<half>(b_ptr[b_offset + 2]);
 	frag_b.x[3] = detail::utils::cast<half>(b_ptr[b_offset + 3]);
 }
+
+template <class Func>
+__device__ inline void foreach_sm80(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 8, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major>& frag, Func func) {
+	const unsigned warp_id = threadIdx.x & 0x1f;
+	// TODO : 36-a100
+	__syncthreads();
+}
+
+template <class Func>
+__device__ inline void foreach_sm80(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 8, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major>& frag, Func func) {
+	const unsigned warp_id = threadIdx.x & 0x1f;
+	// TODO : 36-a100
+	__syncthreads();
+}
+
+template <class Func>
+__device__ inline void foreach_sm80(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 8, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major>& frag, Func func) {
+	const unsigned warp_id = threadIdx.x & 0x1f;
+	// TODO : 36-a100
+	__syncthreads();
+}
+
+template <class Func>
+__device__ inline void foreach_sm80(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 8, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major>& frag, Func func) {
+	const unsigned warp_id = threadIdx.x & 0x1f;
+	// TODO : 36-a100
+	__syncthreads();
+}
+
+template <class Func>
+__device__ inline void foreach_sm80(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, Func func) {
+	const unsigned warp_id = threadIdx.x & 0x1f;
+	// TODO : 36-a100
+	__syncthreads();
+}
+
+template <class Func>
+__device__ inline void foreach_sm80(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::row_major>& frag, Func func) {
+	const unsigned warp_id = threadIdx.x & 0x1f;
+	// TODO : 36-a100
+	__syncthreads();
+}
+
+template <class Func>
+__device__ inline void foreach_sm80(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, Func func) {
+	const unsigned warp_id = threadIdx.x & 0x1f;
+	// TODO : 36-a100
+	__syncthreads();
+}
+
+template <class Func>
+__device__ inline void foreach_sm80(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>& frag, Func func) {
+	const unsigned warp_id = threadIdx.x & 0x1f;
+	// TODO : 36-a100
+	__syncthreads();
+}
 } // namespace detail
 
 namespace wmma {
