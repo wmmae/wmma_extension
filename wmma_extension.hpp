@@ -183,6 +183,7 @@ __device__ inline void load_vector_sync_sm80(nvcuda::wmma::fragment<nvcuda::wmma
 	if (fill)
 		nvcuda::wmma::fill_fragment(frag, __float2half(0.0f));
 	const unsigned warp_id = threadIdx.x & 0x1f;
+	// TODO : 36-a100
 	__syncthreads();
 }
 
@@ -191,6 +192,7 @@ __device__ inline void load_vector_sync_sm80(nvcuda::wmma::fragment<nvcuda::wmma
 	if (fill)
 		nvcuda::wmma::fill_fragment(frag, __float2half(0.0f));
 	const unsigned warp_id = threadIdx.x & 0x1f;
+	// TODO : 36-a100
 	__syncthreads();
 }
 
@@ -199,6 +201,7 @@ __device__ inline void load_vector_sync_sm80(nvcuda::wmma::fragment<nvcuda::wmma
 	if (fill)
 		nvcuda::wmma::fill_fragment(frag, __float2half(0.0f));
 	const unsigned warp_id = threadIdx.x & 0x1f;
+	// TODO : 36-a100
 	__syncthreads();
 }
 
@@ -207,6 +210,7 @@ __device__ inline void load_vector_sync_sm80(nvcuda::wmma::fragment<nvcuda::wmma
 	if (fill)
 		nvcuda::wmma::fill_fragment(frag, __float2half(0.0f));
 	const unsigned warp_id = threadIdx.x & 0x1f;
+	// TODO : 36-a100
 	__syncthreads();
 }
 
@@ -215,6 +219,7 @@ __device__ inline void load_vector_sync_sm80(nvcuda::wmma::fragment<nvcuda::wmma
 	if (fill)
 		nvcuda::wmma::fill_fragment(frag, 0.0f);
 	const unsigned warp_id = threadIdx.x & 0x1f;
+	// TODO : 36-a100
 	__syncthreads();
 }
 
@@ -223,6 +228,7 @@ __device__ inline void load_vector_sync_sm80(nvcuda::wmma::fragment<nvcuda::wmma
 	if (fill)
 		nvcuda::wmma::fill_fragment(frag, 0.0f);
 	const unsigned warp_id = threadIdx.x & 0x1f;
+	// TODO : 36-a100
 	__syncthreads();
 }
 
@@ -231,6 +237,7 @@ __device__ inline void load_vector_sync_sm80(nvcuda::wmma::fragment<nvcuda::wmma
 	if (fill)
 		nvcuda::wmma::fill_fragment(frag, 0.0f);
 	const unsigned warp_id = threadIdx.x & 0x1f;
+	// TODO : 36-a100
 	__syncthreads();
 }
 
@@ -239,6 +246,7 @@ __device__ inline void load_vector_sync_sm80(nvcuda::wmma::fragment<nvcuda::wmma
 	if (fill)
 		nvcuda::wmma::fill_fragment(frag, 0.0f);
 	const unsigned warp_id = threadIdx.x & 0x1f;
+	// TODO : 36-a100
 	__syncthreads();
 }
 
