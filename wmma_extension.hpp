@@ -959,7 +959,7 @@ template <class MatrixType, int M, int N, int K, class MemMajor, class T>
 __device__ inline void load_vector_sync(nvcuda::wmma::fragment<MatrixType, M, N, K, half, MemMajor>& frag, const T* const ptr, const bool fill = true) {
 #if __CUDA_ARCH__ < 710
 	detail::load_vector_sync_sm70(frag, ptr, fill);
-#else
+#elif __CUDA_ARCH__ < 800
 	detail::load_vector_sync_sm75(frag, ptr, fill);
 #endif
 }
@@ -968,7 +968,7 @@ template <class MatrixType, int M, int N, int K, class MemMajor, class T>
 __device__ inline void load_vector_sync(nvcuda::wmma::fragment<MatrixType, M, N, K, half, MemMajor>& frag, const T* const ptr, const T mul, const bool fill = true) {
 #if __CUDA_ARCH__ < 710
 	detail::load_vector_sync_sm70(frag, ptr, mul, fill);
-#else
+#elif __CUDA_ARCH__ < 800
 	detail::load_vector_sync_sm75(frag, ptr, mul, fill);
 #endif
 }
@@ -977,7 +977,7 @@ template <int M, int N, int K, class T>
 __device__ inline void store_vector_sync(T* const ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, T>& frag, const nvcuda::wmma::layout_t layout) {
 #if __CUDA_ARCH__ < 710
 	detail::store_vector_sync_sm70(ptr, frag, layout);
-#else
+#elif __CUDA_ARCH__ < 800
 	detail::store_vector_sync_sm75(ptr, frag, layout);
 #endif
 }
@@ -986,7 +986,7 @@ template <int M, int N, int K, class T>
 __device__ inline void store_vector_sync(T* const ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, T>& frag, const T mul, const nvcuda::wmma::layout_t layout) {
 #if __CUDA_ARCH__ < 710
 	detail::store_vector_sync_sm70(ptr, frag, mul, layout);
-#else
+#elif __CUDA_ARCH__ < 800
 	detail::store_vector_sync_sm75(ptr, frag, mul, layout);
 #endif
 }
@@ -995,7 +995,7 @@ template <class MatrixType, int M, int N, int K, class MemMajor, class Func>
 __device__ inline void foreach(nvcuda::wmma::fragment<MatrixType, M, N, K, half, MemMajor>& frag, Func func) {
 #if __CUDA_ARCH__ < 710
 	detail::foreach_sm70(frag, func);
-#else
+#elif __CUDA_ARCH__ < 800
 	detail::foreach_sm75(frag, func);
 #endif
 }
@@ -1004,7 +1004,7 @@ template <class MatrixType, int M, int N, int K, class MemMajor, class T, class 
 __device__ inline void load_matrix_with_operation_sync(nvcuda::wmma::fragment<MatrixType, M, N, K, half, MemMajor>& frag, const T* const ptr, unsigned ldm, Func func) {
 #if __CUDA_ARCH__ < 710
 	detail::load_matrix_with_operation_sync_sm70(frag, ptr, ldm, func);
-#else
+#elif __CUDA_ARCH__ < 800
 	detail::load_matrix_with_operation_sync_sm75(frag, ptr, ldm, func);
 #endif
 }
@@ -1013,6 +1013,7 @@ template <class T>
 __device__ inline void make_identity_matrix(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag) {
 #if __CUDA_ARCH__ < 710
 	detail::make_identity_matrix_sm70(frag);
+#elif __CUDA_ARCH__ < 800
 #else
 	detail::make_identity_matrix_sm75(frag);
 #endif
@@ -1022,7 +1023,7 @@ template <class T>
 __device__ inline void add_eye(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag, const T alpha) {
 #if __CUDA_ARCH__ < 710
 	detail::add_eye_sm70(frag, alpha);
-#else
+#elif __CUDA_ARCH__ < 800
 	detail::add_eye_sm75(frag, alpha);
 #endif
 }
@@ -1036,7 +1037,7 @@ __device__ inline void make_direct_product_fragment(
 		) {
 #if __CUDA_ARCH__ < 710
 	detail::make_direct_product_fragment_sm70<T, S, 2>(frag_x, x, dx, fill);
-#else
+#elif __CUDA_ARCH__ < 800
 	detail::make_direct_product_fragment_sm75<T, S, 2>(frag_x, x, dx, fill);
 #endif
 }
@@ -1049,7 +1050,7 @@ __device__ inline void make_direct_product_fragment_c3(
 		) {
 #if __CUDA_ARCH__ < 710
 	detail::make_direct_product_fragment_sm70<T, S, 3>(frag_x, x, dx, fill);
-#else
+#elif __CUDA_ARCH__ < 800
 	detail::make_direct_product_fragment_sm75<T, S, 3>(frag_x, x, dx, fill);
 #endif
 }
