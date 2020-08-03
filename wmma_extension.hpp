@@ -944,6 +944,12 @@ __device__ inline void foreach_sm80(nvcuda::wmma::fragment<nvcuda::wmma::matrix_
 	// TODO : 36-a100
 	__syncthreads();
 }
+
+template <class T>
+__device__ inline void add_eye_sm80(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag, const T alpha) {
+	const unsigned warp_id = threadIdx.x & 0x1f;
+	// TODO : 32-a100
+}
 } // namespace detail
 
 namespace wmma {
