@@ -399,7 +399,7 @@ __device__ inline void make_direct_product_fragment(
 template <unsigned CORRECTION_TERMS = 2>
 __device__ inline void make_direct_product_fragment(
 		nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag_a,
-		const float* const a,
+		const float* const a_ptr,
 		const bool fill
 		) {
 	if (fill) {
@@ -411,17 +411,17 @@ __device__ inline void make_direct_product_fragment(
 
 	const unsigned offset = (warp_id >> 2);
 
-	frag_a.x[ 0] = detail::common::cast<half>(a[offset + 0]);
-	frag_a.x[ 2] = detail::common::cast<half>(a[offset + 8]);
+	frag_a.x[ 0] = detail::common::cast<half>(a_ptr[offset + 0]);
+	frag_a.x[ 2] = detail::common::cast<half>(a_ptr[offset + 8]);
 	frag_a.x[ 8] = frag_a.x[ 0];
 	frag_a.x[10] = frag_a.x[ 2];
 	if (CORRECTION_TERMS == 3 || (warp_id & 0x1) == 0) {
 		{
-			const auto a_fp32 = da[offset + 0];
+			const auto a_fp32 = a_ptr[offset + 0];
 			frag_a.x[ 0 + 1] = detail::common::cast<half>(a_fp32 - detail::common::cast<float>(detail::common::cast<float>(a_fp32)));
 		}
 		{
-			const auto a_fp32 = da[offset + 8];
+			const auto a_fp32 = a_ptr[offset + 8];
 			frag_a.x[ 2 + 1] = detail::common::cast<half>(a_fp32 - detail::common::cast<float>(detail::common::cast<float>(a_fp32)));
 		}
 		frag_a.x[ 8 + 1] = frag_a.x[ 0 + 1];
@@ -432,7 +432,7 @@ __device__ inline void make_direct_product_fragment(
 template <unsigned CORRECTION_TERMS = 2>
 __device__ inline void make_direct_product_fragment(
 		nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>& frag_b,
-		const float* const b,
+		const float* const b_ptr,
 		const bool fill
 		) {
 	if (fill) {
