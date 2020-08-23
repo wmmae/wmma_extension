@@ -1,6 +1,6 @@
 #ifndef __WMMAE_DETAIL_70_HPP__
 #define __WMMAE_DETAIL_70_HPP__
-#include <wmm.h>
+#include <mma.h>
 namespace mtk {
 namespace wmma {
 namespace sm_70 {
