@@ -1,6 +1,7 @@
 #ifndef __WMMAE_DETAIL_70_HPP__
 #define __WMMAE_DETAIL_70_HPP__
 #include <mma.h>
+#include "common.hpp"
 namespace mtk {
 namespace wmma {
 namespace sm_70 {
@@ -13,7 +14,7 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::mat
 	bool load_flag = (warp_id & 0x3) == 0;
 	if(load_flag) {
 		for(unsigned i = 0; i < 4; i++) {
-			frag.x[i] = utils::cast<half>(ptr[i + index_offset]);
+			frag.x[i] = common::cast<half>(ptr[i + index_offset]);
 		}
 	}
 	__syncthreads();
@@ -28,7 +29,7 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::mat
 	bool load_flag = (warp_id == 0) || (warp_id == 8);
 	if(load_flag) {
 		for(unsigned i = 0; i < 16; i++) {
-			frag.x[i] = utils::cast<half>(ptr[i]);
+			frag.x[i] = common::cast<half>(ptr[i]);
 		}
 	}
 	__syncthreads();
@@ -43,7 +44,7 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::mat
 	bool load_flag = (warp_id == 0) || (warp_id == 4);
 	if(load_flag) {
 		for(unsigned i = 0; i < 16; i++) {
-			frag.x[i] = utils::cast<half>(ptr[i]);
+			frag.x[i] = common::cast<half>(ptr[i]);
 		}
 	}
 	__syncthreads();
@@ -58,7 +59,7 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::mat
 	bool load_flag = (warp_id & 0x3) == 0;
 	if(load_flag) {
 		for(unsigned i = 0; i < 4; i++) {
-			frag.x[i] = utils::cast<half>(ptr[i + index_offset]);
+			frag.x[i] = common::cast<half>(ptr[i + index_offset]);
 		}
 	}
 	__syncthreads();
@@ -73,7 +74,7 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::mat
 	bool load_flag = (warp_id & 0x3) == 0;
 	if(load_flag) {
 		for(unsigned i = 0; i < 4; i++) {
-			frag.x[i] = utils::cast<half>(ptr[i + index_offset] * mul);
+			frag.x[i] = common::cast<half>(ptr[i + index_offset] * mul);
 		}
 	}
 	__syncthreads();
@@ -89,7 +90,7 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::mat
 	bool load_flag = (warp_id == 0) || (warp_id == 4);
 	if(load_flag) {
 		for(unsigned i = 0; i < 16; i++) {
-			frag.x[i] = utils::cast<half>(ptr[i + index_offset] * mul);
+			frag.x[i] = common::cast<half>(ptr[i + index_offset] * mul);
 		}
 	}
 	__syncthreads();
@@ -105,7 +106,7 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::mat
 	bool load_flag = (warp_id == 0) || (warp_id == 4);
 	if(load_flag) {
 		for(unsigned i = 0; i < 16; i++) {
-			frag.x[i] = utils::cast<half>(ptr[i + index_offset] * mul);
+			frag.x[i] = common::cast<half>(ptr[i + index_offset] * mul);
 		}
 	}
 	__syncthreads();
@@ -120,7 +121,7 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::mat
 	bool load_flag = (warp_id & 0x3) == 0;
 	if(load_flag) {
 		for(unsigned i = 0; i < 4; i++) {
-			frag.x[i] = utils::cast<half>(ptr[i + index_offset] * mul);
+			frag.x[i] = common::cast<half>(ptr[i + index_offset] * mul);
 		}
 	}
 	__syncthreads();
@@ -325,7 +326,7 @@ __device__ inline void make_identity_matrix(nvcuda::wmma::fragment<nvcuda::wmma:
 
 	const unsigned p0 = (warp_id >> 2) & 0x3;
 	if(p0 == 0 || p0 == 3) {
-		frag.x[(warp_id & 0x3) + index_offset] = utils::cast<T>(1.0f);
+		frag.x[(warp_id & 0x3) + index_offset] = common::cast<T>(1.0f);
 	}
 	__syncthreads();
 }
@@ -363,10 +364,10 @@ __device__ inline void make_direct_product_fragment(
 	const T* const a_ptr = ((warp_id & 0x1) == 0) ? a : da;
 	const unsigned a_offset = ((warp_id & 0x10) >> 2) + ((warp_id & 0x4) << 1);
 
-	frag_a.x[0] = detail::utils::cast<half>(a_ptr[a_offset + 0]);
-	frag_a.x[1] = detail::utils::cast<half>(a_ptr[a_offset + 1]);
-	frag_a.x[2] = detail::utils::cast<half>(a_ptr[a_offset + 2]);
-	frag_a.x[3] = detail::utils::cast<half>(a_ptr[a_offset + 3]);
+	frag_a.x[0] = detail::common::cast<half>(a_ptr[a_offset + 0]);
+	frag_a.x[1] = detail::common::cast<half>(a_ptr[a_offset + 1]);
+	frag_a.x[2] = detail::common::cast<half>(a_ptr[a_offset + 2]);
+	frag_a.x[3] = detail::common::cast<half>(a_ptr[a_offset + 3]);
 }
 
 template <class T, class S, unsigned CORRECTION_TERMS = 2>
@@ -387,10 +388,10 @@ __device__ inline void make_direct_product_fragment(
 	const T* const b_ptr = ((warp_id & 0x2) != 0) ? b : db;
 	const unsigned b_offset = ((warp_id & 0x10) >> 2) + (warp_id & 0x8);
 
-	frag_b.x[0] = detail::utils::cast<half>(b_ptr[b_offset + 0]);
-	frag_b.x[1] = detail::utils::cast<half>(b_ptr[b_offset + 1]);
-	frag_b.x[2] = detail::utils::cast<half>(b_ptr[b_offset + 2]);
-	frag_b.x[3] = detail::utils::cast<half>(b_ptr[b_offset + 3]);
+	frag_b.x[0] = detail::common::cast<half>(b_ptr[b_offset + 0]);
+	frag_b.x[1] = detail::common::cast<half>(b_ptr[b_offset + 1]);
+	frag_b.x[2] = detail::common::cast<half>(b_ptr[b_offset + 2]);
+	frag_b.x[3] = detail::common::cast<half>(b_ptr[b_offset + 3]);
 }
 } // namespace sm_70
 } // namespace wmma
