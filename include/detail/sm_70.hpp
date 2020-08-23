@@ -386,7 +386,7 @@ __device__ inline void make_direct_product_fragment(
 		return;
 	}
 
-	const T* const b_ptr = ((warp_id & 0x2) != 0) ? b : db;
+	const T* const b_ptr = ((warp_id & 0x2) == 0) ? b : db;
 	const unsigned b_offset = ((warp_id & 0x10) >> 2) + (warp_id & 0x8);
 
 	frag_b.x[0] = detail::common::cast<half>(b_ptr[b_offset + 0]);
@@ -437,7 +437,7 @@ __device__ inline void make_direct_product_fragment(
 		return;
 	}
 
-	const bool is_residual = ((warp_id & 0x2) == 0);
+	const bool is_residual = ((warp_id & 0x2) != 0);
 	const unsigned b_offset = ((warp_id & 0x10) >> 2) + (warp_id & 0x8);
 #pragma unroll
 	for (unsigned i = 0; i < 4; i++) {
