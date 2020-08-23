@@ -28,9 +28,9 @@ __device__ inline void fill_zero(nvcuda::wmma::fragment<Use, M, N, K, half, Layo
 
 // arch switch
 #if __CUDA_ARCH__ < 710
-	using detail_namespace = mtk::wmma::detail::sm_70;
+namespace detail_namespace = mtk::wmma::detail::sm_70;
 #else
-	using detail_namespace = mtk::wmma::detail::sm_75;
+namespace detail_namespace = mtk::wmma::detail::sm_75;
 #endif
 
 namespace wmma {
