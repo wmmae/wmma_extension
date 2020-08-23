@@ -4,6 +4,7 @@
 #include "common.hpp"
 namespace mtk {
 namespace wmma {
+namespace detail {
 namespace sm_75 {
 template <class T>
 __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, const T* const ptr, const bool fill) {
@@ -395,6 +396,7 @@ __device__ inline void make_direct_product_fragment(
 	}
 }
 } // namespace sm_75
+} // namespace detail
 } // namespace wmma
 } // namespace mtk
 #endif
