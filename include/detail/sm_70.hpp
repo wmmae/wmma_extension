@@ -386,13 +386,66 @@ __device__ inline void make_direct_product_fragment(
 		return;
 	}
 
-	const T* const b_ptr = ((warp_id & 0x2) != 0) ? b : db;
+	const T* const b_ptr = ((warp_id & 0x2) == 0) ? b : db;
 	const unsigned b_offset = ((warp_id & 0x10) >> 2) + (warp_id & 0x8);
 
 	frag_b.x[0] = detail::common::cast<half>(b_ptr[b_offset + 0]);
 	frag_b.x[1] = detail::common::cast<half>(b_ptr[b_offset + 1]);
 	frag_b.x[2] = detail::common::cast<half>(b_ptr[b_offset + 2]);
 	frag_b.x[3] = detail::common::cast<half>(b_ptr[b_offset + 3]);
+}
+
+template <unsigned CORRECTION_TERMS = 2>
+__device__ inline void make_direct_product_fragment(
+		nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag_a,
+		const float* const a_ptr,
+		const bool fill
+		) {
+	if (fill) {
+		mtk::wmma::fill_zero(frag_a);
+	}
+	const unsigned warp_id = threadIdx.x & 0x1f;
+
+	if (CORRECTION_TERMS == 2 && (warp_id & 0x3) == 0x3) {
+		return;
+	}
+
+	const bool is_residual = ((warp_id & 0x1) != 0);
+	const unsigned a_offset = ((warp_id & 0x10) >> 2) + ((warp_id & 0x4) << 1);
+
+#pragma unroll
+	for (unsigned i = 0; i < 4; i++) {
+		const auto a_fp32 = a_ptr[a_offset + i];
+		frag_a.x[i] = detail::common::cast<half>(a_fp32);
+		if (is_residual)
+			frag_a.x[i] = detail::common::cast<half>(a_fp32 - detail::common::cast<float>(frag_a.x[i]));
+	}
+}
+
+template <unsigned CORRECTION_TERMS = 2>
+__device__ inline void make_direct_product_fragment(
+		nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>& frag_b,
+		const float* const b_ptr,
+		const bool fill
+		) {
+	if (fill) {
+		mtk::wmma::fill_zero(frag_b);
+	}
+	const unsigned warp_id = threadIdx.x & 0x1f;
+
+	if (CORRECTION_TERMS == 2 && (warp_id & 0x3) == 0x3) {
+		return;
+	}
+
+	const bool is_residual = ((warp_id & 0x2) != 0);
+	const unsigned b_offset = ((warp_id & 0x10) >> 2) + (warp_id & 0x8);
+#pragma unroll
+	for (unsigned i = 0; i < 4; i++) {
+		const auto b_fp32 = b_ptr[b_offset + i];
+		frag_b.x[i] = detail::common::cast<half>(b_fp32);
+		if (is_residual)
+			frag_b.x[i] = detail::common::cast<half>(b_fp32 - detail::common::cast<float>(frag_b.x[i]));
+	}
 }
 } // namespace sm_70
 } // namespace detail

@@ -7,6 +7,8 @@
 #define TEST_ARCH (-1)
 #endif
 
+#define SMALLER_WORKING_MEMORY
+
 constexpr std::size_t N = 16;
 
 template <class T, class S>
@@ -33,6 +35,16 @@ __global__ void direct_product_kernel(float* const h, const float* const u) {
 	}
 
 	if (CORRECTION_TERMS == 3) {
+#ifdef SMALLER_WORKING_MEMORY
+		mtk::wmma::make_direct_product_fragment_c3(
+				frag_a,
+				u
+				);
+		mtk::wmma::make_direct_product_fragment_c3(
+				frag_b,
+				u
+				);
+#else
 		mtk::wmma::make_direct_product_fragment_c3(
 				frag_a,
 				su, sdu
@@ -41,7 +53,18 @@ __global__ void direct_product_kernel(float* const h, const float* const u) {
 				frag_b,
 				su, sdu
 				);
+#endif
 	} else {
+#ifdef SMALLER_WORKING_MEMORY
+		mtk::wmma::make_direct_product_fragment(
+				frag_a,
+				u
+				);
+		mtk::wmma::make_direct_product_fragment(
+				frag_b,
+				u
+				);
+#else
 		mtk::wmma::make_direct_product_fragment(
 				frag_a,
 				su, sdu
@@ -50,6 +73,7 @@ __global__ void direct_product_kernel(float* const h, const float* const u) {
 				frag_b,
 				su, sdu
 				);
+#endif
 	}
 
 	nvcuda::wmma::fill_fragment(frag_c, 0.0f);
