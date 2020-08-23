@@ -55,7 +55,6 @@ __device__ inline void add_eye(nvcuda::wmma::fragment<nvcuda::wmma::accumulator,
 	detail_namespace::add_eye(frag, alpha);
 }
 
-
 template <class MatrixType, int M, int N, int K, class MemMajor, class T, class S>
 __device__ inline void make_direct_product_fragment(
 		nvcuda::wmma::fragment<MatrixType, M, N, K, half, MemMajor>& frag_x,
@@ -72,6 +71,24 @@ __device__ inline void make_direct_product_fragment_c3(
 		const bool fill = true
 		) {
 	detail_namespace::make_direct_product_fragment<T, S, 3>(frag_x, x, dx, fill);
+}
+
+template <class MatrixType, int M, int N, int K, class MemMajor>
+__device__ inline void make_direct_product_fragment(
+		nvcuda::wmma::fragment<MatrixType, M, N, K, half, MemMajor>& frag_x,
+		const float* const x,
+		const bool fill = true
+		) {
+	detail_namespace::make_direct_product_fragment<2>(frag_x, x, fill);
+}
+
+template <class MatrixType, int M, int N, int K, class MemMajor>
+__device__ inline void make_direct_product_fragment_c3(
+		nvcuda::wmma::fragment<MatrixType, M, N, K, half, MemMajor>& frag_x,
+		const float* const x,
+		const bool fill = true
+		) {
+	detail_namespace::make_direct_product_fragment<3>(frag_x, x, fill);
 }
 
 template <class MatrixType, int M, int N, int K, class MemMajor, class T>
