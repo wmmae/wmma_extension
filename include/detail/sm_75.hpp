@@ -418,11 +418,11 @@ __device__ inline void make_direct_product_fragment(
 	if (CORRECTION_TERMS == 3 || (warp_id & 0x1) == 0) {
 		{
 			const auto a_fp32 = a_ptr[offset + 0];
-			frag_a.x[ 0 + 1] = detail::common::cast<half>(a_fp32 - detail::common::cast<float>(detail::common::cast<float>(a_fp32)));
+			frag_a.x[ 0 + 1] = detail::common::cast<half>(a_fp32 - detail::common::cast<float>(detail::common::cast<half>(a_fp32)));
 		}
 		{
 			const auto a_fp32 = a_ptr[offset + 8];
-			frag_a.x[ 2 + 1] = detail::common::cast<half>(a_fp32 - detail::common::cast<float>(detail::common::cast<float>(a_fp32)));
+			frag_a.x[ 2 + 1] = detail::common::cast<half>(a_fp32 - detail::common::cast<float>(detail::common::cast<half>(a_fp32)));
 		}
 		frag_a.x[ 8 + 1] = frag_a.x[ 0 + 1];
 		frag_a.x[10 + 1] = frag_a.x[ 2 + 1];
