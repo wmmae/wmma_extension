@@ -82,8 +82,48 @@ __device__ inline void load_matrix_sync(mtk::wmma::fragment<nvcuda::wmma::matrix
 
 template <class T>
 __device__ inline void load_matrix_sync(mtk::wmma::fragment<nvcuda::wmma::accumulator, 8, 8, 4, half>& f, const T* const p, const unsigned ldm, const nvcuda::wmma::layout_t layout) {
+	const unsigned lane_id = mtk::detail::utils::get_lane_id();
+	const unsigned row = (lane_id & 0x3) + (lane_id >> 4);
 	if (layout == nvcuda::wmma::mem_col_major) {
-		const unsigned row = (threadIdx.x & 0x3) + (threadIdx.x >> 4);
+		f.x[0] = mtk::detail::utils::cast<half>(p[row + 0 * ldm]);
+		f.x[1] = mtk::detail::utils::cast<half>(p[row + 1 * ldm]);
+		f.x[2] = mtk::detail::utils::cast<half>(p[row + 2 * ldm]);
+		f.x[3] = mtk::detail::utils::cast<half>(p[row + 3 * ldm]);
+		f.x[4] = mtk::detail::utils::cast<half>(p[row + 4 * ldm]);
+		f.x[5] = mtk::detail::utils::cast<half>(p[row + 5 * ldm]);
+		f.x[6] = mtk::detail::utils::cast<half>(p[row + 6 * ldm]);
+		f.x[7] = mtk::detail::utils::cast<half>(p[row + 7 * ldm]);
+	} else {
+		const unsigned index_offset = row * ldm;
+
+		f.x[0] = mtk::detail::utils::cast<half>(p[index_offset + 0]);
+		f.x[1] = mtk::detail::utils::cast<half>(p[index_offset + 1]);
+		f.x[2] = mtk::detail::utils::cast<half>(p[index_offset + 2]);
+		f.x[3] = mtk::detail::utils::cast<half>(p[index_offset + 3]);
+		f.x[4] = mtk::detail::utils::cast<half>(p[index_offset + 4]);
+		f.x[5] = mtk::detail::utils::cast<half>(p[index_offset + 5]);
+		f.x[6] = mtk::detail::utils::cast<half>(p[index_offset + 6]);
+		f.x[7] = mtk::detail::utils::cast<half>(p[index_offset + 7]);
+	}
+}
+
+template <class T>
+__device__ inline void store_matrix_sync(T* const p, const fragment<nvcuda::wmma::accumulator, 8, 8, 4, half, void>& f, const unsigned ldm, nvcuda::wmma::layout_t) {
+	const unsigned lane_id = mtk::detail::utils::get_lane_id();
+	const unsigned col_start = ((lane_id >> 2) & 0x3) << 1;
+	const unsigned row = (lane_id & 0x3) + (lane_id >> 4);
+	if (layout == nvcuda::wmma::mem_col_major) {
+		const unsigned index = col_start * ldm + row;
+
+		p[index + 0 * ldm] = mtk::detail::utils::cast<half>(f.x[col_start + 0]);
+		p[index + 1 * ldm] = mtk::detail::utils::cast<half>(f.x[col_start + 1]);
+	} else {
+		const unsigned index = col_start + row * ldm;
+
+		p[index + 0] = mtk::detail::utils::cast<half>(f.x[col_start + 0]);
+		p[index + 1] = mtk::detail::utils::cast<half>(f.x[col_start + 1]);
+	}
+}
 
 		f.x[0] = p[row + 0 * ldm];
 		f.x[1] = p[row + 1 * ldm];
