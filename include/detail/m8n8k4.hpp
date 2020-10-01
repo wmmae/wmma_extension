@@ -31,7 +31,7 @@ __device__ inline void fill_fragment(__frag_base<T, size>& f, const T v) {
 }
 
 template <class T>
-__device__ inline void load_matrix_sync(fragment<nvcuda::wmma::matrix_a, 8, 8, 4, half, nvcuda::wmma::col_major>& f, const T* const p, const unsigned ldm) {
+__device__ inline void load_matrix_sync(mtk::wmma::fragment<nvcuda::wmma::matrix_a, 8, 8, 4, half, nvcuda::wmma::col_major>& f, const T* const p, const unsigned ldm) {
 	const unsigned lane_id = mtk::detail::utils::get_lane_id();
 	const unsigned col = lane_id & 0x3;
 	const unsigned row_offset = ((lane_id >> 4) << 2);
@@ -44,7 +44,7 @@ __device__ inline void load_matrix_sync(fragment<nvcuda::wmma::matrix_a, 8, 8, 4
 }
 
 template <class T>
-__device__ inline void load_matrix_sync(fragment<nvcuda::wmma::matrix_a, 8, 8, 4, half, nvcuda::wmma::row_major>& f, const T* const p, const unsigned ldm) {
+__device__ inline void load_matrix_sync(mtk::wmma::fragment<nvcuda::wmma::matrix_a, 8, 8, 4, half, nvcuda::wmma::row_major>& f, const T* const p, const unsigned ldm) {
 	const unsigned lane_id = mtk::detail::utils::get_lane_id();
 	const unsigned row = (lane_id & 0x3) + ((lane_id >> 4) << 2);
 	const unsigned mem_offset = row * ldm;
@@ -56,7 +56,7 @@ __device__ inline void load_matrix_sync(fragment<nvcuda::wmma::matrix_a, 8, 8, 4
 }
 
 template <class T>
-__device__ inline void load_matrix_sync(fragment<nvcuda::wmma::matrix_b, 8, 8, 4, half, nvcuda::wmma::col_major>& f, const T* const p, const unsigned ldm) {
+__device__ inline void load_matrix_sync(mtk::wmma::fragment<nvcuda::wmma::matrix_b, 8, 8, 4, half, nvcuda::wmma::col_major>& f, const T* const p, const unsigned ldm) {
 	const unsigned lane_id = mtk::detail::utils::get_lane_id();
 	const unsigned col = (lane_id & 0x3) + ((lane_id >> 4) << 2);
 	const unsigned mem_offset = col * ldm;
@@ -68,7 +68,7 @@ __device__ inline void load_matrix_sync(fragment<nvcuda::wmma::matrix_b, 8, 8, 4
 }
 
 template <class T>
-__device__ inline void load_matrix_sync(fragment<nvcuda::wmma::matrix_b, 8, 8, 4, half, nvcuda::wmma::row_major>& f, const T* const p, const unsigned ldm) {
+__device__ inline void load_matrix_sync(mtk::wmma::fragment<nvcuda::wmma::matrix_b, 8, 8, 4, half, nvcuda::wmma::row_major>& f, const T* const p, const unsigned ldm) {
 	const unsigned lane_id = mtk::detail::utils::get_lane_id();
 	const unsigned row = lane_id & 0x3;
 	const unsigned col_offset = ((lane_id >> 4) << 2);
