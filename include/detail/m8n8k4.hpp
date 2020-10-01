@@ -125,46 +125,28 @@ __device__ inline void store_matrix_sync(T* const p, const fragment<nvcuda::wmma
 	}
 }
 
-		f.x[0] = p[row + 0 * ldm];
-		f.x[1] = p[row + 1 * ldm];
-		f.x[2] = p[row + 2 * ldm];
-		f.x[3] = p[row + 3 * ldm];
-		f.x[4] = p[row + 4 * ldm];
-		f.x[5] = p[row + 5 * ldm];
-		f.x[6] = p[row + 6 * ldm];
-		f.x[7] = p[row + 7 * ldm];
-	} else {
-		const unsigned row = (threadIdx.x & 0x3) + (threadIdx.x >> 4);
-		const unsigned index_offset = row * ldm;
-
-		f.x[0] = p[index_offset + 0];
-		f.x[1] = p[index_offset + 1];
-		f.x[2] = p[index_offset + 2];
-		f.x[3] = p[index_offset + 3];
-		f.x[4] = p[index_offset + 4];
-		f.x[5] = p[index_offset + 5];
-		f.x[6] = p[index_offset + 6];
-		f.x[7] = p[index_offset + 7];
-	}
-}
-
 template <class T>
-__device__ inline void store_matrix_sync(T* const p, const fragment<nvcuda::wmma::accumulator, 8, 8, 4, half, void>& f, const unsigned ldm, nvcuda::wmma::layout_t) {
+__device__ inline void load_matrix_sync(mtk::wmma::fragment<nvcuda::wmma::accumulator, 8, 8, 4, float>& f, const T* const p, const unsigned ldm, const nvcuda::wmma::layout_t layout) {
 	const unsigned lane_id = mtk::detail::utils::get_lane_id();
+	const row_offset = lane_id & 0x1;
+	const col_offset = (lane_id & 0x2) >> 1;
+
 	if (layout == nvcuda::wmma::mem_col_major) {
-		const unsigned col_start = ((threadIdx.x >> 2) & 0x3) << 1;
-		const unsigned row = (threadIdx.x & 0x3) + (threadIdx.x >> 4);
-		const unsigned index = col_start * ldm + row;
+#pragma unroll
+		for (unsigned i = 0; i < f.num_elements; i++) {
+			const unsigned row = row_offset + (i & 0x2);
+			const unsigned col = col_offset + ((i & 0x1) + (i & 0x4));
 
-		p[index + 0 * ldm] = f.x[col_start + 0];
-		p[index + 1 * ldm] = f.x[col_start + 1];
+			f.x[i] = mtk::detail::utils::cast<float>(p[row + col * ldm]);
+		}
 	} else {
-		const unsigned col_start = ((threadIdx.x >> 2) & 0x3) << 1;
-		const unsigned row = (threadIdx.x & 0x3) + (threadIdx.x >> 4);
-		const unsigned index = col_start + row * ldm;
+#pragma unroll
+		for (unsigned i = 0; i < f.num_elements; i++) {
+			const unsigned row = row_offset + (i & 0x2);
+			const unsigned col = col_offset + ((i & 0x1) + (i & 0x4));
 
-		p[index + 0] = f.x[col_start + 0];
-		p[index + 1] = f.x[col_start + 1];
+			f.x[i] = mtk::detail::utils::cast<float>(p[row * ldm + col]);
+		}
 	}
 }
 
