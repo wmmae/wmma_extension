@@ -108,6 +108,26 @@ __device__ inline void load_matrix_sync(mtk::wmma::fragment<nvcuda::wmma::accumu
 	}
 }
 
+template <class T>
+__device__ inline void store_matrix_sync(T* const p, const fragment<nvcuda::wmma::accumulator, 8, 8, 4, half, void>& f, const unsigned ldm, nvcuda::wmma::layout_t) {
+	const unsigned lane_id = mtk::detail::utils::get_lane_id();
+	if (layout == nvcuda::wmma::mem_col_major) {
+		const unsigned col_start = ((threadIdx.x >> 2) & 0x3) << 1;
+		const unsigned row = (threadIdx.x & 0x3) + (threadIdx.x >> 4);
+		const unsigned index = col_start * ldm + row;
+
+		p[index + 0 * ldm] = f.x[col_start + 0];
+		p[index + 1 * ldm] = f.x[col_start + 1];
+	} else {
+		const unsigned col_start = ((threadIdx.x >> 2) & 0x3) << 1;
+		const unsigned row = (threadIdx.x & 0x3) + (threadIdx.x >> 4);
+		const unsigned index = col_start + row * ldm;
+
+		p[index + 0] = f.x[col_start + 0];
+		p[index + 1] = f.x[col_start + 1];
+	}
+}
+
 #define MMA_F32_F32(A_LAYOUT, B_LAYOUT) \
 __device__ inline void mma_sync(fragment<nvcuda::wmma::accumulator, 8, 8, 4, float>& d, const fragment<nvcuda::wmma::matrix_a, 8, 8, 4, half, nvcuda::wmma::A_LAYOUT##_major>& a, fragment<nvcuda::wmma::matrix_b, 8, 8, 4, half, nvcuda::wmma::B_LAYOUT##_major>& b, const fragment<nvcuda::wmma::accumulator, 8, 8, 4, float>& c) { \
 	asm("{mma.sync.aligned.m8n8k4."#A_LAYOUT"."#B_LAYOUT".f32.f16.f16.f32 {%%0, %%1, %%2, %%3, %%4, %%5, %%6, %%7}, {%%8, %%9}, {%%10, %%11}, {%%12, %%13, %%14, %%15, %%16, %%17, %%18, %%19};}" : "=f"(d.x[0]), "=f"(d.x[1]), "=f"(d.x[2]), "=f"(d.x[3]), "=f"(d.x[4]), "=f"(d.x[5]), "=f"(d.x[6]), "=f"(d.x[7]) : "r"(*reinterpret_cast<const unsigned*>(a.x)), "r"(*reinterpret_cast<const unsigned*>(a.x + 2)), "r"(*reinterpret_cast<const unsigned*>(b.x)), "r"(*reinterpret_cast<const unsigned*>(b.x + 2)), "f"(c.x[0]), "f"(c.x[1]), "f"(c.x[2]), "f"(c.x[3]), "f"(c.x[4]), "f"(c.x[5]), "f"(c.x[6]), "f"(c.x[7])); \
