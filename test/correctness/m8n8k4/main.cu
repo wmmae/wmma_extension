@@ -101,16 +101,29 @@ void test() {
 	cudaMallocHost(&c_ptr, N * N * sizeof(T));
 	cudaMallocHost(&d_ptr, N * N * sizeof(S));
 
+	std::mt19937 mt(std::random_device{}());
+	std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
+
 	for (std::size_t i = 0; i < M * K; i++) {
-		a_ptr[i] = __float2half(static_cast<float>(i + 1) / (M * K));
+		a_ptr[i] = mtk::wmma::detail::common::cast<half>(dist(mt));
 	}
 	for (std::size_t i = 0; i < K * N; i++) {
-		b_ptr[i] = __float2half(static_cast<float>(i + 1) / (K * N));
+		b_ptr[i] = mtk::wmma::detail::common::cast<half>(dist(mt));
+	}
+	for (std::size_t i = 0; i < K * N; i++) {
+		c_ptr[i] = mtk::wmma::detail::common::cast<S>(0.0f);
 	}
 
 	cudaDeviceSynchronize();
 	m8n8k4_test_kernel<T, S, a_layout, b_layout, c_layout, d_layout><<<1, 32>>>(d_ptr, a_ptr, b_ptr, c_ptr);
 	cudaDeviceSynchronize();
+	std::printf("[TEST] a_%5s_%s, b_%5s_%s, c_%5s_%s, d_%5s_%s : res = %e\n",
+			get_type_name<half>().c_str(), get_layout_name<a_layout>().c_str(),
+			get_type_name<half>().c_str(), get_layout_name<b_layout>().c_str(),
+			get_type_name<S   >().c_str(), get_layout_name(c_layout).c_str(),
+			get_type_name<T   >().c_str(), get_layout_name(d_layout).c_str(),
+			get_residual<T, S, a_layout, b_layout, c_layout, d_layout>(a_ptr, b_ptr, c_ptr, d_ptr)
+			);
 }
 
 #define TEST(c_t, d_t) \
