@@ -80,6 +80,34 @@ __device__ inline void load_matrix_sync(mtk::wmma::fragment<nvcuda::wmma::matrix
 	f.x[3] = mtk::detail::utils::cast<half>(p[mem_offset + 3]);
 }
 
+template <class T>
+__device__ inline void load_matrix_sync(mtk::wmma::fragment<nvcuda::wmma::accumulator, 8, 8, 4, half>& f, const T* const p, const unsigned ldm, const nvcuda::wmma::layout_t layout) {
+	if (layout == nvcuda::wmma::mem_col_major) {
+		const unsigned row = (threadIdx.x & 0x3) + (threadIdx.x >> 4);
+
+		f.x[0] = p[row + 0 * ldm];
+		f.x[1] = p[row + 1 * ldm];
+		f.x[2] = p[row + 2 * ldm];
+		f.x[3] = p[row + 3 * ldm];
+		f.x[4] = p[row + 4 * ldm];
+		f.x[5] = p[row + 5 * ldm];
+		f.x[6] = p[row + 6 * ldm];
+		f.x[7] = p[row + 7 * ldm];
+	} else {
+		const unsigned row = (threadIdx.x & 0x3) + (threadIdx.x >> 4);
+		const unsigned index_offset = row * ldm;
+
+		f.x[0] = p[index_offset + 0];
+		f.x[1] = p[index_offset + 1];
+		f.x[2] = p[index_offset + 2];
+		f.x[3] = p[index_offset + 3];
+		f.x[4] = p[index_offset + 4];
+		f.x[5] = p[index_offset + 5];
+		f.x[6] = p[index_offset + 6];
+		f.x[7] = p[index_offset + 7];
+	}
+}
+
 #define MMA_F32_F32(A_LAYOUT, B_LAYOUT) \
 __device__ inline void mma_sync(fragment<nvcuda::wmma::accumulator, 8, 8, 4, float>& d, const fragment<nvcuda::wmma::matrix_a, 8, 8, 4, half, nvcuda::wmma::A_LAYOUT##_major>& a, fragment<nvcuda::wmma::matrix_b, 8, 8, 4, half, nvcuda::wmma::B_LAYOUT##_major>& b, const fragment<nvcuda::wmma::accumulator, 8, 8, 4, float>& c) { \
 	asm("{mma.sync.aligned.m8n8k4."#A_LAYOUT"."#B_LAYOUT".f32.f16.f16.f32 {%%0, %%1, %%2, %%3, %%4, %%5, %%6, %%7}, {%%8, %%9}, {%%10, %%11}, {%%12, %%13, %%14, %%15, %%16, %%17, %%18, %%19};}" : "=f"(d.x[0]), "=f"(d.x[1]), "=f"(d.x[2]), "=f"(d.x[3]), "=f"(d.x[4]), "=f"(d.x[5]), "=f"(d.x[6]), "=f"(d.x[7]) : "r"(*reinterpret_cast<const unsigned*>(a.x)), "r"(*reinterpret_cast<const unsigned*>(a.x + 2)), "r"(*reinterpret_cast<const unsigned*>(b.x)), "r"(*reinterpret_cast<const unsigned*>(b.x + 2)), "f"(c.x[0]), "f"(c.x[1]), "f"(c.x[2]), "f"(c.x[3]), "f"(c.x[4]), "f"(c.x[5]), "f"(c.x[6]), "f"(c.x[7])); \
