@@ -1,7 +1,7 @@
 #ifndef __WMMAE_M8N8K4_HPP__
 #define __WMMAE_M8N8K4_HPP__
 #include <mma.h>
-#include "detail/utils.hpp"
+#include "common.hpp"
 
 namespace mtk {
 namespace wmma {
