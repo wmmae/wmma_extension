@@ -74,6 +74,17 @@ double get_residual(const half* const a, const half* const b, const S* const c, 
 	return std::sqrt(diff_norm / base_norm);
 }
 
+template <class T> std::string get_layout_name();
+template <> std::string get_layout_name<nvcuda::wmma::col_major>() {return "col";}
+template <> std::string get_layout_name<nvcuda::wmma::row_major>() {return "row";}
+std::string get_layout_name(const nvcuda::wmma::layout_t layout) {
+	if (layout == nvcuda::wmma::mem_col_major) {
+		return "col";
+	} else {
+		return "row";
+	}
+}
+
 template <class T, class S, class a_layout, class b_layout, nvcuda::wmma::layout_t c_layout, nvcuda::wmma::layout_t d_layout>
 void test() {
 	T* d_ptr;
