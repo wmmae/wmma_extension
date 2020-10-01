@@ -85,6 +85,10 @@ std::string get_layout_name(const nvcuda::wmma::layout_t layout) {
 	}
 }
 
+template <class T> std::string get_type_name();
+template <> std::string get_type_name<half >() {return "half";}
+template <> std::string get_type_name<float>() {return "float";}
+
 template <class T, class S, class a_layout, class b_layout, nvcuda::wmma::layout_t c_layout, nvcuda::wmma::layout_t d_layout>
 void test() {
 	T* d_ptr;
