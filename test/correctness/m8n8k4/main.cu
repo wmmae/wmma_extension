@@ -1,4 +1,6 @@
 #include <iostream>
+#include <type_traits>
+#include <random>
 #include <mma.h>
 #include <wmma_extension.hpp>
 
@@ -24,6 +26,52 @@ __global__ void m8n8k4_test_kernel(T* const d, const half* const a, const half* 
 	mtk::wmma::mma_sync(frag_d, frag_a, frag_b, frag_c);
 
 	mtk::wmma::store_matrix_sync(d, frag_d, M, d_layout);
+}
+
+
+template <class T, class S, class a_layout, class b_layout, nvcuda::wmma::layout_t c_layout, nvcuda::wmma::layout_t d_layout>
+double get_residual(const half* const a, const half* const b, const S* const c, const T* const d) {
+	double base_norm = 0.0;
+	double diff_norm = 0.0;
+
+	for (unsigned m = 0; m < M; m++) {
+		for (unsigned n = 0; n < N; n++) {
+			double c_v = 0.0;
+			for (unsigned k = 0; k < K; k++) {
+				double a_v, b_v;
+				if (std::is_same<a_layout, nvcuda::wmma::col_major>::value) {
+					a_v = a[k * M + m];
+				} else {
+					a_v = a[k + N * m];
+				}
+				if (std::is_same<b_layout, nvcuda::wmma::col_major>::value) {
+					b_v = b[k + K * n];
+				} else {
+					b_v = b[k * N + n];
+				}
+				c_v += a_v * b_v;
+			}
+			if (c_layout == nvcuda::wmma::mem_col_major) {
+				c_v += c[m + M * n];
+			} else {
+				c_v += c[m * N + n];
+			}
+
+			// compute error
+			double d_v;
+			if (d_layout == nvcuda::wmma::mem_col_major) {
+				d_v = d[m + M * n];
+			} else {
+				d_v = d[m * N + n];
+			}
+			const auto diff = d_v - c_v;
+
+			// accumulate
+			diff_norm += diff * diff;
+			base_norm += c_v * c_v;
+		}
+	}
+	return std::sqrt(diff_norm / base_norm);
 }
 
 template <class T, class S, class a_layout, class b_layout, nvcuda::wmma::layout_t c_layout, nvcuda::wmma::layout_t d_layout>
