@@ -40,29 +40,29 @@ double get_residual(const half* const a, const half* const b, const S* const c, 
 			for (unsigned k = 0; k < K; k++) {
 				double a_v, b_v;
 				if (std::is_same<a_layout, nvcuda::wmma::col_major>::value) {
-					a_v = a[k * M + m];
+					a_v = mtk::wmma::detail::common::cast<float>(a[k * M + m]);
 				} else {
-					a_v = a[k + N * m];
+					a_v = mtk::wmma::detail::common::cast<float>(a[k + N * m]);
 				}
 				if (std::is_same<b_layout, nvcuda::wmma::col_major>::value) {
-					b_v = b[k + K * n];
+					b_v = mtk::wmma::detail::common::cast<float>(b[k + K * n]);
 				} else {
-					b_v = b[k * N + n];
+					b_v = mtk::wmma::detail::common::cast<float>(b[k * N + n]);
 				}
 				c_v += a_v * b_v;
 			}
 			if (c_layout == nvcuda::wmma::mem_col_major) {
-				c_v += c[m + M * n];
+				c_v += mtk::wmma::detail::common::cast<float>(c[m + M * n]);
 			} else {
-				c_v += c[m * N + n];
+				c_v += mtk::wmma::detail::common::cast<float>(c[m * N + n]);
 			}
 
 			// compute error
 			double d_v;
 			if (d_layout == nvcuda::wmma::mem_col_major) {
-				d_v = d[m + M * n];
+				d_v = mtk::wmma::detail::common::cast<float>(d[m + M * n]);
 			} else {
-				d_v = d[m * N + n];
+				d_v = mtk::wmma::detail::common::cast<float>(d[m * N + n]);
 			}
 			const auto diff = d_v - c_v;
 
