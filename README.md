@@ -11,6 +11,12 @@ This extension provides a function for
 
 without using extra shared memory.
 
+This extension also provides a C++ interface of experimental function:
+- `mma.m8n8k4` for `f16/f32` (sm_70)
+
+which is available in only PTX.
+See [detail](./docs/m8n8k4.md).
+
 ## Required
 - CUDA (9.2 or later)
 - C++ (11 or later)

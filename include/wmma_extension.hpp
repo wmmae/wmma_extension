@@ -3,6 +3,7 @@
 #include <mma.h>
 #include "detail/sm_70.hpp"
 #include "detail/sm_75.hpp"
+#include "detail/m8n8k4.hpp"
 #include "detail/common.hpp"
 #include <stdio.h>
 
