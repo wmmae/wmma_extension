@@ -19,13 +19,18 @@ __global__ void m8n8k4_test_kernel(T* const d, const half* const a, const half* 
 	mtk::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, T> frag_c;
 	mtk::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, S> frag_d;
 
-	mtk::wmma::load_matrix_sync(frag_a, a, M);
-	mtk::wmma::load_matrix_sync(frag_b, b, K);
-	mtk::wmma::load_matrix_sync(frag_c, c, M, c_layout);
+	const unsigned lda = std::is_same<a_layout, nvcuda::wmma::col_major>::value ? M : K;
+	const unsigned ldb = std::is_same<b_layout, nvcuda::wmma::col_major>::value ? K : N;
+	const unsigned ldc = M;
+	const unsigned ldd = M;
+
+	mtk::wmma::load_matrix_sync(frag_a, a, lda);
+	mtk::wmma::load_matrix_sync(frag_b, b, ldb);
+	mtk::wmma::load_matrix_sync(frag_c, c, ldc, c_layout);
 
 	mtk::wmma::mma_sync(frag_d, frag_a, frag_b, frag_c);
 
-	mtk::wmma::store_matrix_sync(d, frag_d, M, d_layout);
+	mtk::wmma::store_matrix_sync(d, frag_d, ldd, d_layout);
 }
 
 
@@ -42,7 +47,7 @@ double get_residual(const half* const a, const half* const b, const S* const c, 
 				if (std::is_same<a_layout, nvcuda::wmma::col_major>::value) {
 					a_v = mtk::wmma::detail::common::cast<float>(a[k * M + m]);
 				} else {
-					a_v = mtk::wmma::detail::common::cast<float>(a[k + N * m]);
+					a_v = mtk::wmma::detail::common::cast<float>(a[k + K * m]);
 				}
 				if (std::is_same<b_layout, nvcuda::wmma::col_major>::value) {
 					b_v = mtk::wmma::detail::common::cast<float>(b[k + K * n]);
@@ -110,8 +115,8 @@ void test() {
 	for (std::size_t i = 0; i < K * N; i++) {
 		b_ptr[i] = mtk::wmma::detail::common::cast<half>(dist(mt));
 	}
-	for (std::size_t i = 0; i < K * N; i++) {
-		c_ptr[i] = mtk::wmma::detail::common::cast<S>(0.0f);
+	for (std::size_t i = 0; i < M * N; i++) {
+		c_ptr[i] = mtk::wmma::detail::common::cast<half>(dist(mt));
 	}
 
 	cudaDeviceSynchronize();
