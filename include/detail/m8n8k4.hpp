@@ -83,7 +83,7 @@ __device__ inline void load_matrix_sync(mtk::wmma::fragment<nvcuda::wmma::matrix
 template <class T>
 __device__ inline void load_matrix_sync(mtk::wmma::fragment<nvcuda::wmma::accumulator, 8, 8, 4, half, void>& f, const T* const p, const unsigned ldm, const nvcuda::wmma::layout_t layout) {
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
-	const unsigned row = (lane_id & 0x3) + (lane_id >> 4);
+	const unsigned row = (lane_id & 0x3) + ((lane_id & 0x10) >> 2);
 	if (layout == nvcuda::wmma::mem_col_major) {
 		f.x[0] = mtk::wmma::detail::common::cast<half>(p[row + 0 * ldm]);
 		f.x[1] = mtk::wmma::detail::common::cast<half>(p[row + 1 * ldm]);
@@ -111,7 +111,7 @@ template <class T>
 __device__ inline void store_matrix_sync(T* const p, const fragment<nvcuda::wmma::accumulator, 8, 8, 4, half, void>& f, const unsigned ldm, const nvcuda::wmma::layout_t layout) {
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	const unsigned col_start = ((lane_id >> 2) & 0x3) << 1;
-	const unsigned row = (lane_id & 0x3) + (lane_id >> 4);
+	const unsigned row = (lane_id & 0x3) + ((lane_id & 0x10) >> 2);
 	if (layout == nvcuda::wmma::mem_col_major) {
 		const unsigned index = col_start * ldm + row;
 
@@ -128,8 +128,8 @@ __device__ inline void store_matrix_sync(T* const p, const fragment<nvcuda::wmma
 template <class T>
 __device__ inline void load_matrix_sync(mtk::wmma::fragment<nvcuda::wmma::accumulator, 8, 8, 4, float, void>& f, const T* const p, const unsigned ldm, const nvcuda::wmma::layout_t layout) {
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
-	const unsigned row_offset = lane_id & 0x1;
-	const unsigned col_offset = (lane_id & 0x2) >> 1;
+	const unsigned row_offset = (lane_id & 0x1) + ((lane_id & 0x10) >> 2);
+	const unsigned col_offset = (lane_id & 0x2);
 
 	if (layout == nvcuda::wmma::mem_col_major) {
 #pragma unroll
