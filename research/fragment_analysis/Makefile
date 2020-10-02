@@ -1,6 +1,6 @@
 SM=70
 NVCC=nvcc
-NVCCFLAGS=-std=c++11 -arch=sm_${SM} -DARCH=${SM} -I../../include
+NVCCFLAGS=-std=c++14 -arch=sm_${SM} -DARCH=${SM} -I../../include
 
 TARGET=fragment_analysis.out
 
