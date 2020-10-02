@@ -52,7 +52,7 @@ int main() {
 
 	std::printf("%15s : %e [s]\n", "elapsed time", elapsed_time);
 	std::printf("%15s : %e [TFlop/s]\n", "performance", (2 * M * N * K * C * num_matrices) / elapsed_time / (1lu << 40));
-	std::printf("%15s : %e [GiB/s]\n", "band width", (M * N * sizeof(float) + 2 * (M * K + N * K) * sizeof(half)) * num_matrices * C / elapsed_time) / (1lu << 30);
+	std::printf("%15s : %e [GiB/s]\n", "band width", static_cast<std::size_t>(M * N * sizeof(float) + 2 * (M * K + N * K) * sizeof(half)) * num_matrices * C / elapsed_time / (1lu << 30));
 
 	cudaFree(da);
 	cudaFree(db);
