@@ -35,7 +35,16 @@ std::string get_layout_name(const nvcuda::wmma::layout_t layout) {
 template <class T> std::string get_type_name();
 template <> std::string get_type_name<__half>() {return "half";}
 template <> std::string get_type_name<float >() {return "float";}
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH >= 800
+template <> std::string get_type_name<nvcuda::wmma::precision::tf32>() {return "tf32";}
+#endif
 
+template <class T>
+struct get_mem_type {using type = T;};
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH >= 800
+template <>
+struct get_mem_type<nvcuda::wmma::precision::tf32> {using type = float;};
+#endif
 
 template <class MatrixType, int M, int N, int K, class MemMajor, class T>
 __device__ inline void print_fragment(const nvcuda::wmma::fragment<MatrixType, M, N, K, T, MemMajor>& frag, const char* name = "") {
@@ -63,11 +72,12 @@ __device__ inline void print_fragment(const nvcuda::wmma::fragment<MatrixType, M
 
 template <class Use, int m, int n, int k, class T, class Layout>
 __global__ void ab_fragment_analysis_kernel() {
+	using mat_t = typename get_mem_type<T>::type;
 	constexpr auto num_elements = get_num_elements<Use>(m, n, k);
-	__shared__ T mat[num_elements];
+	__shared__ mat_t mat[num_elements];
 
 	for (unsigned i = 0; i < num_elements; i += warp_size) {
-		mat[i + threadIdx.x] = mtk::wmma::detail::common::cast<T>(static_cast<float>(i + threadIdx.x));
+		mat[i + threadIdx.x] = mtk::wmma::detail::common::cast<mat_t>(static_cast<float>(i + threadIdx.x));
 	}
 
 	nvcuda::wmma::fragment<Use, m, n, k, T, Layout> frag;
@@ -78,11 +88,12 @@ __global__ void ab_fragment_analysis_kernel() {
 
 template <int m, int n, int k, class T>
 __global__ void c_fragment_analysis_kernel(const nvcuda::wmma::layout_t layout) {
+	using mat_t = typename get_mem_type<T>::type;
 	constexpr auto num_elements = m * n;
-	__shared__ T mat[num_elements];
+	__shared__ mat_t mat[num_elements];
 
 	for (unsigned i = 0; i < num_elements; i += warp_size) {
-		mat[i + threadIdx.x] = mtk::wmma::detail::common::cast<T>(static_cast<float>(i + threadIdx.x));
+		mat[i + threadIdx.x] = mtk::wmma::detail::common::cast<mat_t>(static_cast<float>(i + threadIdx.x));
 	}
 
 	nvcuda::wmma::fragment<nvcuda::wmma::accumulator, m, n, k, T> frag;
@@ -92,15 +103,12 @@ __global__ void c_fragment_analysis_kernel(const nvcuda::wmma::layout_t layout) 
 }
 
 template <int m, int n, int k, class T>
-void fragment_analysis(
+void ab_fragment_analysis(
 		const std::string use,
 		const std::string layout
 		) {
-	std::printf("# sm_%2d, %15s, (%d, %d, %d), %7s, %10s\n", ARCH, use.c_str(), m, n, k, get_type_name<T>().c_str(), layout.c_str());
-	if (use == "accumulator") {
-		const auto l = (layout == "col_major" ? nvcuda::wmma::mem_col_major : nvcuda::wmma::mem_row_major);
-		c_fragment_analysis_kernel<m, n, k, T><<<1, warp_size>>>(l);
-	} else if (use == "matrix_a") {
+	std::printf("# sm_%2d, %15s, (%2d, %2d, %2d), %7s, %10s\n", ARCH, use.c_str(), m, n, k, get_type_name<T>().c_str(), layout.c_str());
+	if (use == "matrix_a") {
 		if (layout == "col_major") {
 			ab_fragment_analysis_kernel<nvcuda::wmma::matrix_a, m, n, k, T, nvcuda::wmma::col_major><<<1, warp_size>>>();
 		} else {
@@ -116,11 +124,41 @@ void fragment_analysis(
 	cudaDeviceSynchronize();
 }
 
+template <int m, int n, int k, class T>
+void c_fragment_analysis(
+		const std::string layout
+		) {
+	std::printf("# sm_%2d, %15s, (%2d, %2d, %2d), %7s, %10s\n", ARCH, "accumulator", m, n, k, get_type_name<T>().c_str(), layout.c_str());
+	const auto l = (layout == "col_major" ? nvcuda::wmma::mem_col_major : nvcuda::wmma::mem_row_major);
+	c_fragment_analysis_kernel<m, n, k, T><<<1, warp_size>>>(l);
+	cudaDeviceSynchronize();
+}
+
 int main() {
-	fragment_analysis<16, 16, 16, half>("matrix_a"   , "col_major");
-	fragment_analysis<16, 16, 16, half>("matrix_b"   , "col_major");
-	fragment_analysis<16, 16, 16, half>("accumulator", "col_major");
-	fragment_analysis<16, 16, 16, half>("matrix_a"   , "row_major");
-	fragment_analysis<16, 16, 16, half>("matrix_b"   , "row_major");
-	fragment_analysis<16, 16, 16, half>("accumulator", "row_major");
+	ab_fragment_analysis<16, 16, 16, half >("matrix_a"   , "col_major");
+	ab_fragment_analysis<16, 16, 16, half >("matrix_b"   , "col_major");
+	c_fragment_analysis <16, 16, 16, half >("col_major");
+	c_fragment_analysis <16, 16, 16, float>("col_major");
+	ab_fragment_analysis<16, 16, 16, half >("matrix_a"   , "row_major");
+	ab_fragment_analysis<16, 16, 16, half >("matrix_b"   , "row_major");
+	c_fragment_analysis <16, 16, 16, half >("row_major");
+	c_fragment_analysis <16, 16, 16, float>("row_major");
+
+	ab_fragment_analysis< 8, 32, 16, half >("matrix_a"   , "col_major");
+	ab_fragment_analysis< 8, 32, 16, half >("matrix_b"   , "col_major");
+	c_fragment_analysis < 8, 32, 16, half >("col_major");
+	c_fragment_analysis < 8, 32, 16, float>("col_major");
+	ab_fragment_analysis< 8, 32, 16, half >("matrix_a"   , "row_major");
+	ab_fragment_analysis< 8, 32, 16, half >("matrix_b"   , "row_major");
+	c_fragment_analysis < 8, 32, 16, half >("row_major");
+	c_fragment_analysis < 8, 32, 16, float>("row_major");
+
+	ab_fragment_analysis<32,  8, 16, half >("matrix_a"   , "col_major");
+	ab_fragment_analysis<32,  8, 16, half >("matrix_b"   , "col_major");
+	c_fragment_analysis <32,  8, 16, half >("col_major");
+	c_fragment_analysis <32,  8, 16, float>("col_major");
+	ab_fragment_analysis<32,  8, 16, half >("matrix_a"   , "row_major");
+	ab_fragment_analysis<32,  8, 16, half >("matrix_b"   , "row_major");
+	c_fragment_analysis <32,  8, 16, half >("row_major");
+	c_fragment_analysis <32,  8, 16, float>("row_major");
 }
