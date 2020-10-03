@@ -161,4 +161,15 @@ int main() {
 	ab_fragment_analysis<32,  8, 16, half >("matrix_b"   , "row_major");
 	c_fragment_analysis <32,  8, 16, half >("row_major");
 	c_fragment_analysis <32,  8, 16, float>("row_major");
+
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH >= 800
+	ab_fragment_analysis<16, 16,  8, nvcuda::wmma::precision::tf32 >("matrix_a"   , "col_major");
+	ab_fragment_analysis<16, 16,  8, nvcuda::wmma::precision::tf32 >("matrix_b"   , "col_major");
+	c_fragment_analysis <16, 16,  8, nvcuda::wmma::precision::tf32 >("col_major");
+	c_fragment_analysis <16, 16,  8, float>("col_major");
+	ab_fragment_analysis<16, 16,  8, nvcuda::wmma::precision::tf32 >("matrix_a"   , "row_major");
+	ab_fragment_analysis<16, 16,  8, nvcuda::wmma::precision::tf32 >("matrix_b"   , "row_major");
+	c_fragment_analysis <16, 16,  8, nvcuda::wmma::precision::tf32 >("row_major");
+	c_fragment_analysis <16, 16,  8, float>("row_major");
+#endif
 }
