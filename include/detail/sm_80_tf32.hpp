@@ -7,7 +7,7 @@ namespace wmma {
 namespace detail {
 namespace sm_80 {
 template <class T>
-__device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, const T* const ptr, const bool fill) {
+__device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 8, half, nvcuda::wmma::col_major>& frag, const T* const ptr, const bool fill) {
 	if (fill)
 		nvcuda::wmma::fill_fragment(frag, __float2half(0));
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
@@ -22,7 +22,7 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::mat
 }
 
 template <class T>
-__device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::row_major>& frag, const T* const ptr, const bool fill) {
+__device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 8, half, nvcuda::wmma::row_major>& frag, const T* const ptr, const bool fill) {
 	if (fill)
 		nvcuda::wmma::fill_fragment(frag, __float2half(0));
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
@@ -37,7 +37,7 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::mat
 }
 
 template <class T>
-__device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, const T* const ptr, const bool fill) {
+__device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 8, half, nvcuda::wmma::col_major>& frag, const T* const ptr, const bool fill) {
 	if (fill)
 		nvcuda::wmma::fill_fragment(frag, __float2half(0));
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
@@ -52,7 +52,7 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::mat
 }
 
 template <class T>
-__device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>& frag, const T* const ptr, const bool fill) {
+__device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 8, half, nvcuda::wmma::row_major>& frag, const T* const ptr, const bool fill) {
 	if (fill)
 		nvcuda::wmma::fill_fragment(frag, __float2half(0));
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
@@ -67,7 +67,7 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::mat
 }
 
 template <class T>
-__device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, const T* const ptr, const T mul, const bool fill) {
+__device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 8, half, nvcuda::wmma::col_major>& frag, const T* const ptr, const T mul, const bool fill) {
 	if (fill)
 		nvcuda::wmma::fill_fragment(frag, __float2half(0));
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
@@ -82,7 +82,7 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::mat
 }
 
 template <class T>
-__device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::row_major>& frag, const T* const ptr, const T mul, const bool fill) {
+__device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 8, half, nvcuda::wmma::row_major>& frag, const T* const ptr, const T mul, const bool fill) {
 	if (fill)
 		nvcuda::wmma::fill_fragment(frag, __float2half(0));
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
@@ -97,7 +97,7 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::mat
 }
 
 template <class T>
-__device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, const T* const ptr, const T mul, const bool fill) {
+__device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 8, half, nvcuda::wmma::col_major>& frag, const T* const ptr, const T mul, const bool fill) {
 	if (fill)
 		nvcuda::wmma::fill_fragment(frag, __float2half(0));
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
@@ -112,7 +112,7 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::mat
 }
 
 template <class T>
-__device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>& frag, const T* const ptr, const T mul, const bool fill) {
+__device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 8, half, nvcuda::wmma::row_major>& frag, const T* const ptr, const T mul, const bool fill) {
 	if (fill)
 		nvcuda::wmma::fill_fragment(frag, __float2half(0));
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
@@ -127,7 +127,7 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::mat
 }
 
 template <class T>
-__device__ inline void store_vector_sync(T* const ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag, const nvcuda::wmma::layout_t layout) {
+__device__ inline void store_vector_sync(T* const ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 8, T>& frag, const nvcuda::wmma::layout_t layout) {
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	if (layout == nvcuda::wmma::mem_col_major) {
 		const bool load_flag = (lane_id & 0x3) == 0;
@@ -149,7 +149,7 @@ __device__ inline void store_vector_sync(T* const ptr, nvcuda::wmma::fragment<nv
 }
 
 template <class T>
-__device__ inline void store_vector_sync(T* const ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag, const T mul, const nvcuda::wmma::layout_t layout) {
+__device__ inline void store_vector_sync(T* const ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 8, T>& frag, const T mul, const nvcuda::wmma::layout_t layout) {
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	if (layout == nvcuda::wmma::mem_col_major) {
 		const bool load_flag = (lane_id & 0x3) == 0;
@@ -171,7 +171,7 @@ __device__ inline void store_vector_sync(T* const ptr, nvcuda::wmma::fragment<nv
 }
 
 template <class Func>
-__device__ inline void foreach(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, Func func) {
+__device__ inline void foreach(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 8, half, nvcuda::wmma::col_major>& frag, Func func) {
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	const unsigned start_index = ((lane_id & 0x3) << 4) + ((lane_id & 0x4) >> 2);
 	for (std::size_t x = 0; x < frag.num_elements; x++) {
@@ -181,7 +181,7 @@ __device__ inline void foreach(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16
 }
 
 template <class Func>
-__device__ inline void foreach(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::row_major>& frag, Func func) {
+__device__ inline void foreach(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 8, half, nvcuda::wmma::row_major>& frag, Func func) {
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	const unsigned start_index = (lane_id & 0x3) + ((lane_id & 0x1c) << 1);
 	for (std::size_t x = 0; x < frag.num_elements; x++) {
@@ -191,7 +191,7 @@ __device__ inline void foreach(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16
 }
 
 template <class Func>
-__device__ inline void foreach(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, Func func) {
+__device__ inline void foreach(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 8, half, nvcuda::wmma::col_major>& frag, Func func) {
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	const unsigned start_index = (lane_id & 0x3) + ((lane_id & 0x1c) << 1);
 	for (std::size_t x = 0; x < frag.num_elements; x++) {
@@ -201,7 +201,7 @@ __device__ inline void foreach(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16
 }
 
 template <class Func>
-__device__ inline void foreach(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>& frag, Func func) {
+__device__ inline void foreach(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 8, half, nvcuda::wmma::row_major>& frag, Func func) {
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	const unsigned start_index = ((lane_id & 0x3) << 4) + ((lane_id & 0x4) >> 2);
 	for (std::size_t x = 0; x < frag.num_elements; x++) {
@@ -211,7 +211,7 @@ __device__ inline void foreach(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16
 }
 
 template <class T, class Func>
-__device__ inline void load_matrix_with_operation_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, const T* const ptr, const unsigned ldm, Func func) {
+__device__ inline void load_matrix_with_operation_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 8, half, nvcuda::wmma::col_major>& frag, const T* const ptr, const unsigned ldm, Func func) {
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	const unsigned start_index = ((lane_id & 0x3) << 4) + ((lane_id & 0x4) >> 2);
 	for (std::size_t x = 0; x < frag.num_elements; x++) {
@@ -222,7 +222,7 @@ __device__ inline void load_matrix_with_operation_sync(nvcuda::wmma::fragment<nv
 }
 
 template <class T, class Func>
-__device__ inline void load_matrix_with_operation_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::row_major>& frag, const T* const ptr, const unsigned ldm, Func func) {
+__device__ inline void load_matrix_with_operation_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 8, half, nvcuda::wmma::row_major>& frag, const T* const ptr, const unsigned ldm, Func func) {
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	const unsigned start_index = (lane_id & 0x3) + ((lane_id & 0x1c) << 1);
 	for (std::size_t x = 0; x < frag.num_elements; x++) {
@@ -234,7 +234,7 @@ __device__ inline void load_matrix_with_operation_sync(nvcuda::wmma::fragment<nv
 }
 
 template <class T, class Func>
-__device__ inline void load_matrix_with_operation_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, const T* const ptr, const unsigned ldm, Func func) {
+__device__ inline void load_matrix_with_operation_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 8, half, nvcuda::wmma::col_major>& frag, const T* const ptr, const unsigned ldm, Func func) {
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	const unsigned start_index = (lane_id & 0x3) + ((lane_id & 0x1c) << 1);
 	for (std::size_t x = 0; x < frag.num_elements; x++) {
@@ -246,7 +246,7 @@ __device__ inline void load_matrix_with_operation_sync(nvcuda::wmma::fragment<nv
 }
 
 template <class T, class Func>
-__device__ inline void load_matrix_with_operation_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>& frag, const T* const ptr, const unsigned ldm, Func func) {
+__device__ inline void load_matrix_with_operation_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 8, half, nvcuda::wmma::row_major>& frag, const T* const ptr, const unsigned ldm, Func func) {
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	const unsigned start_index = ((lane_id & 0x3) << 4) + ((lane_id & 0x4) >> 2);
 	for (std::size_t x = 0; x < frag.num_elements; x++) {
@@ -258,7 +258,7 @@ __device__ inline void load_matrix_with_operation_sync(nvcuda::wmma::fragment<nv
 }
 
 template <class T>
-__device__ inline void add_eye(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag, const T alpha) {
+__device__ inline void add_eye(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 8, T>& frag, const T alpha) {
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	const auto lane_mod_9 = lane_id % 9;
 	const bool set_flag = (lane_mod_9 == 0) || (lane_mod_9 == 4);
@@ -270,14 +270,14 @@ __device__ inline void add_eye(nvcuda::wmma::fragment<nvcuda::wmma::accumulator,
 }
 
 template <class T>
-__device__ inline void make_identity_matrix(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag) {
+__device__ inline void make_identity_matrix(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 8, T>& frag) {
 	mtk::wmma::fill_zero(frag);
 	add_eye(frag, 1.0f);
 }
 
 template <class T, class S, unsigned CORRECTION_TERMS = 2>
 __device__ inline void make_direct_product_fragment(
-		nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag_a,
+		nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 8, half, nvcuda::wmma::col_major>& frag_a,
 		const T* const a, const S* const da,
 		const bool fill
 		) {
@@ -298,7 +298,7 @@ __device__ inline void make_direct_product_fragment(
 
 template <class T, class S, unsigned CORRECTION_TERMS = 2>
 __device__ inline void make_direct_product_fragment(
-		nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>& frag_b,
+		nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 8, half, nvcuda::wmma::row_major>& frag_b,
 		const T* const b, const S* const db,
 		const bool fill
 		) {
@@ -323,7 +323,7 @@ __device__ inline void make_direct_product_fragment(
 
 template <unsigned CORRECTION_TERMS = 2>
 __device__ inline void make_direct_product_fragment(
-		nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag_a,
+		nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 8, half, nvcuda::wmma::col_major>& frag_a,
 		const float* const a_ptr,
 		const bool fill
 		) {
@@ -351,7 +351,7 @@ __device__ inline void make_direct_product_fragment(
 
 template <unsigned CORRECTION_TERMS = 2>
 __device__ inline void make_direct_product_fragment(
-		nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>& frag_b,
+		nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 8, half, nvcuda::wmma::row_major>& frag_b,
 		const float* const b_ptr,
 		const bool fill
 		) {
