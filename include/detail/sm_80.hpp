@@ -141,6 +141,54 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::mat
 	}
 	__syncthreads();
 }
+
+template <class T>
+__device__ inline void store_vector_sync(T* const ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag, const nvcuda::wmma::layout_t layout) {
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+	if (layout == nvcuda::wmma::mem_col_major) {
+		const bool load_flag = (lane_id & 0x8) == 0;
+		const unsigned index_offset = lane_id >> 2;
+		if (load_flag) {
+			ptr[index_offset + 0 ] = common::cast<T>(frag.x[0 ]);
+			ptr[index_offset + 16] = common::cast<T>(frag.x[1 ]);
+			ptr[index_offset + 8 ] = common::cast<T>(frag.x[2 ]);
+			ptr[index_offset + 24] = common::cast<T>(frag.x[3 ]);
+		}
+	} else {
+		bool load_flag = (lane_id & 0x3) == 0;
+		const unsigned index_offset = ((lane_id & 0x3) << 1) + ((lane_id & 0x4) << 2);
+		if (load_flag) {
+			ptr[index_offset + 0 ] = common::cast<T>(frag.x[0 ]);
+			ptr[index_offset + 1 ] = common::cast<T>(frag.x[1 ]);
+			ptr[index_offset + 8 ] = common::cast<T>(frag.x[4 ]);
+			ptr[index_offset + 9 ] = common::cast<T>(frag.x[5 ]);
+		}
+	}
+}
+
+template <class T>
+__device__ inline void store_vector_sync(T* const ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag, const T mul, const nvcuda::wmma::layout_t layout) {
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+	if (layout == nvcuda::wmma::mem_col_major) {
+		const bool load_flag = (lane_id & 0x8) == 0;
+		const unsigned index_offset = lane_id >> 2;
+		if (load_flag) {
+			ptr[index_offset + 0 ] = common::cast<T>(frag.x[0 ] * mul);
+			ptr[index_offset + 16] = common::cast<T>(frag.x[1 ] * mul);
+			ptr[index_offset + 8 ] = common::cast<T>(frag.x[2 ] * mul);
+			ptr[index_offset + 24] = common::cast<T>(frag.x[3 ] * mul);
+		}
+	} else {
+		bool load_flag = (lane_id & 0x3) == 0;
+		const unsigned index_offset = ((lane_id & 0x3) << 1) + ((lane_id & 0x4) << 2);
+		if (load_flag) {
+			ptr[index_offset + 0 ] = common::cast<T>(frag.x[0 ] * mul);
+			ptr[index_offset + 1 ] = common::cast<T>(frag.x[1 ] * mul);
+			ptr[index_offset + 8 ] = common::cast<T>(frag.x[4 ] * mul);
+			ptr[index_offset + 9 ] = common::cast<T>(frag.x[5 ] * mul);
+		}
+	}
+}
 } // namespace sm_80
 } // namespace detail
 } // namespace wmma
