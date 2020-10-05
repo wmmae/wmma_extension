@@ -12,8 +12,8 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::mat
 		nvcuda::wmma::fill_fragment(frag, __float2half(0));
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 
-	const unsigned index_offset = lane_id >> 2;
 	const bool load_flag = (lane_id & 0x3) == 0;
+	const unsigned index_offset = lane_id >> 2;
 	if(load_flag) {
 		frag.x[0  + 8] = frag.x[0 ] = common::cast<half>(ptr[0  + index_offset]);
 		frag.x[1  + 8] = frag.x[1 ] = common::cast<half>(ptr[16 + index_offset]);
@@ -63,8 +63,8 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::mat
 		nvcuda::wmma::fill_fragment(frag, __float2half(0));
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 
-	unsigned long index_offset = lane_id >> 2;
 	bool load_flag = (lane_id & 0x3) == 0;
+	unsigned long index_offset = lane_id >> 2;
 	if(load_flag) {
 		frag.x[0  + 8] = frag.x[0 ] = common::cast<half>(ptr[0  + index_offset]);
 		frag.x[1  + 8] = frag.x[1 ] = common::cast<half>(ptr[16 + index_offset]);
@@ -80,8 +80,8 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::mat
 		nvcuda::wmma::fill_fragment(frag, __float2half(0));
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 
-	const unsigned index_offset = lane_id >> 2;
 	const bool load_flag = (lane_id & 0x3) == 0;
+	const unsigned index_offset = lane_id >> 2;
 	if(load_flag) {
 		frag.x[0  + 8] = frag.x[0 ] = common::cast<half>(ptr[0  + index_offset] * mul);
 		frag.x[1  + 8] = frag.x[1 ] = common::cast<half>(ptr[16 + index_offset] * mul);
@@ -131,8 +131,8 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::mat
 		nvcuda::wmma::fill_fragment(frag, __float2half(0));
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 
-	unsigned long index_offset = lane_id >> 2;
-	bool load_flag = (lane_id & 0x3) == 0;
+	const bool load_flag = (lane_id & 0x3) == 0;
+	const unsigned index_offset = lane_id >> 2;
 	if(load_flag) {
 		frag.x[0  + 8] = frag.x[0 ] = common::cast<half>(ptr[0  + index_offset] * mul);
 		frag.x[1  + 8] = frag.x[1 ] = common::cast<half>(ptr[16 + index_offset] * mul);
