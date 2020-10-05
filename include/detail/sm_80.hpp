@@ -233,6 +233,58 @@ __device__ inline void foreach(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16
 		func(x, start_index + offset);
 	}
 }
+
+template <class T, class Func>
+__device__ inline void load_matrix_with_operation_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, const T* const ptr, const unsigned ldm, Func func) {
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+	const unsigned start_index = ((lane_id & 0x3) << 5) + (lane_id >> 2);
+	for (std::size_t i = 0; i < frag.num_elements; i++) {
+		const unsigned tx = x & 0x7;
+		const unsigned offset = ((tx & 0x1) << 4) + ((x & 0x2) << 2) + ((x & 0x4) << 5);
+		const unsigned index = start_index + offset;
+		frag.x[i] = func(i, ptr[(index >> 4) * ldm + (index & 0xf)]);
+	}
+	__syncthreads();
+}
+
+template <class T, class Func>
+__device__ inline void load_matrix_with_operation_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::row_major>& frag, const T* const ptr, const unsigned ldm, Func func) {
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+	const unsigned start_index = ((lane_id & 0x3) << 1) + ((lane_id & 0x1c) << 2);
+	for (std::size_t i = 0; i < frag.num_elements; i++) {
+		const unsigned tx = x & 0x7;
+		const unsigned offset = (tx & 0x1) + ((tx & 0x2) << 6) + ((tx & 0x4) << 1);
+		const unsigned index = start_index + offset;
+		frag.x[i] = func(i, ptr[(index >> 4) * ldm + (index & 0xf)]);
+	}
+	__syncthreads();
+}
+
+template <class T, class Func>
+__device__ inline void load_matrix_with_operation_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, const T* const ptr, const unsigned ldm, Func func) {
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+	const unsigned start_index = ((lane_id & 0x3) << 1) + ((lane_id & 0x1c) << 2);
+	for (std::size_t i = 0; i < frag.num_elements; i++) {
+		const unsigned tx = x & 0x7;
+		const unsigned offset = (tx & 0x1) + ((tx & 0x2) << 2) + ((tx & 0x4) << 5);
+		const unsigned index = start_index + offset;
+		frag.x[i] = func(i, ptr[(index >> 4) * ldm + (index & 0xf)]);
+	}
+	__syncthreads();
+}
+
+template <class T, class Func>
+__device__ inline void load_matrix_with_operation_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>& frag, const T* const ptr, const unsigned ldm, Func func) {
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+	const unsigned start_index = ((lane_id & 0x3) << 5) + (lane_id >> 2);
+	for (std::size_t i = 0; i < frag.num_elements; i++) {
+		const unsigned tx = x & 0x7;
+		const unsigned offset = ((tx & 0x1) << 4) + ((tx & 0x2) << 6) + ((tx & 0x4) << 1);
+		const unsigned index = start_index + offset;
+		frag.x[i] = func(i, ptr[(index >> 4) * ldm + (index & 0xf)]);
+	}
+	__syncthreads();
+}
 } // namespace sm_80
 } // namespace detail
 } // namespace wmma
