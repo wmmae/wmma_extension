@@ -59,13 +59,13 @@ __device__ inline void load_matrix_with_operation_sync(nvcuda::wmma::fragment<Ma
 	detail_namespace::load_matrix_with_operation_sync(frag, ptr, ldm, func);
 }
 
-template <class T>
-__device__ inline void make_identity_matrix(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag) {
+template <int M, int N, int K, class T>
+__device__ inline void make_identity_matrix(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, T>& frag) {
 	detail_namespace::make_identity_matrix(frag);
 }
 
-template <class T>
-__device__ inline void add_eye(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag, const T alpha) {
+template <int M, int N, int K, class T>
+__device__ inline void add_eye(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, T>& frag, const T alpha) {
 	detail_namespace::add_eye(frag, alpha);
 }
 
