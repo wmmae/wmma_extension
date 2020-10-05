@@ -340,6 +340,59 @@ __device__ inline void make_direct_product_fragment(
 	}
 }
 
+template <unsigned CORRECTION_TERMS = 2>
+__device__ inline void make_direct_product_fragment(
+		nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major>& frag_a,
+		const float* const b_ptr,
+		const bool fill
+		) {
+	if (fill) {
+		mtk::wmma::fill_zero(frag_a);
+	}
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+
+	if (lane_id & 0x10) {
+		return;
+	}
+
+	const auto a0 = a[(lane_id >> 2) + 0];
+	const auto a8 = a[(lane_id >> 2) + 8];
+
+	frag_a.x[0] = frag_a.x[8 + 0] = common::cast<half>(a0);
+	frag_a.x[2] = frag_a.x[8 + 2] = common::cast<half>(a8);
+
+	if (CORRECTION_TERMS == 3 || (lane_id & 0x3 == 0)) {
+		frag_a.x[1] = frag_a.x[8 + 1] = common::cast<half>(a0 - common::cast<float>(frag_a.x[0]));
+		frag_a.x[3] = frag_a.x[8 + 3] = common::cast<half>(a8 - common::cast<float>(frag_a.x[2]));
+	}
+}
+
+template <unsigned CORRECTION_TERMS = 2>
+__device__ inline void make_direct_product_fragment(
+		nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>& frag_b,
+		const float* const b_ptr,
+		const bool fill
+		) {
+	if (fill) {
+		mtk::wmma::fill_zero(frag_b);
+	}
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+
+	if (lane_id & 0x10) {
+		return;
+	}
+
+	const auto b0 = b[(lane_id >> 2) + 0];
+	const auto b8 = b[(lane_id >> 2) + 8];
+
+	frag_b.x[0] = frag_b.x[8 + 0] = common::cast<half>(b0);
+	frag_b.x[4] = frag_b.x[8 + 4] = common::cast<half>(b8);
+
+	if (CORRECTION_TERMS == 3 || (lane_id & 0x3 == 0)) {
+		frag_a.x[1] = frag_a.x[8 + 1] = common::cast<half>(b0 - common::cast<float>(frag_b.x[0]));
+		frag_a.x[5] = frag_a.x[8 + 5] = common::cast<half>(b8 - common::cast<float>(frag_b.x[4]));
+	}
+}
 } // namespace sm_80
 } // namespace detail
 } // namespace wmma
