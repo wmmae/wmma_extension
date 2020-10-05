@@ -2,21 +2,29 @@
 #define __WMMA_EXTENSION_HPP__
 #include <stdio.h>
 #include <mma.h>
+#include <stdio.h>
+#if defined(__CUDA_ARCH__)
 #include "detail/m8n8k4.hpp"
 #include "detail/common.hpp"
-#include <stdio.h>
+
+#if __CUDA_ARCH__ >= 700
+#include "detail/sm_70.hpp"
+#endif
+#if __CUDA_ARCH__ >= 710
+#include "detail/sm_75.hpp"
+#endif
+#if __CUDA_ARCH__ >= 800
+#include "detail/sm_80.hpp"
+#include "detail/sm_80_tf32.hpp"
+#endif
 
 namespace mtk {
 // arch switch
 #if __CUDA_ARCH__ < 710
-#include "detail/sm_70.hpp"
 namespace detail_namespace = mtk::wmma::detail::sm_70;
 #elif __CUDA_ARCH__ < 800
-#include "detail/sm_75.hpp"
 namespace detail_namespace = mtk::wmma::detail::sm_75;
 #else
-#include "detail/sm_80.hpp"
-#include "detail/sm_80_tf32.hpp"
 namespace detail_namespace = mtk::wmma::detail::sm_80;
 #endif
 
@@ -124,5 +132,6 @@ __device__ inline void print_fragment(const nvcuda::wmma::fragment<MatrixType, M
 
 } // namespace wmma
 } // namespace mtk
+#endif /* defined(__CUDA_ARCH__)*/
 
 #endif /* end of include guard */
