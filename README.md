@@ -22,9 +22,9 @@ See [detail](./docs/m8n8k4.md).
 - C++ (11 or later)
 
 ## Supported fragment
-- sm_70: (16, 16, 16)
-- sm_75: (16, 16, 16)
-- sm_80: (16, 16, 16)
+- sm_70: ((16, 16, 16), fp16/fp32)
+- sm_75: ((16, 16, 16), fp16/fp32)
+- sm_80: ((16, 16, 16), fp16/fp32)
 
 ## Sample
 ```cuda
