@@ -35,16 +35,20 @@ std::string get_layout_name(const nvcuda::wmma::layout_t layout) {
 template <class T> std::string get_type_name();
 template <> std::string get_type_name<__half>() {return "half";}
 template <> std::string get_type_name<float >() {return "float";}
-#if defined(__CUDA_ARCH__) && __CUDA_ARCH >= 800
+#if ARCH >= 80
 template <> std::string get_type_name<nvcuda::wmma::precision::tf32>() {return "tf32";}
 #endif
 
 template <class T>
 struct get_mem_type {using type = T;};
-#if defined(__CUDA_ARCH__) && __CUDA_ARCH >= 800
+#if ARCH >= 80
 template <>
 struct get_mem_type<nvcuda::wmma::precision::tf32> {using type = float;};
 #endif
+
+template <class T>
+struct c_storage_t {using type = T;};
+template <> struct c_storage_t<nvcuda::wmma::precision::tf32> {using type = float;};
 
 template <class MatrixType, int M, int N, int K, class MemMajor, class T>
 __device__ inline void print_fragment(const nvcuda::wmma::fragment<MatrixType, M, N, K, T, MemMajor>& frag, const char* name = "") {
@@ -96,7 +100,7 @@ __global__ void c_fragment_analysis_kernel(const nvcuda::wmma::layout_t layout) 
 		mat[i + threadIdx.x] = mtk::wmma::detail::common::cast<mat_t>(static_cast<float>(i + threadIdx.x));
 	}
 
-	nvcuda::wmma::fragment<nvcuda::wmma::accumulator, m, n, k, T> frag;
+	nvcuda::wmma::fragment<nvcuda::wmma::accumulator, m, n, k, typename c_storage_t<T>::type> frag;
 	nvcuda::wmma::load_matrix_sync(frag, mat, (layout == nvcuda::wmma::mem_col_major ? m : n), layout);
 
 	print_fragment(frag);
@@ -162,7 +166,7 @@ int main() {
 	c_fragment_analysis <32,  8, 16, half >("row_major");
 	c_fragment_analysis <32,  8, 16, float>("row_major");
 
-#if defined(__CUDA_ARCH__) && __CUDA_ARCH >= 800
+#if ARCH >= 80
 	ab_fragment_analysis<16, 16,  8, nvcuda::wmma::precision::tf32 >("matrix_a"   , "col_major");
 	ab_fragment_analysis<16, 16,  8, nvcuda::wmma::precision::tf32 >("matrix_b"   , "col_major");
 	c_fragment_analysis <16, 16,  8, nvcuda::wmma::precision::tf32 >("col_major");
