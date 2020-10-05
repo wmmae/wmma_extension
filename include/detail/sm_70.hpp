@@ -10,9 +10,9 @@ template <class T>
 __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, const T* const ptr, const bool fill) {
 	if (fill)
 		nvcuda::wmma::fill_fragment(frag, __float2half(0));
-	const unsigned warp_id = threadIdx.x & 0x1f;
-	unsigned long index_offset = ((warp_id >> 4) << 2) + (((warp_id >> 2) & 0x1) << 3);
-	bool load_flag = (warp_id & 0x3) == 0;
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+	unsigned long index_offset = ((lane_id >> 4) << 2) + (((lane_id >> 2) & 0x1) << 3);
+	bool load_flag = (lane_id & 0x3) == 0;
 	if(load_flag) {
 		for(unsigned i = 0; i < 4; i++) {
 			frag.x[i] = common::cast<half>(ptr[i + index_offset]);
@@ -25,9 +25,9 @@ template <class T>
 __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::row_major>& frag, const T* const ptr, const bool fill) {
 	if (fill)
 		nvcuda::wmma::fill_fragment(frag, __float2half(0));
-	const unsigned warp_id = threadIdx.x & 0x1f;
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 
-	bool load_flag = (warp_id == 0) || (warp_id == 8);
+	bool load_flag = (lane_id == 0) || (lane_id == 8);
 	if(load_flag) {
 		for(unsigned i = 0; i < 16; i++) {
 			frag.x[i] = common::cast<half>(ptr[i]);
@@ -40,9 +40,9 @@ template <class T>
 __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, const T* const ptr, const bool fill) {
 	if (fill)
 		nvcuda::wmma::fill_fragment(frag, __float2half(0));
-	const unsigned warp_id = threadIdx.x & 0x1f;
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 
-	bool load_flag = (warp_id == 0) || (warp_id == 4);
+	bool load_flag = (lane_id == 0) || (lane_id == 4);
 	if(load_flag) {
 		for(unsigned i = 0; i < 16; i++) {
 			frag.x[i] = common::cast<half>(ptr[i]);
@@ -55,9 +55,9 @@ template <class T>
 __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>& frag, const T* const ptr, const bool fill) {
 	if (fill)
 		nvcuda::wmma::fill_fragment(frag, __float2half(0));
-	const unsigned warp_id = threadIdx.x & 0x1f;
-	unsigned long index_offset = ((warp_id >> 4) << 2) + (((warp_id >> 3) & 0x1) << 3);
-	bool load_flag = (warp_id & 0x3) == 0;
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+	unsigned long index_offset = ((lane_id >> 4) << 2) + (((lane_id >> 3) & 0x1) << 3);
+	bool load_flag = (lane_id & 0x3) == 0;
 	if(load_flag) {
 		for(unsigned i = 0; i < 4; i++) {
 			frag.x[i] = common::cast<half>(ptr[i + index_offset]);
@@ -70,9 +70,9 @@ template <class T>
 __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, const T* const ptr, const T mul, const bool fill) {
 	if (fill)
 		nvcuda::wmma::fill_fragment(frag, __float2half(0));
-	const unsigned warp_id = threadIdx.x & 0x1f;
-	unsigned long index_offset = ((warp_id >> 4) << 2) + (((warp_id >> 2) & 0x1) << 3);
-	bool load_flag = (warp_id & 0x3) == 0;
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+	unsigned long index_offset = ((lane_id >> 4) << 2) + (((lane_id >> 2) & 0x1) << 3);
+	bool load_flag = (lane_id & 0x3) == 0;
 	if(load_flag) {
 		for(unsigned i = 0; i < 4; i++) {
 			frag.x[i] = common::cast<half>(ptr[i + index_offset] * mul);
@@ -85,10 +85,10 @@ template <class T>
 __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::row_major>& frag, const T* const ptr, const T mul, const bool fill) {
 	if (fill)
 		nvcuda::wmma::fill_fragment(frag, __float2half(0));
-	const unsigned warp_id = threadIdx.x & 0x1f;
-	unsigned long index_offset = (warp_id & 0x3) << 4;
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+	unsigned long index_offset = (lane_id & 0x3) << 4;
 
-	bool load_flag = (warp_id == 0) || (warp_id == 4);
+	bool load_flag = (lane_id == 0) || (lane_id == 4);
 	if(load_flag) {
 		for(unsigned i = 0; i < 16; i++) {
 			frag.x[i] = common::cast<half>(ptr[i + index_offset] * mul);
@@ -101,10 +101,10 @@ template <class T>
 __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, const T* const ptr, const T mul, const bool fill) {
 	if (fill)
 		nvcuda::wmma::fill_fragment(frag, __float2half(0));
-	const unsigned warp_id = threadIdx.x & 0x1f;
-	unsigned long index_offset = (warp_id & 0x3) << 4;
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+	unsigned long index_offset = (lane_id & 0x3) << 4;
 
-	bool load_flag = (warp_id == 0) || (warp_id == 4);
+	bool load_flag = (lane_id == 0) || (lane_id == 4);
 	if(load_flag) {
 		for(unsigned i = 0; i < 16; i++) {
 			frag.x[i] = common::cast<half>(ptr[i + index_offset] * mul);
@@ -117,9 +117,9 @@ template <class T>
 __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>& frag, const T* const ptr, const T mul, const bool fill) {
 	if (fill)
 		nvcuda::wmma::fill_fragment(frag, __float2half(0));
-	const unsigned warp_id = threadIdx.x & 0x1f;
-	unsigned long index_offset = ((warp_id >> 4) << 2) + (((warp_id >> 3) & 0x1) << 3);
-	bool load_flag = (warp_id & 0x3) == 0;
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+	unsigned long index_offset = ((lane_id >> 4) << 2) + (((lane_id >> 3) & 0x1) << 3);
+	bool load_flag = (lane_id & 0x3) == 0;
 	if(load_flag) {
 		for(unsigned i = 0; i < 4; i++) {
 			frag.x[i] = common::cast<half>(ptr[i + index_offset] * mul);
@@ -218,8 +218,8 @@ __device__ inline void store_vector_sync<float>(float* const ptr, nvcuda::wmma::
 
 template <class Func>
 __device__ inline void foreach(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, Func func) {
-	const unsigned warp_id = threadIdx.x & 0x1f;
-	const unsigned start_index = (((warp_id >> 2) & 0b1) << 3) + ((warp_id >> 4) << 2) + ((warp_id & 0b11) << 4);
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+	const unsigned start_index = (((lane_id >> 2) & 0b1) << 3) + ((lane_id >> 4) << 2) + ((lane_id & 0b11) << 4);
 	for (std::size_t x = 0; x < frag.num_elements; x++) {
 		const unsigned offset = ((x >> 2) << 6) + (x & 0b11);
 		const unsigned index = start_index + offset;
@@ -229,8 +229,8 @@ __device__ inline void foreach(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16
 
 template <class Func>
 __device__ inline void foreach(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::row_major>& frag, Func func) {
-	const unsigned warp_id = threadIdx.x & 0x1f;
-	const unsigned start_index = (((warp_id >> 2) & 0b1) << 7) + ((warp_id >> 4) << 6) + ((warp_id & 0b11) << 4);
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+	const unsigned start_index = (((lane_id >> 2) & 0b1) << 7) + ((lane_id >> 4) << 6) + ((lane_id & 0b11) << 4);
 	for (std::size_t x = 0; x < frag.num_elements; x++) {
 		const unsigned offset = x;
 		const unsigned index = start_index + offset;
@@ -240,8 +240,8 @@ __device__ inline void foreach(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16
 
 template <class Func>
 __device__ inline void foreach(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, Func func) {
-	const unsigned warp_id = threadIdx.x & 0x1f;
-	const unsigned start_index = (((warp_id >> 3) & 0b1) << 7) + ((warp_id >> 4) << 6) + ((warp_id & 0b11) << 4);
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+	const unsigned start_index = (((lane_id >> 3) & 0b1) << 7) + ((lane_id >> 4) << 6) + ((lane_id & 0b11) << 4);
 	for (std::size_t x = 0; x < frag.num_elements; x++) {
 		const unsigned offset = x;
 		const unsigned index = start_index + offset;
@@ -251,8 +251,8 @@ __device__ inline void foreach(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16
 
 template <class Func>
 __device__ inline void foreach(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>& frag, Func func) {
-	const unsigned warp_id = threadIdx.x & 0x1f;
-	const unsigned start_index = (((warp_id >> 3) & 0b1) << 3) + ((warp_id >> 4) << 2) + ((warp_id & 0b11) << 4);
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+	const unsigned start_index = (((lane_id >> 3) & 0b1) << 3) + ((lane_id >> 4) << 2) + ((lane_id & 0b11) << 4);
 	for (std::size_t x = 0; x < frag.num_elements; x++) {
 		const unsigned offset = ((x >> 2) << 6) + (x & 0b11);
 		const unsigned index = start_index + offset;
@@ -262,8 +262,8 @@ __device__ inline void foreach(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16
 
 template <class T, class Func>
 __device__ inline void load_matrix_with_operation_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, const T* const ptr, const unsigned ldm, Func func) {
-	const unsigned warp_id = threadIdx.x & 0x1f;
-	const unsigned start_index = (((warp_id >> 2) & 0b1) << 3) + ((warp_id >> 4) << 2) + ((warp_id & 0b11) << 4);
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+	const unsigned start_index = (((lane_id >> 2) & 0b1) << 3) + ((lane_id >> 4) << 2) + ((lane_id & 0b11) << 4);
 	for (std::size_t i = 0; i < frag.num_elements; i++) {
 		const unsigned offset = ((i >> 2) << 6) + (i & 0b11);
 		const unsigned index = start_index + offset;
@@ -274,8 +274,8 @@ __device__ inline void load_matrix_with_operation_sync(nvcuda::wmma::fragment<nv
 
 template <class T, class Func>
 __device__ inline void load_matrix_with_operation_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::row_major>& frag, const T* const ptr, const unsigned ldm, Func func) {
-	const unsigned warp_id = threadIdx.x & 0x1f;
-	const unsigned start_index = (((warp_id >> 2) & 0b1) << 7) + ((warp_id >> 4) << 6) + ((warp_id & 0b11) << 4);
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+	const unsigned start_index = (((lane_id >> 2) & 0b1) << 7) + ((lane_id >> 4) << 6) + ((lane_id & 0b11) << 4);
 	for (std::size_t i = 0; i < frag.num_elements; i++) {
 		const unsigned offset = i;
 		const unsigned index = start_index + offset;
@@ -286,8 +286,8 @@ __device__ inline void load_matrix_with_operation_sync(nvcuda::wmma::fragment<nv
 
 template <class T, class Func>
 __device__ inline void load_matrix_with_operation_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, const T* const ptr, const unsigned ldm, Func func) {
-	const unsigned warp_id = threadIdx.x & 0x1f;
-	const unsigned start_index = (((warp_id >> 3) & 0b1) << 7) + ((warp_id >> 4) << 6) + ((warp_id & 0b11) << 4);
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+	const unsigned start_index = (((lane_id >> 3) & 0b1) << 7) + ((lane_id >> 4) << 6) + ((lane_id & 0b11) << 4);
 	for (std::size_t i = 0; i < frag.num_elements; i++) {
 		const unsigned offset = i;
 		const unsigned index = start_index + offset;
@@ -298,8 +298,8 @@ __device__ inline void load_matrix_with_operation_sync(nvcuda::wmma::fragment<nv
 
 template <class T, class Func>
 __device__ inline void load_matrix_with_operation_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>& frag, const T* const ptr, const unsigned ldm, Func func) {
-	const unsigned warp_id = threadIdx.x & 0x1f;
-	const unsigned start_index = (((warp_id >> 3) & 0b1) << 3) + ((warp_id >> 4) << 2) + ((warp_id & 0b11) << 4);
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+	const unsigned start_index = (((lane_id >> 3) & 0b1) << 3) + ((lane_id >> 4) << 2) + ((lane_id & 0b11) << 4);
 	for (std::size_t i = 0; i < frag.num_elements; i++) {
 		const unsigned offset = ((i >> 2) << 6) + (i & 0b11);
 		const unsigned index = start_index + offset;
@@ -310,7 +310,7 @@ __device__ inline void load_matrix_with_operation_sync(nvcuda::wmma::fragment<nv
 
 template <class T>
 __device__ inline void make_identity_matrix(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag) {
-	const unsigned warp_id = threadIdx.x & 0x1f;
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	if (std::is_same<T, float>::value) {
 		int4* const i4 = reinterpret_cast<int4*>(frag.x);
 		i4[0] = make_int4(0, 0, 0, 0);
@@ -321,28 +321,28 @@ __device__ inline void make_identity_matrix(nvcuda::wmma::fragment<nvcuda::wmma:
 	}
 
 	unsigned index_offset = 0;
-	if(warp_id >> 4) {
+	if(lane_id >> 4) {
 		index_offset = 4;
 	}
 
-	const unsigned p0 = (warp_id >> 2) & 0x3;
+	const unsigned p0 = (lane_id >> 2) & 0x3;
 	if(p0 == 0 || p0 == 3) {
-		frag.x[(warp_id & 0x3) + index_offset] = common::cast<T>(1.0f);
+		frag.x[(lane_id & 0x3) + index_offset] = common::cast<T>(1.0f);
 	}
 	__syncthreads();
 }
 
 template <class T>
 __device__ inline void add_eye(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag, const T alpha) {
-	const unsigned warp_id = threadIdx.x & 0x1f;
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	unsigned index_offset = 0;
-	if(warp_id >> 4) {
+	if(lane_id >> 4) {
 		index_offset = 4;
 	}
 
-	const unsigned p0 = (warp_id >> 2) & 0x3;
+	const unsigned p0 = (lane_id >> 2) & 0x3;
 	if(p0 == 0 || p0 == 3) {
-		frag.x[(warp_id & 0x3) + index_offset] += alpha;
+		frag.x[(lane_id & 0x3) + index_offset] += alpha;
 	}
 	__syncthreads();
 }
@@ -356,14 +356,14 @@ __device__ inline void make_direct_product_fragment(
 	if (fill) {
 		mtk::wmma::fill_zero(frag_a);
 	}
-	const unsigned warp_id = threadIdx.x & 0x1f;
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 
-	if (CORRECTION_TERMS == 2 && (warp_id & 0x3) == 0x3) {
+	if (CORRECTION_TERMS == 2 && (lane_id & 0x3) == 0x3) {
 		return;
 	}
 
-	const T* const a_ptr = ((warp_id & 0x1) == 0) ? a : da;
-	const unsigned a_offset = ((warp_id & 0x10) >> 2) + ((warp_id & 0x4) << 1);
+	const T* const a_ptr = ((lane_id & 0x1) == 0) ? a : da;
+	const unsigned a_offset = ((lane_id & 0x10) >> 2) + ((lane_id & 0x4) << 1);
 
 	frag_a.x[0] = detail::common::cast<half>(a_ptr[a_offset + 0]);
 	frag_a.x[1] = detail::common::cast<half>(a_ptr[a_offset + 1]);
@@ -380,14 +380,14 @@ __device__ inline void make_direct_product_fragment(
 	if (fill) {
 		mtk::wmma::fill_zero(frag_b);
 	}
-	const unsigned warp_id = threadIdx.x & 0x1f;
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 
-	if (CORRECTION_TERMS == 2 && (warp_id & 0x3) == 0x3) {
+	if (CORRECTION_TERMS == 2 && (lane_id & 0x3) == 0x3) {
 		return;
 	}
 
-	const T* const b_ptr = ((warp_id & 0x2) == 0) ? b : db;
-	const unsigned b_offset = ((warp_id & 0x10) >> 2) + (warp_id & 0x8);
+	const T* const b_ptr = ((lane_id & 0x2) == 0) ? b : db;
+	const unsigned b_offset = ((lane_id & 0x10) >> 2) + (lane_id & 0x8);
 
 	frag_b.x[0] = detail::common::cast<half>(b_ptr[b_offset + 0]);
 	frag_b.x[1] = detail::common::cast<half>(b_ptr[b_offset + 1]);
@@ -404,14 +404,14 @@ __device__ inline void make_direct_product_fragment(
 	if (fill) {
 		mtk::wmma::fill_zero(frag_a);
 	}
-	const unsigned warp_id = threadIdx.x & 0x1f;
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 
-	if (CORRECTION_TERMS == 2 && (warp_id & 0x3) == 0x3) {
+	if (CORRECTION_TERMS == 2 && (lane_id & 0x3) == 0x3) {
 		return;
 	}
 
-	const bool is_residual = ((warp_id & 0x1) != 0);
-	const unsigned a_offset = ((warp_id & 0x10) >> 2) + ((warp_id & 0x4) << 1);
+	const bool is_residual = ((lane_id & 0x1) != 0);
+	const unsigned a_offset = ((lane_id & 0x10) >> 2) + ((lane_id & 0x4) << 1);
 
 #pragma unroll
 	for (unsigned i = 0; i < 4; i++) {
@@ -431,14 +431,14 @@ __device__ inline void make_direct_product_fragment(
 	if (fill) {
 		mtk::wmma::fill_zero(frag_b);
 	}
-	const unsigned warp_id = threadIdx.x & 0x1f;
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 
-	if (CORRECTION_TERMS == 2 && (warp_id & 0x3) == 0x3) {
+	if (CORRECTION_TERMS == 2 && (lane_id & 0x3) == 0x3) {
 		return;
 	}
 
-	const bool is_residual = ((warp_id & 0x2) != 0);
-	const unsigned b_offset = ((warp_id & 0x10) >> 2) + (warp_id & 0x8);
+	const bool is_residual = ((lane_id & 0x2) != 0);
+	const unsigned b_offset = ((lane_id & 0x10) >> 2) + (lane_id & 0x8);
 #pragma unroll
 	for (unsigned i = 0; i < 4; i++) {
 		const auto b_fp32 = b_ptr[b_offset + i];
