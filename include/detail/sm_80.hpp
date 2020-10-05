@@ -285,6 +285,25 @@ __device__ inline void load_matrix_with_operation_sync(nvcuda::wmma::fragment<nv
 	}
 	__syncthreads();
 }
+
+template <class T>
+__device__ inline void add_eye(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag, const T alpha) {
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+	const auto lane_mod_9 = lane_id % 9;
+	const bool set_flag = (lane_mod_9 == 0) || (lane_mod_9 % 9 == 4);
+	if (set_flag) {
+		frag.x[(lane_mod_9 >> 2) + 0] += alpha;
+		frag.x[(lane_mod_9 >> 2) + 1] += alpha;
+	}
+	__syncthreads();
+}
+
+template <class T>
+__device__ inline void make_identity_matrix(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag) {
+	mtk::wmma::fill_zero(frag);
+	add_eye(frag, 1.0f);
+}
+
 } // namespace sm_80
 } // namespace detail
 } // namespace wmma
