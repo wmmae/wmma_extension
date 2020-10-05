@@ -21,6 +21,11 @@ See [detail](./docs/m8n8k4.md).
 - CUDA (9.2 or later)
 - C++ (11 or later)
 
+## Supported fragment
+- sm_70: (16, 16, 16)
+- sm_75: (16, 16, 16)
+- sm_80: (16, 16, 16)
+
 ## Sample
 ```cuda
 #include <mma.h>
