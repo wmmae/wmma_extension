@@ -1,10 +1,8 @@
-TEST_ARCH=70
-NVCC=nvcc
-NVCCFLAGS=-std=c++11 -I../../../ -arch=sm_$(TEST_ARCH) -DTEST_ARCH=$(TEST_ARCH)
+include ../Makefile.common
 TARGET=add_eye-test
 
 
-$(TARGET) : main.cu ../../../wmma_extension.hpp Makefile
+$(TARGET) : main.cu ../Makefile.common $(HEADERS)
 	$(NVCC) $(NVCCFLAGS) -o $@ $<
 
 clean:
