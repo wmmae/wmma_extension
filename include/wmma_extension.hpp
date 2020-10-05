@@ -4,6 +4,7 @@
 #include <mma.h>
 #include "detail/sm_70.hpp"
 #include "detail/sm_75.hpp"
+#include "detail/sm_80.hpp"
 #include "detail/m8n8k4.hpp"
 #include "detail/common.hpp"
 #include <stdio.h>
@@ -12,8 +13,10 @@ namespace mtk {
 // arch switch
 #if __CUDA_ARCH__ < 710
 namespace detail_namespace = mtk::wmma::detail::sm_70;
-#else
+#elif __CUDA_ARCH__ < 800
 namespace detail_namespace = mtk::wmma::detail::sm_75;
+#else
+namespace detail_namespace = mtk::wmma::detail::sm_80;
 #endif
 
 namespace wmma {
