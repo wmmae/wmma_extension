@@ -3,20 +3,13 @@
 #include <stdio.h>
 #include <mma.h>
 #include <stdio.h>
-#if defined(__CUDA_ARCH__)
 #include "detail/m8n8k4.hpp"
 #include "detail/common.hpp"
 
-#if __CUDA_ARCH__ >= 700
 #include "detail/sm_70.hpp"
-#endif
-#if __CUDA_ARCH__ >= 710
 #include "detail/sm_75.hpp"
-#endif
-#if __CUDA_ARCH__ >= 800
 #include "detail/sm_80.hpp"
 #include "detail/sm_80_tf32.hpp"
-#endif
 
 namespace mtk {
 // arch switch
@@ -132,6 +125,5 @@ __device__ inline void print_fragment(const nvcuda::wmma::fragment<MatrixType, M
 
 } // namespace wmma
 } // namespace mtk
-#endif /* defined(__CUDA_ARCH__)*/
 
 #endif /* end of include guard */
