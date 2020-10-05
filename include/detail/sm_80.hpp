@@ -138,7 +138,7 @@ template <class T>
 __device__ inline void store_vector_sync(T* const ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag, const nvcuda::wmma::layout_t layout) {
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	if (layout == nvcuda::wmma::mem_col_major) {
-		const bool load_flag = (lane_id & 0x8) == 0;
+		const bool load_flag = (lane_id & 0x3) == 0;
 		const unsigned index_offset = lane_id >> 2;
 		if (load_flag) {
 			ptr[index_offset + 0 ] = common::cast<T>(frag.x[0 ]);
@@ -160,7 +160,7 @@ template <class T>
 __device__ inline void store_vector_sync(T* const ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag, const T mul, const nvcuda::wmma::layout_t layout) {
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	if (layout == nvcuda::wmma::mem_col_major) {
-		const bool load_flag = (lane_id & 0x8) == 0;
+		const bool load_flag = (lane_id & 0x3) == 0;
 		const unsigned index_offset = lane_id >> 2;
 		if (load_flag) {
 			ptr[index_offset + 0 ] = common::cast<T>(frag.x[0 ] * mul);
@@ -227,8 +227,8 @@ __device__ inline void load_matrix_with_operation_sync(nvcuda::wmma::fragment<nv
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	const unsigned start_index = ((lane_id & 0x3) << 5) + (lane_id >> 2);
 	for (std::size_t i = 0; i < frag.num_elements; i++) {
-		const unsigned tx = x & 0x7;
-		const unsigned offset = ((tx & 0x1) << 4) + ((x & 0x2) << 2) + ((x & 0x4) << 5);
+		const unsigned tx = i & 0x7;
+		const unsigned offset = ((tx & 0x1) << 4) + ((tx & 0x2) << 2) + ((tx & 0x4) << 5);
 		const unsigned index = start_index + offset;
 		frag.x[i] = func(i, ptr[(index >> 4) * ldm + (index & 0xf)]);
 	}
@@ -240,7 +240,7 @@ __device__ inline void load_matrix_with_operation_sync(nvcuda::wmma::fragment<nv
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	const unsigned start_index = ((lane_id & 0x3) << 1) + ((lane_id & 0x1c) << 2);
 	for (std::size_t i = 0; i < frag.num_elements; i++) {
-		const unsigned tx = x & 0x7;
+		const unsigned tx = i & 0x7;
 		const unsigned offset = (tx & 0x1) + ((tx & 0x2) << 6) + ((tx & 0x4) << 1);
 		const unsigned index = start_index + offset;
 		frag.x[i] = func(i, ptr[(index >> 4) * ldm + (index & 0xf)]);
@@ -253,7 +253,7 @@ __device__ inline void load_matrix_with_operation_sync(nvcuda::wmma::fragment<nv
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	const unsigned start_index = ((lane_id & 0x3) << 1) + ((lane_id & 0x1c) << 2);
 	for (std::size_t i = 0; i < frag.num_elements; i++) {
-		const unsigned tx = x & 0x7;
+		const unsigned tx = i & 0x7;
 		const unsigned offset = (tx & 0x1) + ((tx & 0x2) << 2) + ((tx & 0x4) << 5);
 		const unsigned index = start_index + offset;
 		frag.x[i] = func(i, ptr[(index >> 4) * ldm + (index & 0xf)]);
@@ -266,7 +266,7 @@ __device__ inline void load_matrix_with_operation_sync(nvcuda::wmma::fragment<nv
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	const unsigned start_index = ((lane_id & 0x3) << 5) + (lane_id >> 2);
 	for (std::size_t i = 0; i < frag.num_elements; i++) {
-		const unsigned tx = x & 0x7;
+		const unsigned tx = i & 0x7;
 		const unsigned offset = ((tx & 0x1) << 4) + ((tx & 0x2) << 6) + ((tx & 0x4) << 1);
 		const unsigned index = start_index + offset;
 		frag.x[i] = func(i, ptr[(index >> 4) * ldm + (index & 0xf)]);
@@ -278,10 +278,10 @@ template <class T>
 __device__ inline void add_eye(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag, const T alpha) {
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	const auto lane_mod_9 = lane_id % 9;
-	const bool set_flag = (lane_mod_9 == 0) || (lane_mod_9 % 9 == 4);
+	const bool set_flag = (lane_mod_9 == 0) || (lane_mod_9 == 4);
 	if (set_flag) {
 		frag.x[(lane_mod_9 >> 2) + 0] += alpha;
-		frag.x[(lane_mod_9 >> 2) + 1] += alpha;
+		frag.x[(lane_mod_9 >> 2) + 6] += alpha;
 	}
 	__syncthreads();
 }
@@ -303,16 +303,16 @@ __device__ inline void make_direct_product_fragment(
 	}
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 
-	if (lane_id & 0x10) {
+	if (lane_id & 0x2) {
 		return;
 	}
 
 	frag_a.x[0] = frag_a.x[8 + 0] = common::cast<half>(a[(lane_id >> 2) + 0]);
 	frag_a.x[2] = frag_a.x[8 + 2] = common::cast<half>(a[(lane_id >> 2) + 8]);
 
-	if (CORRECTION_TERMS == 3 || (lane_id & 0x3 == 0)) {
-		frag_a.x[1] = frag_a.x[8 + 1] = common::cast<half>(a[(lane_id >> 2) + 0]);
-		frag_a.x[3] = frag_a.x[8 + 3] = common::cast<half>(a[(lane_id >> 2) + 8]);
+	if (CORRECTION_TERMS == 3 || ((lane_id & 0x1) == 0)) {
+		frag_a.x[1] = frag_a.x[8 + 1] = common::cast<half>(da[(lane_id >> 2) + 0]);
+		frag_a.x[3] = frag_a.x[8 + 3] = common::cast<half>(da[(lane_id >> 2) + 8]);
 	}
 }
 
@@ -327,23 +327,28 @@ __device__ inline void make_direct_product_fragment(
 	}
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 
-	if (lane_id & 0x10) {
+	if (lane_id & 0x2) {
 		return;
 	}
 
-	frag_b.x[0] = frag_b.x[8 + 0] = common::cast<half>(b[(lane_id >> 2) + 0]);
-	frag_b.x[4] = frag_b.x[8 + 4] = common::cast<half>(b[(lane_id >> 2) + 8]);
+	const auto bp = (lane_id & 0x1) ? db : b;
 
-	if (CORRECTION_TERMS == 3 || (lane_id & 0x3 == 0)) {
-		frag_b.x[1] = frag_b.x[8 + 1] = common::cast<half>(db[(lane_id >> 2) + 0]);
-		frag_b.x[5] = frag_b.x[8 + 5] = common::cast<half>(db[(lane_id >> 2) + 8]);
+	const auto b0 = bp[(lane_id >> 2) + 0];
+	const auto b8 = bp[(lane_id >> 2) + 8];
+
+	frag_b.x[0] = frag_b.x[8 + 0] = common::cast<half>(b0);
+	frag_b.x[4] = frag_b.x[8 + 4] = common::cast<half>(b8);
+
+	if (CORRECTION_TERMS == 3 || ((lane_id & 0x3) == 0)) {
+		frag_b.x[1] = frag_b.x[8 + 1] = frag_b.x[0];
+		frag_b.x[5] = frag_b.x[8 + 5] = frag_b.x[4];
 	}
 }
 
 template <unsigned CORRECTION_TERMS = 2>
 __device__ inline void make_direct_product_fragment(
-		nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major>& frag_a,
-		const float* const b_ptr,
+		nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag_a,
+		const float* const a_ptr,
 		const bool fill
 		) {
 	if (fill) {
@@ -351,17 +356,17 @@ __device__ inline void make_direct_product_fragment(
 	}
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 
-	if (lane_id & 0x10) {
+	if (lane_id & 0x2) {
 		return;
 	}
 
-	const auto a0 = a[(lane_id >> 2) + 0];
-	const auto a8 = a[(lane_id >> 2) + 8];
+	const auto a0 = a_ptr[(lane_id >> 2) + 0];
+	const auto a8 = a_ptr[(lane_id >> 2) + 8];
 
 	frag_a.x[0] = frag_a.x[8 + 0] = common::cast<half>(a0);
 	frag_a.x[2] = frag_a.x[8 + 2] = common::cast<half>(a8);
 
-	if (CORRECTION_TERMS == 3 || (lane_id & 0x3 == 0)) {
+	if ((CORRECTION_TERMS == 3) || ((lane_id & 0x1) == 0)) {
 		frag_a.x[1] = frag_a.x[8 + 1] = common::cast<half>(a0 - common::cast<float>(frag_a.x[0]));
 		frag_a.x[3] = frag_a.x[8 + 3] = common::cast<half>(a8 - common::cast<float>(frag_a.x[2]));
 	}
@@ -378,19 +383,24 @@ __device__ inline void make_direct_product_fragment(
 	}
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 
-	if (lane_id & 0x10) {
+	if (lane_id & 0x2) {
 		return;
 	}
 
-	const auto b0 = b[(lane_id >> 2) + 0];
-	const auto b8 = b[(lane_id >> 2) + 8];
+	auto b0 = b_ptr[(lane_id >> 2) + 0];
+	auto b8 = b_ptr[(lane_id >> 2) + 8];
+
+	if (lane_id & 0x1) {
+		b0 = b0 - common::cast<float>(common::cast<half>(b0));
+		b8 = b8 - common::cast<float>(common::cast<half>(b8));
+	}
 
 	frag_b.x[0] = frag_b.x[8 + 0] = common::cast<half>(b0);
 	frag_b.x[4] = frag_b.x[8 + 4] = common::cast<half>(b8);
 
-	if (CORRECTION_TERMS == 3 || (lane_id & 0x3 == 0)) {
-		frag_a.x[1] = frag_a.x[8 + 1] = common::cast<half>(b0 - common::cast<float>(frag_b.x[0]));
-		frag_a.x[5] = frag_a.x[8 + 5] = common::cast<half>(b8 - common::cast<float>(frag_b.x[4]));
+	if (CORRECTION_TERMS == 3 || ((lane_id & 0x3) == 0)) {
+		frag_b.x[1] = frag_b.x[8 + 1] = frag_b.x[0];
+		frag_b.x[5] = frag_b.x[8 + 5] = frag_b.x[4];
 	}
 }
 } // namespace sm_80
