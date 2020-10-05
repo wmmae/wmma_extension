@@ -7,7 +7,9 @@
 #define TEST_ARCH (-1)
 #endif
 
+constexpr std::size_t M = 16;
 constexpr std::size_t N = 16;
+constexpr std::size_t K = 16;
 
 template <class T, class S>
 __device__ __host__ T convert(const S);
@@ -17,7 +19,7 @@ template <> __device__ __host__ half  convert<half , float>(const float a) {retu
 template <> __device__ __host__ half  convert<half , half >(const half  a) {return a;}
 
 __global__ void make_eye_kernel(float* const eye, const float a) {
-	nvcuda::wmma::fragment<nvcuda::wmma::accumulator, N, N, N, float> frag_c;
+	nvcuda::wmma::fragment<nvcuda::wmma::accumulator, N, M, K, float> frag_c;
 	nvcuda::wmma::fill_fragment(frag_c, 1.0f);
 	mtk::wmma::add_eye(frag_c, a);
 	nvcuda::wmma::store_matrix_sync(eye, frag_c, N, nvcuda::wmma::mem_col_major);
