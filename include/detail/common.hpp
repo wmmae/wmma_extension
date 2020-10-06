@@ -1,6 +1,17 @@
 #ifndef __WMMAE_DETAIL_COMMON__
 #define __WMMAE_DETAIL_COMMON__
 #include <cuda_fp16.h>
+
+#if !defined(__CUDA_ARCH__) || __CUDA_ARCH__ < 800
+namespace nvcuda {
+namespace wmma {
+namespace precision {
+class tf32;
+} // namespace precision
+} // namespace wmma
+} // namespace nvcuda
+#endif
+
 namespace mtk {
 namespace wmma {
 namespace detail {
@@ -13,16 +24,6 @@ template <> inline __device__ __host__ typename storage_t<float>::type cast<floa
 template <> inline __device__ __host__ typename storage_t<half >::type cast<half >(const float v){return __float2half(v);}
 template <> inline __device__ __host__ typename storage_t<float>::type cast<float>(const half v){return __half2float(v);}
 template <> inline __device__ __host__ typename storage_t<half >::type cast<half >(const half v){return v;}
-
-#if !defined(__CUDA_ARCH__) || __CUDA_ARCH__ < 800
-namespace nvcuda {
-namespace wmma {
-namespace precision {
-class tf32;
-} // namespace precision
-} // namespace wmma
-} // namespace nvcuda
-#endif
 
 template <> struct storage_t<nvcuda::wmma::precision::tf32> {using type = float;};
 __device__ __host__ inline float to_tf32(const float a) {
