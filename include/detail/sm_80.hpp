@@ -289,7 +289,7 @@ __device__ inline void add_eye(nvcuda::wmma::fragment<nvcuda::wmma::accumulator,
 template <class T>
 __device__ inline void make_identity_matrix(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag) {
 	mtk::wmma::fill_zero(frag);
-	add_eye(frag, 1.0f);
+	add_eye(frag, mtk::wmma::detail::common::cast<T>(1.0f));
 }
 
 template <class T, class S, unsigned CORRECTION_TERMS = 2>
