@@ -93,7 +93,7 @@ mtk::wmma::foreach(
   - frag         : fragment. This argument is used for template argument deduction.
   - func         : like a function which sets fragments from `fragment_index` and `mem_index`.
 
-### make_direct_product_fragments
+### make_direct_product_fragments (A)
 This function is used for computing direct product of two vectors (u and v) with accuracy correction.
 
 ![make_direct_product_fragments](docs/make_direct_product_fragments-en.svg)
@@ -105,6 +105,16 @@ This function is used for computing direct product of two vectors (u and v) with
 
 - Detail
 `frag_a` x `frag_b` conmutes a direct product `u` x `v` with error correction.
+
+### make_direct_product_fragments (B)
+
+Its computation is same with `make_direct_product_fragments (A)` but arguments are different.
+
+- Arguments
+  - frag_a/b : Destination fragment (`matrix_a` needs to be `col_major` / `matrix_b` needs to be  `row_major`)
+  - x        : x (`float` / `half`)
+
+dx is automatically computed in this method.
 
 ### make_eye
 ![load_matrix](docs/make_eye-en.svg)
