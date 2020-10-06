@@ -32,7 +32,7 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::mat
 	const unsigned index_offset = (lane_id & 0x3) + ((lane_id & 0x4) << 1);
 	if(load_flag) {
 		frag.x[0 ] = ptr[index_offset + 0 ];
-		frag.x[1 ] = ptr[index_offset + 4 ];
+		frag.x[2 ] = ptr[index_offset + 4 ];
 	}
 	__syncthreads();
 }
@@ -47,7 +47,7 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::mat
 	const unsigned index_offset = (lane_id & 0x3) + ((lane_id & 0x4) << 1);
 	if(load_flag) {
 		frag.x[0 ] = ptr[index_offset + 0 ];
-		frag.x[2 ] = ptr[index_offset + 4 ];
+		frag.x[1 ] = ptr[index_offset + 4 ];
 	}
 	__syncthreads();
 }
@@ -92,7 +92,7 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::mat
 	const unsigned index_offset = (lane_id & 0x3) + ((lane_id & 0x4) << 1);
 	if(load_flag) {
 		frag.x[0 ] = ptr[index_offset + 0 ] * mul;
-		frag.x[1 ] = ptr[index_offset + 4 ] * mul;
+		frag.x[2 ] = ptr[index_offset + 4 ] * mul;
 	}
 	__syncthreads();
 }
@@ -107,7 +107,7 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::mat
 	const unsigned index_offset = (lane_id & 0x3) + ((lane_id & 0x4) << 1);
 	if(load_flag) {
 		frag.x[0 ] = ptr[index_offset + 0 ] * mul;
-		frag.x[2 ] = ptr[index_offset + 4 ] * mul;
+		frag.x[1 ] = ptr[index_offset + 4 ] * mul;
 	}
 	__syncthreads();
 }
