@@ -174,7 +174,7 @@ __device__ inline void store_vector_sync(T* const ptr, nvcuda::wmma::fragment<nv
 template <class Func>
 __device__ inline void foreach(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 8, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major>& frag, Func func) {
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
-	const unsigned start_index = ((lane_id & 0x3) << 4) + ((lane_id & 0x4) >> 2);
+	const unsigned start_index = ((lane_id & 0x3) << 4) + (lane_id >> 2);
 	for (std::size_t x = 0; x < frag.num_elements; x++) {
 		const unsigned offset = ((x & 0x2) << 5) + ((x & 0x1) << 3);
 		func(x, start_index + offset);
@@ -204,7 +204,7 @@ __device__ inline void foreach(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16
 template <class Func>
 __device__ inline void foreach(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 8, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major>& frag, Func func) {
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
-	const unsigned start_index = ((lane_id & 0x3) << 4) + ((lane_id & 0x4) >> 2);
+	const unsigned start_index = ((lane_id & 0x3) << 4) + (lane_id >> 2);
 	for (std::size_t x = 0; x < frag.num_elements; x++) {
 		const unsigned offset = ((x & 0x1) << 6) + ((x & 0x2) << 2);
 		func(x, start_index + offset);
@@ -214,7 +214,7 @@ __device__ inline void foreach(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16
 template <class T, class Func>
 __device__ inline void load_matrix_with_operation_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 8, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major>& frag, const T* const ptr, const unsigned ldm, Func func) {
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
-	const unsigned start_index = ((lane_id & 0x3) << 4) + ((lane_id & 0x4) >> 2);
+	const unsigned start_index = ((lane_id & 0x3) << 4) + (lane_id >> 2);
 	for (std::size_t x = 0; x < frag.num_elements; x++) {
 		const unsigned offset = ((x & 0x2) << 5) + ((x & 0x1) << 3);
 		const unsigned index = start_index + offset;
@@ -250,7 +250,7 @@ __device__ inline void load_matrix_with_operation_sync(nvcuda::wmma::fragment<nv
 template <class T, class Func>
 __device__ inline void load_matrix_with_operation_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 8, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major>& frag, const T* const ptr, const unsigned ldm, Func func) {
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
-	const unsigned start_index = ((lane_id & 0x3) << 4) + ((lane_id & 0x4) >> 2);
+	const unsigned start_index = ((lane_id & 0x3) << 4) + (lane_id >> 2);
 	for (std::size_t x = 0; x < frag.num_elements; x++) {
 		const unsigned offset = ((x & 0x1) << 6) + ((x & 0x2) << 2);
 		const unsigned index = start_index + offset;
