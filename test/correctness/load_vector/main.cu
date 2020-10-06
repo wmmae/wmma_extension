@@ -31,7 +31,7 @@ template <class T, class layout>
 __global__ void test_load_vector_kernel(
 		float* const dst,
 		const T* const src,
-		const half* const eye
+		const typename mtk::wmma::detail::common::storage_t<ab_type>::type* const eye
 		) {
 	nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, M, N, K, ab_type, nvcuda::wmma::col_major> eye_frag;
 	nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, M, N, K, ab_type, layout> vec_frag;
@@ -60,11 +60,11 @@ void test() {
 		std::printf("type   : half\n");
 	T* src_mem;
 	float* dst_mem;
-	half* eye_mem;
+	typename mtk::wmma::detail::common::storage_t<ab_type>::type* eye_mem;
 
 	cudaMallocHost(&src_mem, 16 * sizeof(T));
 	cudaMallocHost(&dst_mem, 16 * 16 * sizeof(float));
-	cudaMallocHost(&eye_mem, 16 * 16 * sizeof(half));
+	cudaMallocHost(&eye_mem, 16 * 16 * sizeof(typename mtk::wmma::detail::common::storage_t<ab_type>::type));
 
 	for (std::size_t i = 0; i < 16 * 16; i++) {
 		src_mem[i] = convert<T, float>(i);
