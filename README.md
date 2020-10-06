@@ -24,7 +24,7 @@ See [detail](./docs/m8n8k4.md).
 ## Supported fragment
 - sm_70: ((16, 16, 16), fp16/fp32)
 - sm_75: ((16, 16, 16), fp16/fp32)
-- sm_80: ((16, 16, 16), fp16/fp32)
+- sm_80: ((16, 16, 16), fp16/fp32), ((16, 16, 8), tf32)
 
 ## Sample
 ```cuda
@@ -72,7 +72,7 @@ mtk::wmma::load_matrix_with_operation(
 ```
 
 - Arguments
-  - dst_fragment : Destination fragment (`matrix_a` / `matrix_b`, (16, 16, 16), `half` / `float`, `col_major` / `row_major`)
+  - dst_fragment : Destination fragment (`matrix_a` / `matrix_b`)
   - src_pointer  : Source pointer (No alignment restriction)
   - func         : Element-wise function. Return type has to be `half`.
 
@@ -93,33 +93,46 @@ mtk::wmma::foreach(
   - frag         : fragment. This argument is used for template argument deduction.
   - func         : like a function which sets fragments from `fragment_index` and `mem_index`.
 
-### make_direct_product_fragments
+### make_direct_product_fragments (A)
 This function is used for computing direct product of two vectors (u and v) with accuracy correction.
 
 ![make_direct_product_fragments](docs/make_direct_product_fragments-en.svg)
 
 - Arguments
-  - frag_a : Destination fragment (`matrix_a` and `col_major` / `matrix_b` and `row_major`, (16, 16, 16), `half`)
-  - x      : x (`float` / `half`)
-  - dx     : diff vector of `x` (`x` - toFloat(toHalf(`x`))) (`float` / `half`)
+  - frag_a/b : Destination fragment (`matrix_a` needs to be `col_major` / `matrix_b` needs to be  `row_major`)
+  - x        : x (`float` / `half`)
+  - dx       : diff vector of `x` (`x` - toFloat(toHalf(`x`))) (`float` / `half`)
+
+- Detail
+`frag_a` x `frag_b` conmutes a direct product `u` x `v` with error correction.
+
+### make_direct_product_fragments (B)
+
+Its computation is same with `make_direct_product_fragments (A)` but arguments are different.
+
+- Arguments
+  - frag_a/b : Destination fragment (`matrix_a` needs to be `col_major` / `matrix_b` needs to be  `row_major`)
+  - x        : x (`float` / `half`)
+
+dx is automatically computed in this method.
 
 ### make_eye
 ![load_matrix](docs/make_eye-en.svg)
 - Arguments
-  - dst_fragment : Destination fragment (`accumulator`, (16, 16, 16), `half` / `float`)
+  - dst_fragment : Destination fragment (`accumulator`)
   - alpha : diagonal element
 
 ### make_identity_matrix
 This function is equivalent to `make_eye(frag, 1.0f)`
 - Arguments
-  - dst_fragment : Destination fragment (`accumulator`, (16, 16, 16), `float` / `half`)
+  - dst_fragment : Destination fragment (`accumulator`)
 
 ### fill_zero
 - Argument
-  - dst_fragment : Destination fragment (`float` / `half`)
+  - dst_fragment : Destination fragment
 
 ### print_fragment
 This function output the elements of a fragment.
 - Arguments
   - frag : Target fragment
-  - name : printing name of fragment (`char*`)
+  - name : printing name of fragment (`char*`, optional)

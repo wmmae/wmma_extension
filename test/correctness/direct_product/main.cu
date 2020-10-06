@@ -7,9 +7,23 @@
 #define TEST_ARCH (-1)
 #endif
 
+// #define TEST_TF32
+
+#ifndef TEST_TF32
+constexpr std::size_t M = 16;
+constexpr std::size_t N = 16;
+constexpr std::size_t K = 16;
+using ab_type = half;
+#else
+constexpr std::size_t M = 16;
+constexpr std::size_t N = 16;
+constexpr std::size_t K = 8;
+using ab_type = nvcuda::wmma::precision::tf32;
+#endif
+
 #define SMALLER_WORKING_MEMORY
 
-constexpr std::size_t N = 16;
+using storage_t = typename mtk::wmma::detail::common::storage_t<ab_type>::type;
 
 template <class T, class S>
 __device__ __host__ T convert(const S);
@@ -20,18 +34,18 @@ template <> __device__ __host__ half  convert<half , half >(const half  a) {retu
 
 template <unsigned CORRECTION_TERMS>
 __global__ void direct_product_kernel(float* const h, const float* const u) {
-	nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, N, N, N, half, nvcuda::wmma::col_major> frag_a;
-	nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, N, N, N, half, nvcuda::wmma::row_major> frag_b;
-	nvcuda::wmma::fragment<nvcuda::wmma::accumulator, N, N, N, float> frag_c;
+	nvcuda::wmma::fragment<nvcuda::wmma::matrix_a   , M, N, K, ab_type, nvcuda::wmma::col_major> frag_a;
+	nvcuda::wmma::fragment<nvcuda::wmma::matrix_b   , M, N, K, ab_type, nvcuda::wmma::row_major> frag_b;
+	nvcuda::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, float> frag_c;
 
-	__shared__ half su[N];
-	__shared__ half sdu[N];
+	__shared__ storage_t su[N];
+	__shared__ storage_t sdu[N];
 
 	if (threadIdx.x < N) {
 		const auto fv = u[threadIdx.x];
-		const auto hv = convert<half>(fv);
+		const auto hv = mtk::wmma::detail::common::cast<ab_type>(fv);
 		su[threadIdx.x] = hv;
-		sdu[threadIdx.x] = convert<half>(fv - convert<float>(hv));
+		sdu[threadIdx.x] = convert<storage_t>(fv - convert<float>(hv));
 	}
 
 	if (CORRECTION_TERMS == 3) {
