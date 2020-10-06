@@ -65,13 +65,13 @@ void test() {
 	cudaDeviceSynchronize();
 
 	double max_error = 0.0;
-	for (unsigned i = 0; i < N; i++) {
+	for (unsigned i = 0; i < M; i++) {
 		for (unsigned j = 0; j < N; j++) {
 			double sum = 0.0;
-			for (unsigned k = 0; k < N; k++) {
-				sum += static_cast<double>(a[i + N * k]) * static_cast<double>(b[k + j * N]);
+			for (unsigned k = 0; k < K; k++) {
+				sum += static_cast<double>(a[i + M * k]) * static_cast<double>(b[k + j * K]);
 			}
-			const auto error = std::abs(sum - c[i + j * N]);
+			const auto error = std::abs(sum - c[i + j * M]);
 			std::printf("%e ", error);
 			max_error = std::max(max_error, error);
 		}
