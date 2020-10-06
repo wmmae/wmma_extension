@@ -7,9 +7,17 @@
 #define TEST_ARCH (-1)
 #endif
 
+// #define TEST_TF32
+
+#ifndef TEST_TF32
 constexpr std::size_t M = 16;
 constexpr std::size_t N = 16;
 constexpr std::size_t K = 16;
+#else
+constexpr std::size_t M = 16;
+constexpr std::size_t N = 16;
+constexpr std::size_t K = 8;
+#endif
 
 template <class T, class S>
 __device__ __host__ T convert(const S);
