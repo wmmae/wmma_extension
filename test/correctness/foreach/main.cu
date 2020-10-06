@@ -7,11 +7,19 @@
 #define TEST_ARCH (-1)
 #endif
 
+// #define TEST_TF32
+
+#ifndef TEST_TF32
 constexpr std::size_t M = 16;
 constexpr std::size_t N = 16;
 constexpr std::size_t K = 16;
-
 using ab_type = half;
+#else
+constexpr std::size_t M = 16;
+constexpr std::size_t N = 16;
+constexpr std::size_t K = 8;
+using ab_type = nvcuda::wmma::precision::tf32;
+#endif
 
 __global__ void matmul16x16_kernel(float* const c_ptr, const float* const a_ptr, const float* const b_ptr) {
 	nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, M, N, K, ab_type, nvcuda::wmma::col_major> frag_a, frag_da;
