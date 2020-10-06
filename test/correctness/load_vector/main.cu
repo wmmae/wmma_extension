@@ -6,6 +6,20 @@
 #define TEST_ARCH (-1)
 #endif
 
+//#define TEST_TF32
+
+#ifndef TEST_TF32
+constexpr std::size_t M = 16;
+constexpr std::size_t N = 16;
+constexpr std::size_t K = 16;
+using ab_type = half;
+#else
+constexpr std::size_t M = 16;
+constexpr std::size_t N = 16;
+constexpr std::size_t K = 8;
+using ab_type = nvcuda::wmma::precision::tf32;
+#endif
+
 template <class T, class S>
 __device__ __host__ T convert(const S);
 template <> __device__ __host__ float convert<float, float>(const float a) {return a;}
@@ -19,9 +33,9 @@ __global__ void test_load_vector_kernel(
 		const T* const src,
 		const half* const eye
 		) {
-	nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major> eye_frag;
-	nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, layout> vec_frag;
-	nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, float> result_frag;
+	nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, M, N, K, ab_type, nvcuda::wmma::col_major> eye_frag;
+	nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, M, N, K, ab_type, layout> vec_frag;
+	nvcuda::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, float> result_frag;
 	nvcuda::wmma::load_matrix_sync(eye_frag, eye, 16);
 	nvcuda::wmma::fill_fragment(result_frag, 0.0f);
 
