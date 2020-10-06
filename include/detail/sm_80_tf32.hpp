@@ -295,7 +295,7 @@ __device__ inline void make_direct_product_fragment(
 	const auto a_ptr = (lane_id & 0x1) ? da : a;
 
 	frag_a.x[0] = a_ptr[(lane_id >> 2) + 0];
-	frag_a.x[2] = a_ptr[(lane_id >> 2) + 8];
+	frag_a.x[1] = a_ptr[(lane_id >> 2) + 8];
 }
 
 template <class T, class S, unsigned CORRECTION_TERMS = 2>
@@ -309,10 +309,6 @@ __device__ inline void make_direct_product_fragment(
 	}
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 
-	if (lane_id & 0x2) {
-		return;
-	}
-
 	if (CORRECTION_TERMS == 2 && ((lane_id & 0x3) == 0x3)) {
 		return;
 	}
@@ -320,7 +316,7 @@ __device__ inline void make_direct_product_fragment(
 	const auto b_ptr = (lane_id & 0x2) ? db : b;
 
 	frag_b.x[0] = b_ptr[(lane_id >> 2) + 0];
-	frag_b.x[1] = b_ptr[(lane_id >> 2) + 8];
+	frag_b.x[2] = b_ptr[(lane_id >> 2) + 8];
 }
 
 template <unsigned CORRECTION_TERMS = 2>
@@ -344,13 +340,13 @@ __device__ inline void make_direct_product_fragment(
 	// __float2tf32
 #if __CUDA_ARCH__ >= 800
 	if (lane_id & 0x1) {
-		a0 = a0 - __float_to_tf32(a0);
-		a8 = a8 - __float_to_tf32(a8);
+		a0 = a0 - mtk::wmma::detail::common::to_tf32(a0);
+		a8 = a8 - mtk::wmma::detail::common::to_tf32(a8);
 	}
 #endif
 
-	frag_a.x[0] = a0;
-	frag_a.x[1] = a8;
+	frag_a.x[0] = mtk::wmma::detail::common::to_tf32(a0);
+	frag_a.x[1] = mtk::wmma::detail::common::to_tf32(a8);
 }
 
 template <unsigned CORRECTION_TERMS = 2>
@@ -364,19 +360,23 @@ __device__ inline void make_direct_product_fragment(
 	}
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 
+	if (CORRECTION_TERMS == 2 && ((lane_id & 0x3) == 0x3)) {
+		return;
+	}
+
 	auto b0 = b_ptr[(lane_id >> 2) + 0];
 	auto b8 = b_ptr[(lane_id >> 2) + 8];
 
 	// __float2tf32
 #if __CUDA_ARCH__ >= 800
-	if (lane_id & 0x1) {
-		b0 = b0 - __float_to_tf32(b0);
-		b8 = b8 - __float_to_tf32(b8);
+	if (lane_id & 0x2) {
+		b0 = b0 - mtk::wmma::detail::common::to_tf32(b0);
+		b8 = b8 - mtk::wmma::detail::common::to_tf32(b8);
 	}
 #endif
 
-	frag_b.x[0] = b0;
-	frag_b.x[2] = b8;
+	frag_b.x[0] = mtk::wmma::detail::common::to_tf32(b0);
+	frag_b.x[2] = mtk::wmma::detail::common::to_tf32(b8);
 }
 #endif /* __CUDA_ARCH__ >= 8000 */
 } // namespace sm_80
