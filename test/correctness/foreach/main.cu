@@ -7,29 +7,33 @@
 #define TEST_ARCH (-1)
 #endif
 
+constexpr std::size_t M = 16;
 constexpr std::size_t N = 16;
+constexpr std::size_t K = 16;
+
+using ab_type = half;
 
 __global__ void matmul16x16_kernel(float* const c_ptr, const float* const a_ptr, const float* const b_ptr) {
-	nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, N, N, N, half, nvcuda::wmma::col_major> frag_a, frag_da;
-	nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, N, N, N, half, nvcuda::wmma::col_major> frag_b, frag_db;
-	nvcuda::wmma::fragment<nvcuda::wmma::accumulator, N, N, N, float> frag_c;
+	nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, M, N, K, ab_type, nvcuda::wmma::col_major> frag_a, frag_da;
+	nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, M, N, K, ab_type, nvcuda::wmma::col_major> frag_b, frag_db;
+	nvcuda::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, float> frag_c;
 
 	mtk::wmma::fill_zero(frag_c);
 
 	mtk::wmma::foreach(frag_a,
 			[&](const unsigned frag_index, const unsigned mem_index) {
 				const auto a = a_ptr[mem_index];
-				const auto a_fp16 = __float2half(a);
-				frag_a.x[frag_index] = a_fp16;
-				frag_da.x[frag_index] = __float2half(a - __half2float(a_fp16));
+				const auto a_rp = mtk::wmma::detail::common::cast<ab_type>(a);
+				frag_a.x[frag_index] = a_rp;
+				frag_da.x[frag_index] = mtk::wmma::detail::common::cast<ab_type>(a - mtk::wmma::detail::common::cast<float>(a_rp));
 			});
 
 	mtk::wmma::foreach(frag_b,
 			[&](const unsigned frag_index, const unsigned mem_index) {
 				const auto b = b_ptr[mem_index];
-				const auto b_fp16 = __float2half(b);
-				frag_b.x[frag_index] = b_fp16;
-				frag_db.x[frag_index] = __float2half(b - __half2float(b_fp16));
+				const auto b_rp = mtk::wmma::detail::common::cast<ab_type>(b);
+				frag_b.x[frag_index] = b_rp;
+				frag_db.x[frag_index] = mtk::wmma::detail::common::cast<ab_type>(b - mtk::wmma::detail::common::cast<float>(b_rp));
 			});
 
 	nvcuda::wmma::mma_sync(frag_c, frag_a, frag_db, frag_c);
