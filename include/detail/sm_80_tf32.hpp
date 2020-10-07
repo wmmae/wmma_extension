@@ -28,7 +28,7 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::mat
 		mtk::wmma::fill_zero(frag);
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 
-	const bool load_flag = (lane_id & 0b11000) == 0;
+	const bool load_flag = (lane_id & 0b11100) == 0;
 	const unsigned index_offset = (lane_id & 0x3) + ((lane_id & 0x4) << 1);
 	if(load_flag) {
 		frag.x[0 ] = ptr[index_offset + 0 ];
@@ -43,7 +43,7 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::mat
 		mtk::wmma::fill_zero(frag);
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 
-	const bool load_flag = (lane_id & 0b11000) == 0;
+	const bool load_flag = (lane_id & 0b11100) == 0;
 	const unsigned index_offset = (lane_id & 0x3) + ((lane_id & 0x4) << 1);
 	if(load_flag) {
 		frag.x[0 ] = ptr[index_offset + 0 ];
@@ -88,7 +88,7 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::mat
 		mtk::wmma::fill_zero(frag);
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 
-	const bool load_flag = (lane_id & 0b11000) == 0;
+	const bool load_flag = (lane_id & 0b11100) == 0;
 	const unsigned index_offset = (lane_id & 0x3) + ((lane_id & 0x4) << 1);
 	if(load_flag) {
 		frag.x[0 ] = ptr[index_offset + 0 ] * mul;
@@ -103,7 +103,7 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::mat
 		mtk::wmma::fill_zero(frag);
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 
-	const bool load_flag = (lane_id & 0b11000) == 0;
+	const bool load_flag = (lane_id & 0b11100) == 0;
 	const unsigned index_offset = (lane_id & 0x3) + ((lane_id & 0x4) << 1);
 	if(load_flag) {
 		frag.x[0 ] = ptr[index_offset + 0 ] * mul;
@@ -148,7 +148,7 @@ __device__ inline void load_vector_with_rounding_sync(nvcuda::wmma::fragment<nvc
 		mtk::wmma::fill_zero(frag);
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 
-	const bool load_flag = (lane_id & 0b11000) == 0;
+	const bool load_flag = (lane_id & 0b11100) == 0;
 	const unsigned index_offset = (lane_id & 0x3) + ((lane_id & 0x4) << 1);
 	if(load_flag) {
 		frag.x[0 ] = mtk::wmma::detail::common::cast<nvcuda::wmma::precision::tf32>(ptr[index_offset + 0 ]);
@@ -163,7 +163,7 @@ __device__ inline void load_vector_with_rounding_sync(nvcuda::wmma::fragment<nvc
 		mtk::wmma::fill_zero(frag);
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 
-	const bool load_flag = (lane_id & 0b11000) == 0;
+	const bool load_flag = (lane_id & 0b11100) == 0;
 	const unsigned index_offset = (lane_id & 0x3) + ((lane_id & 0x4) << 1);
 	if(load_flag) {
 		frag.x[0 ] = mtk::wmma::detail::common::cast<nvcuda::wmma::precision::tf32>(ptr[index_offset + 0 ]);
@@ -208,7 +208,7 @@ __device__ inline void load_vector_with_rounding_sync(nvcuda::wmma::fragment<nvc
 		mtk::wmma::fill_zero(frag);
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 
-	const bool load_flag = (lane_id & 0b11000) == 0;
+	const bool load_flag = (lane_id & 0b11100) == 0;
 	const unsigned index_offset = (lane_id & 0x3) + ((lane_id & 0x4) << 1);
 	if(load_flag) {
 		frag.x[0 ] = mtk::wmma::detail::common::cast<nvcuda::wmma::precision::tf32>(ptr[index_offset + 0 ] * mul);
@@ -223,7 +223,7 @@ __device__ inline void load_vector_with_rounding_sync(nvcuda::wmma::fragment<nvc
 		mtk::wmma::fill_zero(frag);
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 
-	const bool load_flag = (lane_id & 0b11000) == 0;
+	const bool load_flag = (lane_id & 0b11100) == 0;
 	const unsigned index_offset = (lane_id & 0x3) + ((lane_id & 0x4) << 1);
 	if(load_flag) {
 		frag.x[0 ] = mtk::wmma::detail::common::cast<nvcuda::wmma::precision::tf32>(ptr[index_offset + 0 ] * mul);
