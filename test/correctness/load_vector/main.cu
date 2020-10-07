@@ -61,6 +61,7 @@ __global__ void test_load_vector_kernel(
 template <class Use, class layout>
 void test() {
 	std::size_t cor_size = 0;
+	std::size_t vec_length = 0;
 	std::printf("-- load_vector test --\n");
 	std::printf("arch   : %d\n", TEST_ARCH);
 	if (std::is_same<layout, nvcuda::wmma::col_major>::value) {
@@ -78,10 +79,20 @@ void test() {
 	if (std::is_same<nvcuda::wmma::matrix_a, Use>::value) {
 		std::printf("use    : a\n");
 		cor_size = M * K;
+		if (std::is_same<nvcuda::wmma::col_major, layout>::value) {
+			vec_length = M;
+		} else {
+			vec_length = K;
+		}
 	}
 	if (std::is_same<nvcuda::wmma::matrix_b, Use>::value) {
 		std::printf("use    : b\n");
 		cor_size = N * K;
+		if (std::is_same<nvcuda::wmma::col_major, layout>::value) {
+			vec_length = K;
+		} else {
+			vec_length = N;
+		}
 	}
 	std::printf("size   : %lu, %lu, %lu\n", M, N, K);
 
@@ -95,7 +106,7 @@ void test() {
 		cor_mem[i] = convert<storage_t, float>(0);
 	}
 
-	for (std::size_t i = 0; i < 16; i++) {
+	for (std::size_t i = 0; i < vec_length; i++) {
 		const float v = i / 3.0f;
 		src_mem[i] = convert<storage_t, float>(v);
 		cor_mem[i] = convert<storage_t, float>(v);
