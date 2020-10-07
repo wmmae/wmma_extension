@@ -33,7 +33,7 @@ template <> __device__ __host__ half  convert<half , half >(const half  a) {retu
 template <class T>
 __device__ T m_abs(const T a) {
 	if (a >= convert<T, float>(0)) return a;
-	return -1;
+	return -a;
 }
 
 template <class Use, class layout>
