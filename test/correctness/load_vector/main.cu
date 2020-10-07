@@ -7,6 +7,7 @@
 #endif
 
 //#define TEST_TF32
+//#define TF32_ROUNDING
 
 #ifndef TEST_TF32
 constexpr std::size_t M = 16;
@@ -32,7 +33,7 @@ template <> __device__ __host__ half  convert<half , half >(const half  a) {retu
 template <class T>
 __device__ T m_abs(const T a) {
 	if (a >= convert<T, float>(0)) return a;
-	return -1;
+	return -a;
 }
 
 template <class Use, class layout>
@@ -41,10 +42,14 @@ __global__ void test_load_vector_kernel(
 		const storage_t* const cor
 		) {
 	nvcuda::wmma::fragment<Use, M, N, K, ab_type, layout> vec_frag;
+#ifdef TF32_ROUNDING
+	mtk::wmma::load_vector_with_rounding_sync(vec_frag, src);
+#else
 	mtk::wmma::load_vector_sync(vec_frag, src);
+#endif
 
 	nvcuda::wmma::fragment<Use, M, N, K, ab_type, layout> cor_frag;
-	mtk::wmma::load_vector_sync(cor_frag, cor);
+	nvcuda::wmma::load_matrix_sync(cor_frag, cor, M);
 
 	storage_t error = convert<storage_t, float>(0.0f);
 	for (unsigned i = 0; i < vec_frag.num_elements; i++) {
@@ -56,6 +61,7 @@ __global__ void test_load_vector_kernel(
 template <class Use, class layout>
 void test() {
 	std::size_t cor_size = 0;
+	std::size_t vec_length = 0;
 	std::printf("-- load_vector test --\n");
 	std::printf("arch   : %d\n", TEST_ARCH);
 	if (std::is_same<layout, nvcuda::wmma::col_major>::value) {
@@ -73,10 +79,20 @@ void test() {
 	if (std::is_same<nvcuda::wmma::matrix_a, Use>::value) {
 		std::printf("use    : a\n");
 		cor_size = M * K;
+		if (std::is_same<nvcuda::wmma::col_major, layout>::value) {
+			vec_length = M;
+		} else {
+			vec_length = K;
+		}
 	}
 	if (std::is_same<nvcuda::wmma::matrix_b, Use>::value) {
 		std::printf("use    : b\n");
 		cor_size = N * K;
+		if (std::is_same<nvcuda::wmma::col_major, layout>::value) {
+			vec_length = K;
+		} else {
+			vec_length = N;
+		}
 	}
 	std::printf("size   : %lu, %lu, %lu\n", M, N, K);
 
@@ -90,9 +106,10 @@ void test() {
 		cor_mem[i] = convert<storage_t, float>(0);
 	}
 
-	for (std::size_t i = 0; i < 16; i++) {
-		src_mem[i] = convert<storage_t, float>(i);
-		cor_mem[i] = convert<storage_t, float>(i);
+	for (std::size_t i = 0; i < vec_length; i++) {
+		const float v = i / 3.0f;
+		src_mem[i] = convert<storage_t, float>(v);
+		cor_mem[i] = convert<storage_t, float>(v);
 	}
 
 	cudaDeviceSynchronize();
