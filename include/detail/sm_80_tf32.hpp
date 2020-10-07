@@ -128,6 +128,127 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::mat
 }
 
 template <class T>
+__device__ inline void load_vector_with_rounding_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 8, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major>& frag, const T* const ptr, const bool fill) {
+	if (fill)
+		mtk::wmma::fill_zero(frag);
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+
+	const bool load_flag = (lane_id & 0x3) == 0;
+	const unsigned index_offset = lane_id >> 2;
+	if(load_flag) {
+		frag.x[0 ] = mtk::wmma::detail::common::cast<nvcuda::wmma::precision::tf32>(ptr[0  + index_offset]);
+		frag.x[1 ] = mtk::wmma::detail::common::cast<nvcuda::wmma::precision::tf32>(ptr[8  + index_offset]);
+	}
+	__syncthreads();
+}
+
+template <class T>
+__device__ inline void load_vector_with_rounding_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 8, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major>& frag, const T* const ptr, const bool fill) {
+	if (fill)
+		mtk::wmma::fill_zero(frag);
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+
+	const bool load_flag = (lane_id & 0b11000) == 0;
+	const unsigned index_offset = (lane_id & 0x3) + ((lane_id & 0x4) << 1);
+	if(load_flag) {
+		frag.x[0 ] = mtk::wmma::detail::common::cast<nvcuda::wmma::precision::tf32>(ptr[index_offset + 0 ]);
+		frag.x[2 ] = mtk::wmma::detail::common::cast<nvcuda::wmma::precision::tf32>(ptr[index_offset + 4 ]);
+	}
+	__syncthreads();
+}
+
+template <class T>
+__device__ inline void load_vector_with_rounding_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 8, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major>& frag, const T* const ptr, const bool fill) {
+	if (fill)
+		mtk::wmma::fill_zero(frag);
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+
+	const bool load_flag = (lane_id & 0b11000) == 0;
+	const unsigned index_offset = (lane_id & 0x3) + ((lane_id & 0x4) << 1);
+	if(load_flag) {
+		frag.x[0 ] = mtk::wmma::detail::common::cast<nvcuda::wmma::precision::tf32>(ptr[index_offset + 0 ]);
+		frag.x[1 ] = mtk::wmma::detail::common::cast<nvcuda::wmma::precision::tf32>(ptr[index_offset + 4 ]);
+	}
+	__syncthreads();
+}
+
+template <class T>
+__device__ inline void load_vector_with_rounding_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 8, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major>& frag, const T* const ptr, const bool fill) {
+	if (fill)
+		mtk::wmma::fill_zero(frag);
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+
+	const bool load_flag = (lane_id & 0x3) == 0;
+	const unsigned index_offset = lane_id >> 2;
+	if(load_flag) {
+		frag.x[0 ] = mtk::wmma::detail::common::cast<nvcuda::wmma::precision::tf32>(ptr[0  + index_offset]);
+		frag.x[2 ] = mtk::wmma::detail::common::cast<nvcuda::wmma::precision::tf32>(ptr[8  + index_offset]);
+	}
+	__syncthreads();
+}
+
+template <class T>
+__device__ inline void load_vector_with_rounding_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 8, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major>& frag, const T* const ptr, const T mul, const bool fill) {
+	if (fill)
+		mtk::wmma::fill_zero(frag);
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+
+	const bool load_flag = (lane_id & 0x3) == 0;
+	const unsigned index_offset = lane_id >> 2;
+	if(load_flag) {
+		frag.x[0 ] = mtk::wmma::detail::common::cast<nvcuda::wmma::precision::tf32>(ptr[0  + index_offset] * mul);
+		frag.x[1 ] = mtk::wmma::detail::common::cast<nvcuda::wmma::precision::tf32>(ptr[8  + index_offset] * mul);
+	}
+	__syncthreads();
+}
+
+template <class T>
+__device__ inline void load_vector_with_rounding_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 8, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major>& frag, const T* const ptr, const T mul, const bool fill) {
+	if (fill)
+		mtk::wmma::fill_zero(frag);
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+
+	const bool load_flag = (lane_id & 0b11000) == 0;
+	const unsigned index_offset = (lane_id & 0x3) + ((lane_id & 0x4) << 1);
+	if(load_flag) {
+		frag.x[0 ] = mtk::wmma::detail::common::cast<nvcuda::wmma::precision::tf32>(ptr[index_offset + 0 ] * mul);
+		frag.x[2 ] = mtk::wmma::detail::common::cast<nvcuda::wmma::precision::tf32>(ptr[index_offset + 4 ] * mul);
+	}
+	__syncthreads();
+}
+
+template <class T>
+__device__ inline void load_vector_with_rounding_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 8, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major>& frag, const T* const ptr, const T mul, const bool fill) {
+	if (fill)
+		mtk::wmma::fill_zero(frag);
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+
+	const bool load_flag = (lane_id & 0b11000) == 0;
+	const unsigned index_offset = (lane_id & 0x3) + ((lane_id & 0x4) << 1);
+	if(load_flag) {
+		frag.x[0 ] = mtk::wmma::detail::common::cast<nvcuda::wmma::precision::tf32>(ptr[index_offset + 0 ] * mul);
+		frag.x[1 ] = mtk::wmma::detail::common::cast<nvcuda::wmma::precision::tf32>(ptr[index_offset + 4 ] * mul);
+	}
+	__syncthreads();
+}
+
+template <class T>
+__device__ inline void load_vector_with_rounding_sync(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 8, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major>& frag, const T* const ptr, const T mul, const bool fill) {
+	if (fill)
+		mtk::wmma::fill_zero(frag);
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+
+	const bool load_flag = (lane_id & 0x3) == 0;
+	const unsigned index_offset = lane_id >> 2;
+	if(load_flag) {
+		frag.x[0 ] = mtk::wmma::detail::common::cast<nvcuda::wmma::precision::tf32>(ptr[0  + index_offset] * mul);
+		frag.x[2 ] = mtk::wmma::detail::common::cast<nvcuda::wmma::precision::tf32>(ptr[8  + index_offset] * mul);
+	}
+	__syncthreads();
+}
+
+
+template <class T>
 __device__ inline void store_vector_sync(T* const ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 8, T>& frag, const nvcuda::wmma::layout_t layout) {
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	if (layout == nvcuda::wmma::mem_col_major) {
