@@ -7,6 +7,7 @@
 #endif
 
 //#define TEST_TF32
+//#define TF32_ROUNDING
 
 #ifndef TEST_TF32
 constexpr std::size_t M = 16;
@@ -41,10 +42,14 @@ __global__ void test_load_vector_kernel(
 		const storage_t* const cor
 		) {
 	nvcuda::wmma::fragment<Use, M, N, K, ab_type, layout> vec_frag;
+#ifdef TF32_ROUNDING
+	mtk::wmma::load_vector_with_rounding_sync(vec_frag, src);
+#else
 	mtk::wmma::load_vector_sync(vec_frag, src);
+#endif
 
 	nvcuda::wmma::fragment<Use, M, N, K, ab_type, layout> cor_frag;
-	mtk::wmma::load_vector_sync(cor_frag, cor);
+	nvcuda::wmma::load_matrix_sync(cor_frag, cor, M);
 
 	storage_t error = convert<storage_t, float>(0.0f);
 	for (unsigned i = 0; i < vec_frag.num_elements; i++) {
@@ -91,8 +96,9 @@ void test() {
 	}
 
 	for (std::size_t i = 0; i < 16; i++) {
-		src_mem[i] = convert<storage_t, float>(i);
-		cor_mem[i] = convert<storage_t, float>(i);
+		const float v = i / 3.0f;
+		src_mem[i] = convert<storage_t, float>(v);
+		cor_mem[i] = convert<storage_t, float>(v);
 	}
 
 	cudaDeviceSynchronize();
