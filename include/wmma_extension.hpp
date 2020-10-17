@@ -23,23 +23,23 @@ namespace detail_namespace = mtk::wmma::detail::sm_80;
 
 namespace wmma {
 template <class MatrixType, int M, int N, int K, class MemMajor, class T, class FT>
-__device__ inline void load_vector_sync(nvcuda::wmma::fragment<MatrixType, M, N, K, FT, MemMajor>& frag, const T* const ptr, const bool fill = true) {
-	detail_namespace::load_vector_sync(frag, ptr, fill);
+__device__ inline void load_vector(nvcuda::wmma::fragment<MatrixType, M, N, K, FT, MemMajor>& frag, const T* const ptr, const bool fill = true) {
+	detail_namespace::load_vector(frag, ptr, fill);
 }
 
 template <class MatrixType, int M, int N, int K, class MemMajor, class T, class FT>
-__device__ inline void load_vector_sync(nvcuda::wmma::fragment<MatrixType, M, N, K, FT, MemMajor>& frag, const T* const ptr, const T mul, const bool fill = true) {
-	detail_namespace::load_vector_sync(frag, ptr, mul, fill);
+__device__ inline void load_vector(nvcuda::wmma::fragment<MatrixType, M, N, K, FT, MemMajor>& frag, const T* const ptr, const T mul, const bool fill = true) {
+	detail_namespace::load_vector(frag, ptr, mul, fill);
 }
 
 template <int M, int N, int K, class T>
-__device__ inline void store_vector_sync(T* const ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, T>& frag, const nvcuda::wmma::layout_t layout) {
-	detail_namespace::store_vector_sync(ptr, frag, layout);
+__device__ inline void store_vector(T* const ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, T>& frag, const nvcuda::wmma::layout_t layout) {
+	detail_namespace::store_vector(ptr, frag, layout);
 }
 
 template <int M, int N, int K, class T>
-__device__ inline void store_vector_sync(T* const ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, T>& frag, const T mul, const nvcuda::wmma::layout_t layout) {
-	detail_namespace::store_vector_sync(ptr, frag, mul, layout);
+__device__ inline void store_vector(T* const ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, T>& frag, const T mul, const nvcuda::wmma::layout_t layout) {
+	detail_namespace::store_vector(ptr, frag, mul, layout);
 }
 
 template <class MatrixType, int M, int N, int K, class MemMajor, class Func, class FT>
@@ -48,8 +48,8 @@ __device__ inline void foreach(nvcuda::wmma::fragment<MatrixType, M, N, K, FT, M
 }
 
 template <class MatrixType, int M, int N, int K, class MemMajor, class T, class Func, class FT>
-__device__ inline void load_matrix_with_operation_sync(nvcuda::wmma::fragment<MatrixType, M, N, K, FT, MemMajor>& frag, const T* const ptr, unsigned ldm, Func func) {
-	detail_namespace::load_matrix_with_operation_sync(frag, ptr, ldm, func);
+__device__ inline void load_matrix_with_operation(nvcuda::wmma::fragment<MatrixType, M, N, K, FT, MemMajor>& frag, const T* const ptr, unsigned ldm, Func func) {
+	detail_namespace::load_matrix_with_operation(frag, ptr, ldm, func);
 }
 
 template <int M, int N, int K, class T>
@@ -100,16 +100,16 @@ __device__ inline void make_direct_product_fragment_c3(
 
 // For only CC >= 80
 template <class MatrixType, int M, int N, int K, class MemMajor, class T, class FT>
-__device__ inline void load_vector_with_rounding_sync(nvcuda::wmma::fragment<MatrixType, M, N, K, FT, MemMajor>& frag, const T* const ptr, const bool fill = true) {
+__device__ inline void load_vector_with_rounding(nvcuda::wmma::fragment<MatrixType, M, N, K, FT, MemMajor>& frag, const T* const ptr, const bool fill = true) {
 #if __CUDA_ARCH__ >= 800
-	detail_namespace::load_vector_with_rounding_sync(frag, ptr, fill);
+	detail_namespace::load_vector_with_rounding(frag, ptr, fill);
 #endif
 }
 
 template <class MatrixType, int M, int N, int K, class MemMajor, class T, class FT>
-__device__ inline void load_vector_with_rounding_sync(nvcuda::wmma::fragment<MatrixType, M, N, K, FT, MemMajor>& frag, const T* const ptr, const T mul, const bool fill = true) {
+__device__ inline void load_vector_with_rounding(nvcuda::wmma::fragment<MatrixType, M, N, K, FT, MemMajor>& frag, const T* const ptr, const T mul, const bool fill = true) {
 #if __CUDA_ARCH__ >= 800
-	detail_namespace::load_vector_with_rounding_sync(frag, ptr, mul, fill);
+	detail_namespace::load_vector_with_rounding(frag, ptr, mul, fill);
 #endif
 }
 
