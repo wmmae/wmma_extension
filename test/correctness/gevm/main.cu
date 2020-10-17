@@ -24,11 +24,11 @@ __global__ void test_gevm_kernel(
 	nvcuda::wmma::load_matrix_sync(eye_frag, eye, 16);
 	nvcuda::wmma::fill_fragment(result_frag, 0.0f);
 
-	mtk::wmma::load_vector_sync(vec_frag, src);
+	mtk::wmma::load_vector(vec_frag, src);
 
 	nvcuda::wmma::mma_sync(result_frag, vec_frag, eye_frag, result_frag);
 
-	mtk::wmma::store_vector_sync(dst, result_frag, nvcuda::wmma::mem_row_major);
+	mtk::wmma::store_vector(dst, result_frag, nvcuda::wmma::mem_row_major);
 }
 
 void test() {

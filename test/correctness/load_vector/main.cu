@@ -43,9 +43,9 @@ __global__ void test_load_vector_kernel(
 		) {
 	nvcuda::wmma::fragment<Use, M, N, K, ab_type, layout> vec_frag;
 #ifdef TF32_ROUNDING
-	mtk::wmma::load_vector_with_rounding_sync(vec_frag, src);
+	mtk::wmma::load_vector_with_rounding(vec_frag, src);
 #else
-	mtk::wmma::load_vector_sync(vec_frag, src);
+	mtk::wmma::load_vector(vec_frag, src);
 #endif
 
 	nvcuda::wmma::fragment<Use, M, N, K, ab_type, layout> cor_frag;

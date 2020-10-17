@@ -44,7 +44,7 @@ __global__ void matmul<true>(float* const c_ptr, const float* const a_ptr, const
 			for (unsigned j = 0; j < 2; j++) {
 				unsigned long offset = warp_id * warp_size * warp_size + i * FDIM + j * FDIM * warp_size;
 				nvcuda::wmma::load_matrix_sync(frag_a[i + 2 * j], F16_smem + offset, warp_size);
-				mtk::wmma::load_matrix_with_operation_sync(
+				mtk::wmma::load_matrix_with_operation(
 						frag_da[i + 2 * j], F32_smem + offset, warp_size,
 						[&](const unsigned index, const float v) {return __float2half(v - __half2float(frag_a[i + j * 2].x[index]));}
 						);
@@ -63,7 +63,7 @@ __global__ void matmul<true>(float* const c_ptr, const float* const a_ptr, const
 			for (unsigned j = 0; j < 2; j++) {
 				unsigned long offset = warp_id * warp_size + i * FDIM + j * FDIM * block_size;
 				nvcuda::wmma::load_matrix_sync(frag_b[i + 2 * j], F16_smem + offset, block_size);
-				mtk::wmma::load_matrix_with_operation_sync(
+				mtk::wmma::load_matrix_with_operation(
 						frag_db[i + 2 * j], F32_smem + offset, block_size,
 						[&](const unsigned index, const float v) {return __float2half(v - __half2float(frag_b[i + j * 2].x[index]));}
 						);
