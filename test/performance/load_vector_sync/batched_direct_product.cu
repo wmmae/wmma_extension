@@ -31,10 +31,10 @@ __global__ void batched_direct_product_16x16<true>(float* const c_ptr, const hal
 	nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, FDIM, FDIM, FDIM, half, nvcuda::wmma::row_major> b_frag[2];
 	nvcuda::wmma::fragment<nvcuda::wmma::accumulator, FDIM, FDIM, FDIM, float> c_frag[4];
 
-	mtk::wmma::load_vector_sync(a_frag[0], u_smem_ptr);
-	mtk::wmma::load_vector_sync(a_frag[1], u_smem_ptr + FDIM);
-	mtk::wmma::load_vector_sync(b_frag[0], u_smem_ptr);
-	mtk::wmma::load_vector_sync(b_frag[1], u_smem_ptr + FDIM);
+	mtk::wmma::load_vector(a_frag[0], u_smem_ptr);
+	mtk::wmma::load_vector(a_frag[1], u_smem_ptr + FDIM);
+	mtk::wmma::load_vector(b_frag[0], u_smem_ptr);
+	mtk::wmma::load_vector(b_frag[1], u_smem_ptr + FDIM);
 
 	nvcuda::wmma::fill_fragment(c_frag[0], 0.0f);
 	nvcuda::wmma::mma_sync(c_frag[0], a_frag[0], b_frag[0], c_frag[0]);
