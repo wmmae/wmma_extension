@@ -11,8 +11,8 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::mat
 	if (fill)
 		nvcuda::wmma::fill_fragment(frag, __float2half(0));
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
-	unsigned long index_offset = ((lane_id >> 4) << 2) + (((lane_id >> 2) & 0x1) << 3);
-	bool load_flag = (lane_id & 0x3) == 0;
+	const unsigned long index_offset = ((lane_id >> 4) << 2) + (((lane_id >> 2) & 0x1) << 3);
+	const bool load_flag = (lane_id & 0x3) == 0;
 	if(load_flag) {
 		for(unsigned i = 0; i < 4; i++) {
 			frag.x[i] = common::cast<half>(ptr[i + index_offset]);
@@ -27,7 +27,7 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::mat
 		nvcuda::wmma::fill_fragment(frag, __float2half(0));
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 
-	bool load_flag = (lane_id == 0) || (lane_id == 8);
+	const bool load_flag = (lane_id == 0) || (lane_id == 8);
 	if(load_flag) {
 		for(unsigned i = 0; i < 16; i++) {
 			frag.x[i] = common::cast<half>(ptr[i]);
@@ -42,7 +42,7 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::mat
 		nvcuda::wmma::fill_fragment(frag, __float2half(0));
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 
-	bool load_flag = (lane_id == 0) || (lane_id == 4);
+	const bool load_flag = (lane_id == 0) || (lane_id == 4);
 	if(load_flag) {
 		for(unsigned i = 0; i < 16; i++) {
 			frag.x[i] = common::cast<half>(ptr[i]);
@@ -56,8 +56,8 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::mat
 	if (fill)
 		nvcuda::wmma::fill_fragment(frag, __float2half(0));
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
-	unsigned long index_offset = ((lane_id >> 4) << 2) + (((lane_id >> 3) & 0x1) << 3);
-	bool load_flag = (lane_id & 0x3) == 0;
+	const unsigned long index_offset = ((lane_id >> 4) << 2) + (((lane_id >> 3) & 0x1) << 3);
+	const bool load_flag = (lane_id & 0x3) == 0;
 	if(load_flag) {
 		for(unsigned i = 0; i < 4; i++) {
 			frag.x[i] = common::cast<half>(ptr[i + index_offset]);
@@ -71,8 +71,8 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::mat
 	if (fill)
 		nvcuda::wmma::fill_fragment(frag, __float2half(0));
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
-	unsigned long index_offset = ((lane_id >> 4) << 2) + (((lane_id >> 2) & 0x1) << 3);
-	bool load_flag = (lane_id & 0x3) == 0;
+	const unsigned long index_offset = ((lane_id >> 4) << 2) + (((lane_id >> 2) & 0x1) << 3);
+	const bool load_flag = (lane_id & 0x3) == 0;
 	if(load_flag) {
 		for(unsigned i = 0; i < 4; i++) {
 			frag.x[i] = common::cast<half>(ptr[i + index_offset] * mul);
@@ -86,9 +86,9 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::mat
 	if (fill)
 		nvcuda::wmma::fill_fragment(frag, __float2half(0));
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
-	unsigned long index_offset = (lane_id & 0x3) << 4;
+	const unsigned long index_offset = (lane_id & 0x3) << 4;
 
-	bool load_flag = (lane_id == 0) || (lane_id == 4);
+	const bool load_flag = (lane_id == 0) || (lane_id == 4);
 	if(load_flag) {
 		for(unsigned i = 0; i < 16; i++) {
 			frag.x[i] = common::cast<half>(ptr[i + index_offset] * mul);
@@ -102,9 +102,9 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::mat
 	if (fill)
 		nvcuda::wmma::fill_fragment(frag, __float2half(0));
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
-	unsigned long index_offset = (lane_id & 0x3) << 4;
+	const unsigned long index_offset = (lane_id & 0x3) << 4;
 
-	bool load_flag = (lane_id == 0) || (lane_id == 4);
+	const bool load_flag = (lane_id == 0) || (lane_id == 4);
 	if(load_flag) {
 		for(unsigned i = 0; i < 16; i++) {
 			frag.x[i] = common::cast<half>(ptr[i + index_offset] * mul);
@@ -118,8 +118,8 @@ __device__ inline void load_vector_sync(nvcuda::wmma::fragment<nvcuda::wmma::mat
 	if (fill)
 		nvcuda::wmma::fill_fragment(frag, __float2half(0));
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
-	unsigned long index_offset = ((lane_id >> 4) << 2) + (((lane_id >> 3) & 0x1) << 3);
-	bool load_flag = (lane_id & 0x3) == 0;
+	const unsigned long index_offset = ((lane_id >> 4) << 2) + (((lane_id >> 3) & 0x1) << 3);
+	const bool load_flag = (lane_id & 0x3) == 0;
 	if(load_flag) {
 		for(unsigned i = 0; i < 4; i++) {
 			frag.x[i] = common::cast<half>(ptr[i + index_offset] * mul);
