@@ -38,21 +38,21 @@ __global__ void kernel() {
 
 	__shared__ float vec16[16];
 
-	mtk::wmma::load_vector_sync(frag_a, vec16);
-	mtk::wmma::load_vector_sync(frag_b, vec16);
+	mtk::wmma::load_vector(frag_a, vec16);
+	mtk::wmma::load_vector(frag_b, vec16);
 
 	mtk::wmma::make_identity_matrix(frag_c);
 }
 ```
 
 ## Implemented functions
-### load_vector_sync
+### load_vector
 ![load_matrix](docs/load_vector-en.svg)
 - Arguments
   - dst_fragment : Destination fragment (`nvcuda::wmma::matrix_a` / `nvcuda::wmma::matrix_b`, `nvcuda::wmma::col_major` / `nvcuda::wmma::row_major`)
   - src_pointer  : Source pointer (No alignment restriction)
 
-### store_vector_sync
+### store_vector
 ![store_matrix](docs/store_vector-en.svg)
 - Arguments
   - dst_pointer  : Destination pointer (No alignment restriction)
@@ -78,7 +78,7 @@ mtk::wmma::load_matrix_with_operation(
 
 The first argument of `func` is an index of `fragment.x[]` and the second one is a value of `fragment.x[]` if `func` is an identity function.
 
-### load_vector_sync_with_rounding
+### load_vector_with_rounding
 This function is used for making a fragment of a vector with explicitly converting to `tf32`.
 TF32 TensorCore performs RZ rounding when we use WMMA API but it is not good for accuracy.
 
