@@ -6,7 +6,7 @@
 #define TEST_ARCH (-1)
 #endif
 
-#define TEST_TF32
+//#define TEST_TF32
 
 #ifndef TEST_TF32
 constexpr std::size_t M = 16;
@@ -32,7 +32,7 @@ __global__ void test_store_vector_kernel(
 		) {
 	nvcuda::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, float> frag_c;
 	nvcuda::wmma::load_matrix_sync(frag_c, src, M, layout);
-	mtk::wmma::store_vector_sync(dst, frag_c, layout);
+	mtk::wmma::store_vector(dst, frag_c, layout);
 }
 
 void test(const nvcuda::wmma::layout_t layout) {
