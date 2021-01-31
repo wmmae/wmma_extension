@@ -12,6 +12,7 @@
 #include "detail/sm_80_tf32.hpp"
 
 namespace mtk {
+namespace wmma {
 // arch switch
 #if __CUDA_ARCH__ < 710
 namespace detail_namespace = mtk::wmma::detail::sm_70;
@@ -21,7 +22,6 @@ namespace detail_namespace = mtk::wmma::detail::sm_75;
 namespace detail_namespace = mtk::wmma::detail::sm_80;
 #endif
 
-namespace wmma {
 template <class MatrixType, int M, int N, int K, class MemMajor, class T, class FT>
 __device__ inline void load_vector(nvcuda::wmma::fragment<MatrixType, M, N, K, FT, MemMajor>& frag, const T* const ptr, const bool fill = true) {
 	detail_namespace::load_vector(frag, ptr, fill);
