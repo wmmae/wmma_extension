@@ -106,20 +106,33 @@ mtk::wmma::foreach<decltype(frag_b)>(
   - func         : a function which sets fragments from `fragment_index` and `mem_index`.
 
 ### foreach_v
+#### For matrix A/B
 This function calculates the mapping of a given vector and fragment elements.
 ```cuda
 nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major> frag_b;
-__shared__ compute_t matrix[16];
+__shared__ compute_t vector[16];
 mtk::wmma::foreach_v<decltype(frag_b)>(
 		[&](const unsigned* frag_index_list, const unsigned fragment_index_count, const unsigned mem_index) {
 			for (unsigned i = 0; i < fragment_index_count; i++)
-				frag_b.x[frag_index_list[i]] = convert_to<half>(matrix[mem_index]);
+				frag_b.x[frag_index_list[i]] = convert_to<half>(vector[mem_index]);
 		});
 // is equivalent to `load_vector`
 ```
 
 - Arguments
   - func         : a function which sets fragments from `fragment_index_list`, `fragmnt_index_count` and `mem_index`.
+
+#### For accumulator
+```cuda
+nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, float> frag_c;
+__shared__ compute_t vector[16];
+mtk::wmma::foreach_v<decltype(frag_c)>(nvcuda::wmma::mem_col_major,
+		[&](const unsigned* frag_index_list, const unsigned fragment_index_count, const unsigned mem_index) {
+			for (unsigned i = 0; i < fragment_index_count; i++)
+				vector[mem_index] = convert_to<compute_t>(frag_c.x[frag_index_list[i]]);
+		});
+// is equivalent to `store_vector`
+```
 
 ### make_direct_product_fragments (A)
 This function is used for computing direct product of two vectors (u and v) with accuracy correction.
