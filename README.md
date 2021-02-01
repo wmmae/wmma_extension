@@ -20,7 +20,7 @@ See [detail](./docs/m8n8k4.md).
 **Important!!**
 
 Tensor Core does not have backward compatibility.
-Please specify appropriate virtual architecture when you use this library.
+Please specify appropriate virtual architecture for real GPU when you use this library.
 For instance, the program which is compiled with `-arch=sm_70` does not work correctly on Ampare GPUs.
 
 ## Required
