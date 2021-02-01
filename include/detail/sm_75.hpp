@@ -239,11 +239,11 @@ __device__ inline void foreach_v(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 
 	const bool load_flag = (lane_id & 0x3) == 0;
 	if(load_flag) {
 		{
-			const unsigned frag_index_list[1] = {0, 8};
+			const unsigned frag_index_list[2] = {0, 8};
 			func(index_offset, frag_index_list, 2);
 		}
 		{
-			const unsigned frag_index_list[1] = {2, 10};
+			const unsigned frag_index_list[2] = {2, 10};
 			func(index_offset + 8, frag_index_list, 2);
 		}
 	}
@@ -256,19 +256,19 @@ __device__ inline void foreach_v(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 
 	const bool load_flag = lane_id < 4;
 	if(load_flag) {
 		{
-			const unsigned frag_index_list[1] = {0, 8};
+			const unsigned frag_index_list[2] = {0, 8};
 			func(index_offset, frag_index_list, 2);
 		}
 		{
-			const unsigned frag_index_list[1] = {1, 9};
+			const unsigned frag_index_list[2] = {1, 9};
 			func(index_offset + 1, frag_index_list, 2);
 		}
 		{
-			const unsigned frag_index_list[1] = {4, 12};
+			const unsigned frag_index_list[2] = {4, 12};
 			func(index_offset + 8, frag_index_list, 2);
 		}
 		{
-			const unsigned frag_index_list[1] = {5, 13};
+			const unsigned frag_index_list[2] = {5, 13};
 			func(index_offset + 9, frag_index_list, 2);
 		}
 	}
@@ -281,19 +281,19 @@ __device__ inline void foreach_v(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 
 	const bool load_flag = lane_id < 4;
 	if(load_flag) {
 		{
-			const unsigned frag_index_list[1] = {0, 8};
+			const unsigned frag_index_list[2] = {0, 8};
 			func(index_offset, frag_index_list, 2);
 		}
 		{
-			const unsigned frag_index_list[1] = {1, 9};
+			const unsigned frag_index_list[2] = {1, 9};
 			func(index_offset + 1, frag_index_list, 2);
 		}
 		{
-			const unsigned frag_index_list[1] = {2, 10};
+			const unsigned frag_index_list[2] = {2, 10};
 			func(index_offset + 8, frag_index_list, 2);
 		}
 		{
-			const unsigned frag_index_list[1] = {3, 11};
+			const unsigned frag_index_list[2] = {3, 11};
 			func(index_offset + 9, frag_index_list, 2);
 		}
 	}
@@ -307,11 +307,11 @@ __device__ inline void foreach_v(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 
 	const bool load_flag = (lane_id & 0x3) == 0;
 	if(load_flag) {
 		{
-			const unsigned frag_index_list[1] = {0, 8};
+			const unsigned frag_index_list[2] = {0, 8};
 			func(index_offset, frag_index_list, 2);
 		}
 		{
-			const unsigned frag_index_list[1] = {4, 12};
+			const unsigned frag_index_list[2] = {4, 12};
 			func(index_offset + 8, frag_index_list, 2);
 		}
 	}
