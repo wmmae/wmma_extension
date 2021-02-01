@@ -28,7 +28,7 @@ __global__ void matmul16x16_kernel(float* const c_ptr, const float* const a_ptr,
 
 	mtk::wmma::fill_zero(frag_c);
 
-	mtk::wmma::foreach(frag_a,
+	mtk::wmma::foreach<decltype(frag_a)>(
 			[&](const unsigned frag_index, const unsigned mem_index) {
 				const auto a = a_ptr[mem_index];
 				const auto a_rp = mtk::wmma::detail::common::cast<ab_type>(a);
@@ -36,7 +36,7 @@ __global__ void matmul16x16_kernel(float* const c_ptr, const float* const a_ptr,
 				frag_da.x[frag_index] = mtk::wmma::detail::common::cast<ab_type>(a - mtk::wmma::detail::common::cast<float>(a_rp));
 			});
 
-	mtk::wmma::foreach(frag_b,
+	mtk::wmma::foreach<decltype(frag_b)>(
 			[&](const unsigned frag_index, const unsigned mem_index) {
 				const auto b = b_ptr[mem_index];
 				const auto b_rp = mtk::wmma::detail::common::cast<ab_type>(b);
