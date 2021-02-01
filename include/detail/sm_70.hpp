@@ -260,7 +260,7 @@ __device__ inline void foreach_v(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 
 	if(load_flag) {
 		for(unsigned i = 0; i < 4; i++) {
 			const unsigned frag_index_list[1] = {i};
-			func(i + index_offset, frag_index_list, 1);
+			func(frag_index_list, 1, i + index_offset);
 		}
 	}
 }
@@ -272,7 +272,7 @@ __device__ inline void foreach_v(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 
 	if(load_flag) {
 		for(unsigned i = 0; i < 16; i++) {
 			const unsigned frag_index_list[1] = {i};
-			func(i, frag_index_list, 1);
+			func(i, 1, index_offset);
 		}
 	}
 }
@@ -284,7 +284,7 @@ __device__ inline void foreach_v(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 
 	if(load_flag) {
 		for(unsigned i = 0; i < 16; i++) {
 			const unsigned frag_index_list[1] = {i};
-			func(i, frag_index_list, 1);
+			func(i, 1, index_offset);
 		}
 	}
 }
@@ -297,7 +297,7 @@ __device__ inline void foreach_v(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 
 	if(load_flag) {
 		for(unsigned i = 0; i < 4; i++) {
 			const unsigned frag_index_list[1] = {i};
-			func(i + index_offset, frag_index_list, 1);
+			func(frag_index_list, 1, i + index_offset);
 		}
 	}
 }

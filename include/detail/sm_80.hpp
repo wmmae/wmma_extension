@@ -222,11 +222,11 @@ __device__ inline void foreach_v(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 
 	if(load_flag) {
 		{
 			const unsigned frag_index_list[2] = {0, 8};
-			func(index_offset, frag_index_list, 2);
+			func(frag_index_list, 2, index_offset);
 		}
 		{
 			const unsigned frag_index_list[2] = {2, 10};
-			func(index_offset + 8, frag_index_list, 2);
+			func(frag_index_list, 2, index_offset + 8);
 		}
 	}
 }
@@ -239,19 +239,19 @@ __device__ inline void foreach_v(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 
 	if(load_flag) {
 		{
 			const unsigned frag_index_list[2] = {0, 8};
-			func(index_offset, frag_index_list, 2);
+			func(frag_index_list, 2, index_offset);
 		}
 		{
 			const unsigned frag_index_list[2] = {1, 9};
-			func(index_offset + 1, frag_index_list, 2);
+			func(frag_index_list, 2, index_offset + 1);
 		}
 		{
 			const unsigned frag_index_list[2] = {4, 12};
-			func(index_offset + 8, frag_index_list, 2);
+			func(frag_index_list, 2, index_offset + 8);
 		}
 		{
 			const unsigned frag_index_list[2] = {5, 13};
-			func(index_offset + 9, frag_index_list, 2);
+			func(frag_index_list, 2, index_offset + 9);
 		}
 	}
 }
@@ -264,19 +264,19 @@ __device__ inline void foreach_v(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 
 	if(load_flag) {
 		{
 			const unsigned frag_index_list[2] = {0, 8};
-			func(index_offset, frag_index_list, 2);
+			func(frag_index_list, 2, index_offset);
 		}
 		{
 			const unsigned frag_index_list[2] = {1, 9};
-			func(index_offset + 1, frag_index_list, 2);
+			func(frag_index_list, 2, index_offset + 1);
 		}
 		{
 			const unsigned frag_index_list[2] = {2, 10};
-			func(index_offset + 8, frag_index_list, 2);
+			func(frag_index_list, 2, index_offset + 8);
 		}
 		{
 			const unsigned frag_index_list[2] = {3, 11};
-			func(index_offset + 9, frag_index_list, 2);
+			func(frag_index_list, 2, index_offset + 9);
 		}
 	}
 }
@@ -289,11 +289,11 @@ __device__ inline void foreach_v(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 
 	if(load_flag) {
 		{
 			const unsigned frag_index_list[2] = {0, 8};
-			func(index_offset, frag_index_list, 2);
+			func(frag_index_list, 2, index_offset);
 		}
 		{
 			const unsigned frag_index_list[2] = {4, 12};
-			func(index_offset + 8, frag_index_list, 2);
+			func(frag_index_list, 2, index_offset + 8);
 		}
 	}
 }
