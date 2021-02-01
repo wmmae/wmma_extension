@@ -98,13 +98,28 @@ This function calculates the mapping of memory and fragment elements.
 nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major> frag_b;
 __shared__ compute_t matrix[16 * 16];
 mtk::wmma::foreach<decltype(frag_b)>(
-		[&](const unsigned frag_index, const unsigned mem_index) {frag_b.x[frag_index] = matrix[mem_index];}
+		[&](const unsigned const frag_index, const unsigned mem_index) {frag_b.x[frag_index] = matrix[mem_index];}
 	);
 ```
 
 - Arguments
-  - frag         : fragment. This argument is used for template argument deduction.
-  - func         : like a function which sets fragments from `fragment_index` and `mem_index`.
+  - func         : a function which sets fragments from `fragment_index` and `mem_index`.
+
+### foreach_v
+This function calculates the mapping of a given vector and fragment elements.
+```cuda
+nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major> frag_b;
+__shared__ compute_t matrix[16];
+mtk::wmma::foreach_v<decltype(frag_b)>(
+		[&](const unsigned* frag_index_list, const unsigned fragment_index_count, const unsigned mem_index) {
+			for (unsigned i = 0; i < fragment_index_count; i++)
+				frag_b.x[frag_index_list[i]] = convert_to<half>(matrix[mem_index]);
+		});
+// is equivalent to `load_vector`
+```
+
+- Arguments
+  - func         : a function which sets fragments from `fragment_index_list`, `fragmnt_index_count` and `mem_index`.
 
 ### make_direct_product_fragments (A)
 This function is used for computing direct product of two vectors (u and v) with accuracy correction.

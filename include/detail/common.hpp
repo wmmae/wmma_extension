@@ -27,7 +27,7 @@ template <> inline __device__ __host__ typename storage_t<half >::type cast<half
 
 template <> struct storage_t<nvcuda::wmma::precision::tf32> {using type = float;};
 __device__ __host__ inline float to_tf32(const float a) {
-#ifdef __CUDA_ARCH__
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
 	float ret;
     asm("{.reg .b32 %mr;\n"
         "cvt.rna.tf32.f32 %mr, %1;\n"
