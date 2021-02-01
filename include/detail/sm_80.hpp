@@ -262,10 +262,6 @@ __device__ inline void foreach_v(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 
 	const bool load_flag = (lane_id & 0b11100) == 0;
 	const unsigned index_offset = ((lane_id & 0x3) << 1) + ((lane_id & 0x4) << 2);
 	if(load_flag) {
-		frag.x[0  + 8] = frag.x[0 ] = common::cast<half>(ptr[0  + index_offset]);
-		frag.x[1  + 8] = frag.x[1 ] = common::cast<half>(ptr[1  + index_offset]);
-		frag.x[2  + 8] = frag.x[2 ] = common::cast<half>(ptr[8  + index_offset]);
-		frag.x[3  + 8] = frag.x[3 ] = common::cast<half>(ptr[9  + index_offset]);
 		{
 			const unsigned frag_index_list[2] = {0, 8};
 			func(index_offset, frag_index_list, 2);
