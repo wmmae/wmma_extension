@@ -92,7 +92,7 @@ This function calculates the mapping of memory and fragment elements.
 nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major> frag_b;
 __shared__ compute_t matrix[16 * 16];
 mtk::wmma::foreach<decltype(frag_b)>(
-		[&](const unsigned* const frag_index, const unsigned mem_index) {frag_b.x[frag_index] = matrix[mem_index];}
+		[&](const unsigned const frag_index, const unsigned mem_index) {frag_b.x[frag_index] = matrix[mem_index];}
 	);
 ```
 
@@ -105,7 +105,7 @@ This function calculates the mapping of a given vector and fragment elements.
 nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major> frag_b;
 __shared__ compute_t matrix[16];
 mtk::wmma::foreach_v<decltype(frag_b)>(
-		[&](const unsigned frag_index_list, const unsigned fragment_index_count, const unsigned mem_index) {
+		[&](const unsigned* frag_index_list, const unsigned fragment_index_count, const unsigned mem_index) {
 			for (unsigned i = 0; i < fragment_index_count; i++)
 				frag_b.x[frag_index_list[i]] = convert_to<half>(matrix[mem_index]);
 		});
