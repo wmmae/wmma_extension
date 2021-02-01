@@ -56,6 +56,15 @@ __device__ inline void foreach(Func func) {
 	detail_namespace::foreach(frag, func);
 }
 
+template <class Frag_T, class Func>
+__device__ inline void foreach_v(Func func) {
+	// Requirering `frag` as an argument does not look good but it can not be helped because C++ does not support partial template specialization of a templeta function.
+	// The `frag` below does not consume registers because of optimization by nvcc.
+	// So this implementation is not a problem.
+	Frag_T frag;
+	detail_namespace::foreach_v(frag, func);
+}
+
 template <class MatrixType, int M, int N, int K, class MemMajor, class T, class Func, class FT>
 __device__ inline void load_matrix_with_operation(nvcuda::wmma::fragment<MatrixType, M, N, K, FT, MemMajor>& frag, const T* const ptr, unsigned ldm, Func func) {
 	detail_namespace::load_matrix_with_operation(frag, ptr, ldm, func);
