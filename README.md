@@ -17,6 +17,12 @@ This extension also provides a C++ interface of experimental function:
 which is available in only PTX.
 See [detail](./docs/m8n8k4.md).
 
+**Important!!**
+
+Tensor Core does not have backward compatibility.
+Please specify appropriate virtual architecture for real GPU when you use this library.
+For instance, the program which is compiled with `-arch=sm_70` does not work correctly on Ampare GPUs.
+
 ## Required
 - CUDA (9.2 or later)
 - C++ (11 or later)
