@@ -91,8 +91,7 @@ This function calculates the mapping of memory and fragment elements.
 ```cuda
 nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major> frag_b;
 __shared__ compute_t matrix[16 * 16];
-mtk::wmma::foreach(
-		frag,
+mtk::wmma::foreach<decltype(frag_b)>(
 		[&](const unsigned frag_index, const unsigned mem_index) {frag_b.x[frag_index] = matrix[mem_index];}
 	);
 ```
