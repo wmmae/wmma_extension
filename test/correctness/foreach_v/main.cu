@@ -6,8 +6,7 @@
 #define TEST_ARCH (-1)
 #endif
 
-#define TEST_TF32
-#define TF32_ROUNDING
+//#define TEST_TF32
 
 #ifndef TEST_TF32
 constexpr std::size_t M = 16;
@@ -29,9 +28,6 @@ template <> __device__ __host__ typename mtk::wmma::detail::common::storage_t<fl
 template <> __device__ __host__ typename mtk::wmma::detail::common::storage_t<float>::type convert<float, half >(const half  a) {return __half2float(a);}
 template <> __device__ __host__ typename mtk::wmma::detail::common::storage_t<half >::type convert<half , float>(const float a) {return __float2half(a);}
 template <> __device__ __host__ typename mtk::wmma::detail::common::storage_t<half >::type convert<half , half >(const half  a) {return a;}
-#ifndef TEST_TF32
-//template <> __device__ __host__ typename mtk::wmma::detail::common::storage_t<nvcuda::wmma::precision::tf32>::type convert<nvcuda::wmma::precision::tf32, float>(const float a) {return mtk::wmma::detail::common::to_tf32(a);}
-#endif
 
 template <class T>
 __device__ T m_abs(const T a) {
@@ -46,7 +42,7 @@ __global__ void test_foreach_v_kernel(
 		) {
 	nvcuda::wmma::fragment<Use, M, N, K, ab_type, layout> vec_frag;
 	mtk::wmma::fill_zero(vec_frag);
-	mtk::wmma::foreach_v<decltype(vec_frag)>([&](const unsigned mem_index, const unsigned frag_index_list[], const unsigned frag_index_count) {
+	mtk::wmma::foreach_v<decltype(vec_frag)>([&](const unsigned frag_index_list[], const unsigned frag_index_count, const unsigned mem_index) {
 				for (unsigned i = 0; i < frag_index_count; i++) {
 					vec_frag.x[frag_index_list[i]] = convert<storage_t>(src[mem_index]);
 				}
