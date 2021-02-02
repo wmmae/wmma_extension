@@ -32,10 +32,11 @@ __global__ void matmul16x16_kernel(float* const c_ptr, const float* const a_ptr,
 			[&](const unsigned frag_index_list[], const unsigned frag_index_count, const unsigned mem_index) {
 				const auto a = a_ptr[mem_index];
 				const auto a_rp = mtk::wmma::detail::common::cast<ab_type>(a);
+				const auto da_rp = mtk::wmma::detail::common::cast<ab_type>(a - mtk::wmma::detail::common::cast<float>(a_rp));
 				for (unsigned i = 0; i < frag_index_count; i++) {
 					const unsigned frag_index = frag_index_list[i];
 					frag_a.x[frag_index] = a_rp;
-					frag_da.x[frag_index] = mtk::wmma::detail::common::cast<ab_type>(a - mtk::wmma::detail::common::cast<float>(a_rp));
+					frag_da.x[frag_index] = da_rp;
 				}
 			});
 
@@ -43,10 +44,11 @@ __global__ void matmul16x16_kernel(float* const c_ptr, const float* const a_ptr,
 			[&](const unsigned frag_index_list[], const unsigned frag_index_count, const unsigned mem_index) {
 				const auto b = b_ptr[mem_index];
 				const auto b_rp = mtk::wmma::detail::common::cast<ab_type>(b);
+				const auto db_rp = mtk::wmma::detail::common::cast<ab_type>(b - mtk::wmma::detail::common::cast<float>(b_rp));
 				for (unsigned i = 0; i < frag_index_count; i++) {
 					const unsigned frag_index = frag_index_list[i];
 					frag_b.x[frag_index] = b_rp;
-					frag_db.x[frag_index] = mtk::wmma::detail::common::cast<ab_type>(b - mtk::wmma::detail::common::cast<float>(b_rp));
+					frag_db.x[frag_index] = db_rp;
 				}
 			});
 
