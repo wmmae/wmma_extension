@@ -1,8 +1,8 @@
 #ifndef __WMMA_EXTENSION_HPP__
 #define __WMMA_EXTENSION_HPP__
 #include <stdio.h>
+#include <type_traits>
 #include <mma.h>
-#include <stdio.h>
 #include "detail/m8n8k4.hpp"
 #include "detail/common.hpp"
 
@@ -52,7 +52,7 @@ __device__ inline void foreach(Func func) {
 	// Requirering `frag` as an argument does not look good but it can not be helped because C++ does not support partial template specialization of a templeta function.
 	// The `frag` below does not consume registers because of optimization by nvcc.
 	// So this implementation is not a problem.
-	Frag_T frag;
+	typename std::remove_reference<Frag_T>::type frag;
 	detail_namespace::foreach(frag, func);
 }
 
@@ -61,7 +61,7 @@ __device__ inline void foreach_v(Func func) {
 	// Requirering `frag` as an argument does not look good but it can not be helped because C++ does not support partial template specialization of a templeta function.
 	// The `frag` below does not consume registers because of optimization by nvcc.
 	// So this implementation is not a problem.
-	Frag_T frag;
+	typename std::remove_reference<Frag_T>::type frag;
 	detail_namespace::foreach_v(frag, func);
 }
 
@@ -70,7 +70,7 @@ __device__ inline void foreach_v(const nvcuda::wmma::layout_t layout, Func func)
 	// Requirering `frag` as an argument does not look good but it can not be helped because C++ does not support partial template specialization of a templeta function.
 	// The `frag` below does not consume registers because of optimization by nvcc.
 	// So this implementation is not a problem.
-	Frag_T frag;
+	typename std::remove_reference<Frag_T>::type frag;
 	detail_namespace::foreach_v(frag, layout, func);
 }
 
