@@ -29,19 +29,27 @@ __global__ void matmul16x16_kernel(float* const c_ptr, const float* const a_ptr,
 	mtk::wmma::fill_zero(frag_c);
 
 	mtk::wmma::foreach<decltype(frag_a)>(
-			[&](const unsigned frag_index, const unsigned mem_index) {
+			[&](const unsigned frag_index_list[], const unsigned frag_index_count, const unsigned mem_index) {
 				const auto a = a_ptr[mem_index];
 				const auto a_rp = mtk::wmma::detail::common::cast<ab_type>(a);
-				frag_a.x[frag_index] = a_rp;
-				frag_da.x[frag_index] = mtk::wmma::detail::common::cast<ab_type>(a - mtk::wmma::detail::common::cast<float>(a_rp));
+				const auto da_rp = mtk::wmma::detail::common::cast<ab_type>(a - mtk::wmma::detail::common::cast<float>(a_rp));
+				for (unsigned i = 0; i < frag_index_count; i++) {
+					const unsigned frag_index = frag_index_list[i];
+					frag_a.x[frag_index] = a_rp;
+					frag_da.x[frag_index] = da_rp;
+				}
 			});
 
 	mtk::wmma::foreach<decltype(frag_b)>(
-			[&](const unsigned frag_index, const unsigned mem_index) {
+			[&](const unsigned frag_index_list[], const unsigned frag_index_count, const unsigned mem_index) {
 				const auto b = b_ptr[mem_index];
 				const auto b_rp = mtk::wmma::detail::common::cast<ab_type>(b);
-				frag_b.x[frag_index] = b_rp;
-				frag_db.x[frag_index] = mtk::wmma::detail::common::cast<ab_type>(b - mtk::wmma::detail::common::cast<float>(b_rp));
+				const auto db_rp = mtk::wmma::detail::common::cast<ab_type>(b - mtk::wmma::detail::common::cast<float>(b_rp));
+				for (unsigned i = 0; i < frag_index_count; i++) {
+					const unsigned frag_index = frag_index_list[i];
+					frag_b.x[frag_index] = b_rp;
+					frag_db.x[frag_index] = db_rp;
+				}
 			});
 
 	nvcuda::wmma::mma_sync(frag_c, frag_a, frag_db, frag_c);
