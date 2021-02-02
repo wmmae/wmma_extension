@@ -99,8 +99,10 @@ nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::c
 __shared__ compute_t matrix[16 * 16];
 mtk::wmma::foreach<decltype(frag_b)>(
 		[&](const unsigned* frag_index_list, const unsigned fragment_index_count, const unsigned mem_index) {
+			const auto m = mem_index % 16;
+			const auto n = mem_index / 16;
 			for (unsigned i = 0; i < fragment_index_count; i++)
-				frag_b.x[frag_index_list[i]] = convert_to<half>(vector[mem_index]);
+				frag_b.x[frag_index_list[i]] = convert_to<half>(matrix[n * 16 + m]);
 		});
 	);
 ```
