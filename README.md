@@ -52,20 +52,69 @@ __global__ void kernel() {
 ```
 
 ## Implemented functions
-### load_vector
+### Primitive functions
+#### foreach
+This function calculates the mapping of memory and fragment elements.
+```cuda
+nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major> frag_b;
+__shared__ compute_t matrix[16 * 16];
+mtk::wmma::foreach<decltype(frag_b)>(
+		[&](const unsigned* frag_index_list, const unsigned fragment_index_count, const unsigned mem_index) {
+			const auto m = mem_index % 16;
+			const auto n = mem_index / 16;
+			for (unsigned i = 0; i < fragment_index_count; i++)
+				frag_b.x[frag_index_list[i]] = convert_to<half>(matrix[n * 16 + m]);
+		});
+	);
+```
+
+- Arguments
+  - func         : a function which sets fragments from `fragment_index_list`, `fragmnt_index_count` and `mem_index`.
+
+#### foreach_v
+##### For matrix A/B
+This function calculates the mapping of a given vector and fragment elements.
+```cuda
+nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major> frag_b;
+__shared__ compute_t vector[16];
+mtk::wmma::foreach_v<decltype(frag_b)>(
+		[&](const unsigned* frag_index_list, const unsigned fragment_index_count, const unsigned mem_index) {
+			for (unsigned i = 0; i < fragment_index_count; i++)
+				frag_b.x[frag_index_list[i]] = convert_to<half>(vector[mem_index]);
+		});
+// is equivalent to `load_vector`
+```
+
+- Arguments
+  - func         : a function which sets fragments from `fragment_index_list`, `fragmnt_index_count` and `mem_index`.
+
+##### For accumulator
+```cuda
+nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, float> frag_c;
+__shared__ compute_t vector[16];
+mtk::wmma::foreach_v<decltype(frag_c)>(nvcuda::wmma::mem_col_major,
+		[&](const unsigned* frag_index_list, const unsigned fragment_index_count, const unsigned mem_index) {
+			for (unsigned i = 0; i < fragment_index_count; i++)
+				vector[mem_index] = convert_to<compute_t>(frag_c.x[frag_index_list[i]]);
+		});
+// is equivalent to `store_vector`
+```
+
+### Other functions
+#### load_vector
 ![load_matrix](docs/load_vector-en.svg)
 - Arguments
   - dst_fragment : Destination fragment (`nvcuda::wmma::matrix_a` / `nvcuda::wmma::matrix_b`, `nvcuda::wmma::col_major` / `nvcuda::wmma::row_major`)
   - src_pointer  : Source pointer (No alignment restriction)
 
-### store_vector
+#### store_vector
 ![store_matrix](docs/store_vector-en.svg)
 - Arguments
   - dst_pointer  : Destination pointer (No alignment restriction)
   - src_fragment : Source fragment (`nvcuda::wmma::accumulator` , `half` / `float`)
   - layout       : `nvcuda::wmma::mem_col_major` / `nvcuda::wmma::mem_row_major`
 
-### load_matrix_with_operation
+#### load_matrix_with_operation
 This function is used for making a fragment of a matrix with element-wise operations.
 ```cuda
 nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major> frag_b;
@@ -84,7 +133,7 @@ mtk::wmma::load_matrix_with_operation(
 
 The first argument of `func` is an index of `fragment.x[]` and the second one is a value of `fragment.x[]` if `func` is an identity function.
 
-### load_vector_with_rounding
+#### load_vector_with_rounding
 This function is used for making a fragment of a vector with explicitly converting to `tf32`.
 TF32 TensorCore performs RZ rounding when we use WMMA API but it is not good for accuracy.
 
@@ -92,54 +141,7 @@ TF32 TensorCore performs RZ rounding when we use WMMA API but it is not good for
   - dst_fragment : Destination fragment (`nvcuda::wmma::matrix_a` / `nvcuda::wmma::matrix_b`, (16, 16, 8), `tf32`, `nvcuda::wmma::col_major` / `nvcuda::wmma::row_major`)
   - src_pointer  : Source pointer (No alignment restriction)
 
-### foreach
-This function calculates the mapping of memory and fragment elements.
-```cuda
-nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major> frag_b;
-__shared__ compute_t matrix[16 * 16];
-mtk::wmma::foreach<decltype(frag_b)>(
-		[&](const unsigned* frag_index_list, const unsigned fragment_index_count, const unsigned mem_index) {
-			const auto m = mem_index % 16;
-			const auto n = mem_index / 16;
-			for (unsigned i = 0; i < fragment_index_count; i++)
-				frag_b.x[frag_index_list[i]] = convert_to<half>(matrix[n * 16 + m]);
-		});
-	);
-```
-
-- Arguments
-  - func         : a function which sets fragments from `fragment_index_list`, `fragmnt_index_count` and `mem_index`.
-
-### foreach_v
-#### For matrix A/B
-This function calculates the mapping of a given vector and fragment elements.
-```cuda
-nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major> frag_b;
-__shared__ compute_t vector[16];
-mtk::wmma::foreach_v<decltype(frag_b)>(
-		[&](const unsigned* frag_index_list, const unsigned fragment_index_count, const unsigned mem_index) {
-			for (unsigned i = 0; i < fragment_index_count; i++)
-				frag_b.x[frag_index_list[i]] = convert_to<half>(vector[mem_index]);
-		});
-// is equivalent to `load_vector`
-```
-
-- Arguments
-  - func         : a function which sets fragments from `fragment_index_list`, `fragmnt_index_count` and `mem_index`.
-
-#### For accumulator
-```cuda
-nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, float> frag_c;
-__shared__ compute_t vector[16];
-mtk::wmma::foreach_v<decltype(frag_c)>(nvcuda::wmma::mem_col_major,
-		[&](const unsigned* frag_index_list, const unsigned fragment_index_count, const unsigned mem_index) {
-			for (unsigned i = 0; i < fragment_index_count; i++)
-				vector[mem_index] = convert_to<compute_t>(frag_c.x[frag_index_list[i]]);
-		});
-// is equivalent to `store_vector`
-```
-
-### make_direct_product_fragments (A)
+#### make_direct_product_fragments (A)
 This function is used for computing direct product of two vectors (u and v) with accuracy correction.
 
 ![make_direct_product_fragments](docs/make_direct_product_fragments-en.svg)
@@ -152,7 +154,7 @@ This function is used for computing direct product of two vectors (u and v) with
 - Detail
 `frag_a` x `frag_b` conmutes a direct product `u` x `v` with error correction.
 
-### make_direct_product_fragments (B)
+#### make_direct_product_fragments (B)
 
 Its computation is same with `make_direct_product_fragments (A)` but arguments are different.
 
@@ -162,22 +164,24 @@ Its computation is same with `make_direct_product_fragments (A)` but arguments a
 
 dx is automatically computed in this method.
 
-### make_eye
+#### make_eye
 ![load_matrix](docs/make_eye-en.svg)
 - Arguments
   - dst_fragment : Destination fragment (`accumulator`)
   - alpha : diagonal element
 
-### make_identity_matrix
+#### make_identity_matrix
 This function is equivalent to `make_eye(frag, 1.0f)`
 - Arguments
   - dst_fragment : Destination fragment (`accumulator`)
 
-### fill_zero
+#### fill_zero
 - Argument
   - dst_fragment : Destination fragment
 
-### print_fragment
+### Debug functions
+
+#### print_fragment
 This function output the elements of a fragment.
 - Arguments
   - frag : Target fragment
