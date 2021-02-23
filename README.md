@@ -25,7 +25,7 @@ For instance, a program which is compiled with `-arch=sm_70` does not work corre
 
 ## Required
 - CUDA (9.2 or later)
-- C++ (11 or later)
+- C++ (17 or later)
 
 ## Supported fragment
 - sm_70: ((16, 16, 16), fp16/fp32)
@@ -104,7 +104,7 @@ mtk::wmma::foreach_v<decltype(frag_c)>(nvcuda::wmma::mem_col_major,
 #### load_vector
 ![load_matrix](docs/load_vector-en.svg)
 - Arguments
-  - dst_fragment : Destination fragment (`nvcuda::wmma::matrix_a` / `nvcuda::wmma::matrix_b`, `nvcuda::wmma::col_major` / `nvcuda::wmma::row_major`)
+  - dst_fragment : Destination fragment (`nvcuda::wmma::matrix_a` / `nvcuda::wmma::matrix_b` / `nvcuda::wmma::accumulator`, `nvcuda::wmma::col_major` / `nvcuda::wmma::row_major`)
   - src_pointer  : Source pointer (No alignment restriction)
 
 #### store_vector
