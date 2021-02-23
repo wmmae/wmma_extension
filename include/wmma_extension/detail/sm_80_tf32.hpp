@@ -375,11 +375,11 @@ __device__ inline void foreach_v(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 
 	if(load_flag) {
 		{
 			const unsigned frag_index_list[1] = {0};
-			func(index_offset, frag_index_list, 1);
+			func(frag_index_list, 1, index_offset);
 		}
 		{
 			const unsigned frag_index_list[1] = {1};
-			func(index_offset + 8, frag_index_list, 1);
+			func(frag_index_list, 1, index_offset + 8);
 		}
 	}
 }
@@ -392,11 +392,11 @@ __device__ inline void foreach_v(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 
 	if(load_flag) {
 		{
 			const unsigned frag_index_list[1] = {0};
-			func(index_offset, frag_index_list, 1);
+			func(frag_index_list, 1, index_offset);
 		}
 		{
 			const unsigned frag_index_list[1] = {2};
-			func(index_offset + 4, frag_index_list, 1);
+			func(frag_index_list, 1, index_offset + 4);
 		}
 	}
 }
@@ -409,11 +409,11 @@ __device__ inline void foreach_v(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 
 	if(load_flag) {
 		{
 			const unsigned frag_index_list[1] = {0};
-			func(index_offset, frag_index_list, 1);
+			func(frag_index_list, 1, index_offset);
 		}
 		{
 			const unsigned frag_index_list[1] = {1};
-			func(index_offset + 4, frag_index_list, 1);
+			func(frag_index_list, 1, index_offset + 4);
 		}
 	}
 }
@@ -426,11 +426,11 @@ __device__ inline void foreach_v(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 
 	if(load_flag) {
 		{
 			const unsigned frag_index_list[1] = {0};
-			func(index_offset, frag_index_list, 1);
+			func(frag_index_list, 1, index_offset);
 		}
 		{
 			const unsigned frag_index_list[1] = {2};
-			func(index_offset + 8, frag_index_list, 1);
+			func(frag_index_list, 1, index_offset + 8);
 		}
 	}
 }
