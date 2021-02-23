@@ -121,6 +121,102 @@ __device__ inline void load_vector(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b
 }
 
 template <class T>
+__device__ inline void load_vector(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag, const T* const ptr, const nvcuda::wmma::layout_t layout, const bool fill) {
+	if (fill)
+		nvcuda::wmma::fill_fragment(frag, __float2half(0));
+	const auto tid = threadIdx.x & 0x1f;
+	if (layout == nvcuda::wmma::mem_col_major) {
+		if (!(tid & 0b01000)) {
+			const auto mem_index = ((tid & 0b10000) >> 2) + (tid & 0x3) + ((tid & 0x4) << 1);
+			frag.x[0] = ptr[mem_index + 0];
+		}
+	} else {
+		if (tid == 0 || tid == 8) {
+			const auto mem_index = tid;
+			frag.x[0] = ptr[mem_index + 0];
+			frag.x[1] = ptr[mem_index + 1];
+			frag.x[2] = ptr[mem_index + 2];
+			frag.x[3] = ptr[mem_index + 3];
+			frag.x[4] = ptr[mem_index + 4];
+			frag.x[5] = ptr[mem_index + 5];
+			frag.x[6] = ptr[mem_index + 6];
+			frag.x[7] = ptr[mem_index + 7];
+		}
+	}
+}
+
+template <>
+__device__ inline void load_vector<float>(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, float>& frag, const float* const ptr, const nvcuda::wmma::layout_t layout, const bool fill) {
+	if (fill)
+		nvcuda::wmma::fill_fragment(frag, __float2half(0));
+	const auto tid = threadIdx.x & 0x1f;
+	if (layout == nvcuda::wmma::mem_col_major) {
+		if (!(tid & 0b10) && !(tid & 0b1000)) {
+			const auto mem_index = ((tid & 0b10000) >> 2) + (tid & 0b1) + ((tid & 0b100) << 1);
+			frag.x[0] = ptr[mem_index + 0];
+			frag.x[2] = ptr[mem_index + 2];
+		}
+	} else {
+		if (!(tid & 0b1) && !(tid & 0b10000) && !(tid & 0b100)) {
+			const auto mem_index = tid;
+			frag.x[0] = ptr[mem_index + 0];
+			frag.x[1] = ptr[mem_index + 1];
+			frag.x[4] = ptr[mem_index + 4];
+			frag.x[5] = ptr[mem_index + 5];
+		}
+	}
+}
+
+template <class T>
+__device__ inline void load_vector(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag, const T* const ptr, const T mul, const nvcuda::wmma::layout_t layout, const bool fill) {
+	if (fill)
+		nvcuda::wmma::fill_fragment(frag, __float2half(0));
+	const auto tid = threadIdx.x & 0x1f;
+	if (layout == nvcuda::wmma::mem_col_major) {
+		if (!(tid & 0b01000)) {
+			const auto mem_index = ((tid & 0b10000) >> 2) + (tid & 0x3) + ((tid & 0x4) << 1);
+			frag.x[0] = ptr[mem_index + 0] * mul;
+		}
+	} else {
+		if (tid == 0 || tid == 8) {
+			const auto mem_index = tid;
+			frag.x[0] = ptr[mem_index + 0] * mul;
+			frag.x[1] = ptr[mem_index + 1] * mul;
+			frag.x[2] = ptr[mem_index + 2] * mul;
+			frag.x[3] = ptr[mem_index + 3] * mul;
+			frag.x[4] = ptr[mem_index + 4] * mul;
+			frag.x[5] = ptr[mem_index + 5] * mul;
+			frag.x[6] = ptr[mem_index + 6] * mul;
+			frag.x[7] = ptr[mem_index + 7] * mul;
+		}
+	}
+}
+
+template <>
+__device__ inline void load_vector<float>(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, float>& frag, const float* const ptr, const float mul, const nvcuda::wmma::layout_t layout, const bool fill) {
+	if (fill)
+		nvcuda::wmma::fill_fragment(frag, __float2half(0));
+	const auto tid = threadIdx.x & 0x1f;
+	if (layout == nvcuda::wmma::mem_col_major) {
+		if (!(tid & 0b10) && !(tid & 0b1000)) {
+			const auto mem_index = ((tid & 0b10000) >> 2) + (tid & 0b1) + ((tid & 0b100) << 1);
+			frag.x[0] = ptr[mem_index + 0] * mul;
+			frag.x[2] = ptr[mem_index + 2] * mul;
+		}
+	} else {
+		if (!(tid & 0b1) && !(tid & 0b10000) && !(tid & 0b100)) {
+			const auto mem_index = tid;
+			frag.x[0] = ptr[mem_index + 0] * mul;
+			frag.x[1] = ptr[mem_index + 1] * mul;
+			frag.x[4] = ptr[mem_index + 4] * mul;
+			frag.x[5] = ptr[mem_index + 5] * mul;
+		}
+	}
+}
+
+// Store
+
+template <class T>
 __device__ inline void store_vector(T* const ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag, const nvcuda::wmma::layout_t layout) {
 	const auto tid = threadIdx.x & 0x1f;
 	if (layout == nvcuda::wmma::mem_col_major) {
@@ -143,7 +239,6 @@ __device__ inline void store_vector(T* const ptr, nvcuda::wmma::fragment<nvcuda:
 	}
 }
 
-// partial specialization
 template <>
 __device__ inline void store_vector<float>(float* const ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, float>& frag, const nvcuda::wmma::layout_t layout) {
 	const auto tid = threadIdx.x & 0x1f;
@@ -187,7 +282,6 @@ __device__ inline void store_vector(T* const ptr, nvcuda::wmma::fragment<nvcuda:
 	}
 }
 
-// partial specialization
 template <>
 __device__ inline void store_vector<float>(float* const ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, float>& frag, const float mul, const nvcuda::wmma::layout_t layout) {
 	const auto tid = threadIdx.x & 0x1f;
