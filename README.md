@@ -35,7 +35,7 @@ For instance, a program which is compiled with `-arch=sm_70` does not work corre
 ## Sample
 ```cuda
 #include <mma.h>
-#include <wmma_extension.hpp>
+#include <wmma_extension/wmma_extension.hpp>
 
 __global__ void kernel() {
 	nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major> frag_a;

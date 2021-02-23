@@ -1,6 +1,6 @@
 #include <iostream>
 #include <type_traits>
-#include <wmma_extension.hpp>
+#include <wmma_extension/wmma_extension.hpp>
 
 #ifndef TEST_ARCH
 #define TEST_ARCH (-1)

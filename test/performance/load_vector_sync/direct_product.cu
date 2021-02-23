@@ -2,7 +2,7 @@
 #include <chrono>
 #include <type_traits>
 #include <mma.h>
-#include <wmma_extension.hpp>
+#include <wmma_extension/wmma_extension.hpp>
 
 constexpr std::size_t block_size = 256;
 constexpr unsigned warp_size = 32;
