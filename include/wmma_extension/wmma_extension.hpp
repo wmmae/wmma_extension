@@ -22,14 +22,34 @@ namespace detail_namespace = mtk::wmma::detail::sm_75;
 namespace detail_namespace = mtk::wmma::detail::sm_80;
 #endif
 
-template <class MatrixType, int M, int N, int K, class MemMajor, class T, class FT>
-__device__ inline void load_vector(nvcuda::wmma::fragment<MatrixType, M, N, K, FT, MemMajor>& frag, const T* const ptr, const bool fill = true) {
+template <int M, int N, int K, class MemMajor, class T, class FT>
+__device__ inline void load_vector(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, M, N, K, FT, MemMajor>& frag, const T* const ptr, const bool fill = true) {
 	detail_namespace::load_vector(frag, ptr, fill);
 }
 
-template <class MatrixType, int M, int N, int K, class MemMajor, class T, class FT>
-__device__ inline void load_vector(nvcuda::wmma::fragment<MatrixType, M, N, K, FT, MemMajor>& frag, const T* const ptr, const T mul, const bool fill = true) {
+template <int M, int N, int K, class MemMajor, class T, class FT>
+__device__ inline void load_vector(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, M, N, K, FT, MemMajor>& frag, const T* const ptr, const T mul, const bool fill = true) {
 	detail_namespace::load_vector(frag, ptr, mul, fill);
+}
+
+template <int M, int N, int K, class MemMajor, class T, class FT>
+__device__ inline void load_vector(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, M, N, K, FT, MemMajor>& frag, const T* const ptr, const bool fill = true) {
+	detail_namespace::load_vector(frag, ptr, fill);
+}
+
+template <int M, int N, int K, class MemMajor, class T, class FT>
+__device__ inline void load_vector(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, M, N, K, FT, MemMajor>& frag, const T* const ptr, const T mul, const bool fill = true) {
+	detail_namespace::load_vector(frag, ptr, mul, fill);
+}
+
+template <int M, int N, int K, class T, class FT>
+__device__ inline void load_vector(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, FT>& frag, const T* const ptr, const nvcuda::wmma::layout_t layout, const bool fill = true) {
+	detail_namespace::load_vector(frag, ptr, layout, fill);
+}
+
+template <int M, int N, int K, class T, class FT>
+__device__ inline void load_vector(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, FT>& frag, const T* const ptr, const T mul, const nvcuda::wmma::layout_t layout, const bool fill = true) {
+	detail_namespace::load_vector(frag, ptr, mul, layout, fill);
 }
 
 template <int M, int N, int K, class T>

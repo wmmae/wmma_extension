@@ -231,6 +231,53 @@ __device__ inline void load_vector_with_rounding(nvcuda::wmma::fragment<nvcuda::
 	}
 }
 
+template <class T>
+__device__ inline void load_vector(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 8, T>& frag, const T* const ptr, const nvcuda::wmma::layout_t layout, const bool fill) {
+	if (fill)
+		mtk::wmma::fill_zero(frag);
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+	if (layout == nvcuda::wmma::mem_col_major) {
+		const bool load_flag = (lane_id & 0x3) == 0;
+		const unsigned index_offset = lane_id >> 2;
+		if (load_flag) {
+			frag.x[0 ] = ptr[index_offset + 0 ];
+			frag.x[2 ] = ptr[index_offset + 8 ];
+		}
+	} else {
+		bool load_flag = (lane_id & 0b11100) == 0;
+		const unsigned index_offset = ((lane_id & 0x3) << 1) + ((lane_id & 0x4) << 2);
+		if (load_flag) {
+			frag.x[0 ] = ptr[index_offset + 0 ];
+			frag.x[1 ] = ptr[index_offset + 1 ];
+			frag.x[4 ] = ptr[index_offset + 8 ];
+			frag.x[5 ] = ptr[index_offset + 9 ];
+		}
+	}
+}
+
+template <class T>
+__device__ inline void load_vector(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 8, T>& frag, const T* const ptr, const T mul, const nvcuda::wmma::layout_t layout, const bool fill) {
+	if (fill)
+		mtk::wmma::fill_zero(frag);
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+	if (layout == nvcuda::wmma::mem_col_major) {
+		const bool load_flag = (lane_id & 0x3) == 0;
+		const unsigned index_offset = lane_id >> 2;
+		if (load_flag) {
+			frag.x[0 ] = ptr[index_offset + 0 ] * mul;
+			frag.x[2 ] = ptr[index_offset + 8 ] * mul;
+		}
+	} else {
+		bool load_flag = (lane_id & 0b11100) == 0;
+		const unsigned index_offset = ((lane_id & 0x3) << 1) + ((lane_id & 0x4) << 2);
+		if (load_flag) {
+			frag.x[0 ] = ptr[index_offset + 0 ] * mul;
+			frag.x[1 ] = ptr[index_offset + 1 ] * mul;
+			frag.x[4 ] = ptr[index_offset + 8 ] * mul;
+			frag.x[5 ] = ptr[index_offset + 9 ] * mul;
+		}
+	}
+}
 
 template <class T>
 __device__ inline void store_vector(T* const ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 8, T>& frag, const nvcuda::wmma::layout_t layout) {

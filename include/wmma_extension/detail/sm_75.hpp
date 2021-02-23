@@ -141,6 +141,52 @@ __device__ inline void load_vector(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b
 }
 
 template <class T>
+__device__ inline void load_vector(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag, const T* const ptr, const nvcuda::wmma::layout_t layout, const bool fill) {
+	if (fill)
+		nvcuda::wmma::fill_fragment(frag, __float2half(0));
+	const auto tid = threadIdx.x & 0x1f;
+	if (layout == nvcuda::wmma::mem_col_major) {
+		if ((tid & 0x3) == 0) {
+			const auto mem_index = tid >> 2;
+			frag.x[0] = ptr[mem_index + 0];
+			frag.x[2] = ptr[mem_index + 8];
+		}
+	} else {
+		if (!(tid & 0b11100)) {
+			const auto mem_index = tid << 1;
+			frag.x[0] = ptr[mem_index + 0];
+			frag.x[1] = ptr[mem_index + 1];
+			frag.x[4] = ptr[mem_index + 8];
+			frag.x[5] = ptr[mem_index + 9];
+		}
+	}
+}
+
+template <class T>
+__device__ inline void load_vector(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag, const T* const ptr, const T mul, const nvcuda::wmma::layout_t layout, const bool fill) {
+	if (fill)
+		nvcuda::wmma::fill_fragment(frag, __float2half(0));
+	const auto tid = threadIdx.x & 0x1f;
+	if (layout == nvcuda::wmma::mem_col_major) {
+		if ((tid & 0x3) == 0) {
+			const auto mem_index = tid >> 2;
+			frag.x[0] = ptr[mem_index + 0] * mul;
+			frag.x[2] = ptr[mem_index + 8] * mul;
+		}
+	} else {
+		if (!(tid & 0b11100)) {
+			const auto mem_index = tid << 1;
+			frag.x[0] = ptr[mem_index + 0] * mul;
+			frag.x[1] = ptr[mem_index + 1] * mul;
+			frag.x[4] = ptr[mem_index + 8] * mul;
+			frag.x[5] = ptr[mem_index + 9] * mul;
+		}
+	}
+}
+
+// Store
+
+template <class T>
 __device__ inline void store_vector(T* const ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag, const nvcuda::wmma::layout_t layout) {
 	const auto tid = threadIdx.x & 0x1f;
 	if (layout == nvcuda::wmma::mem_col_major) {
