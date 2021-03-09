@@ -47,13 +47,15 @@ __global__ void matmul<true>(float* const c_ptr, const float* const a_ptr, const
 			}
 		}
 		const float* matrix_a_block_head = F32_smem + warp_id * warp_size * warp_size;
-		mtk::wmma::foreach(
-				frag_a[0],
-				[&](const unsigned f_index, const unsigned m_index) {
-					frag_da[0].x[f_index] = __float2half(matrix_a_block_head[m_index] - __half2float(frag_a[0].x[f_index]));
-					frag_da[1].x[f_index] = __float2half(matrix_a_block_head[m_index + FDIM] - __half2float(frag_a[1].x[f_index]));
-					frag_da[2].x[f_index] = __float2half(matrix_a_block_head[m_index + FDIM * warp_size] - __half2float(frag_a[2].x[f_index]));
-					frag_da[3].x[f_index] = __float2half(matrix_a_block_head[m_index + FDIM * warp_size + FDIM] - __half2float(frag_a[3].x[f_index]));
+		mtk::wmma::foreach<decltype(frag_a[0])>(
+				[&](const unsigned* frag_index_list, const unsigned fragment_index_count, const unsigned mem_index) {
+					for (unsigned i = 0; i < fragment_index_count; i++) {
+						const auto f_index = frag_index_list[i];
+						frag_da[0].x[f_index] = __float2half(matrix_a_block_head[mem_index] - __half2float(frag_a[0].x[f_index]));
+						frag_da[1].x[f_index] = __float2half(matrix_a_block_head[mem_index + FDIM] - __half2float(frag_a[1].x[f_index]));
+						frag_da[2].x[f_index] = __float2half(matrix_a_block_head[mem_index + FDIM * warp_size] - __half2float(frag_a[2].x[f_index]));
+						frag_da[3].x[f_index] = __float2half(matrix_a_block_head[mem_index + FDIM * warp_size + FDIM] - __half2float(frag_a[3].x[f_index]));
+					}
 				});
 
 		__syncthreads();
@@ -72,16 +74,18 @@ __global__ void matmul<true>(float* const c_ptr, const float* const a_ptr, const
 			}
 		}
 		const float* matrix_b_block_head = F32_smem + warp_id * warp_size;
-		mtk::wmma::foreach(
-				frag_a[0],
-				[&](const unsigned f_index, const unsigned m_index) {
-					const unsigned r = m_index & 0xf;
-					const unsigned c = m_index >> 4;
-					const unsigned long i = r + c * block_size;
-					frag_db[0].x[f_index] = __float2half(matrix_b_block_head[i] - __half2float(frag_b[0].x[f_index]));
-					frag_db[1].x[f_index] = __float2half(matrix_b_block_head[i + FDIM] - __half2float(frag_b[1].x[f_index]));
-					frag_db[2].x[f_index] = __float2half(matrix_b_block_head[i + FDIM * block_size] - __half2float(frag_b[2].x[f_index]));
-					frag_db[3].x[f_index] = __float2half(matrix_b_block_head[i + FDIM * block_size + FDIM] - __half2float(frag_b[3].x[f_index]));
+		mtk::wmma::foreach<decltype(frag_b[0])>(
+				[&](const unsigned* frag_index_list, const unsigned fragment_index_count, const unsigned mem_index) {
+					for (unsigned i = 0; i < fragment_index_count; i++) {
+						const auto f_index = frag_index_list[i];
+						const unsigned r = mem_index & 0xf;
+						const unsigned c = mem_index >> 4;
+						const unsigned long i = r + c * block_size;
+						frag_db[0].x[f_index] = __float2half(matrix_b_block_head[i] - __half2float(frag_b[0].x[f_index]));
+						frag_db[1].x[f_index] = __float2half(matrix_b_block_head[i + FDIM] - __half2float(frag_b[1].x[f_index]));
+						frag_db[2].x[f_index] = __float2half(matrix_b_block_head[i + FDIM * block_size] - __half2float(frag_b[2].x[f_index]));
+						frag_db[3].x[f_index] = __float2half(matrix_b_block_head[i + FDIM * block_size + FDIM] - __half2float(frag_b[3].x[f_index]));
+					}
 				});
 
 		for (unsigned i = 0; i < 2; i++) {
