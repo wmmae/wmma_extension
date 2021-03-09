@@ -21,6 +21,25 @@ struct __align__(4) __frag_base {
 	enum {num_elements = size};
 };
 
+template <class T>
+__device__ inline void fill_fragment(__frag_base<half, 8>& f, const T v) {
+#pragma unroll
+	for (unsigned i = 0; i < f.num_elements; i++)
+		f.x[i] = v;
+}
+template <class T>
+__device__ inline void fill_fragment(__frag_base<half, 4>& f, const T v) {
+#pragma unroll
+	for (unsigned i = 0; i < f.num_elements; i++)
+		f.x[i] = v;
+}
+template <class T>
+__device__ inline void fill_fragment(__frag_base<float, 4>& f, const T v) {
+#pragma unroll
+	for (unsigned i = 0; i < f.num_elements; i++)
+		f.x[i] = v;
+}
+
 template <class Use, int m, int n, int k, class T, class Layout = void>
 class fragment;
 
