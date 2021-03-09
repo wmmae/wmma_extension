@@ -36,7 +36,7 @@ __global__ void test_store_vector_kernel(
 }
 
 void test(const nvcuda::wmma::layout_t layout) {
-	std::printf("-- store_vector test --\n");
+	std::printf("-- test (%s) --\n", __FILE__);
 	std::printf("arch   : %d\n", TEST_ARCH);
 	if (layout == nvcuda::wmma::mem_col_major) {
 		std::printf("layout : col_major\n");

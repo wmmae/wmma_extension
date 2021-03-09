@@ -36,7 +36,7 @@ __global__ void make_eye_kernel(compute_t* const eye, const compute_t a) {
 }
 
 void test() {
-	std::printf("-- add_eye test --\n");
+	std::printf("-- test (%s) --\n", __FILE__);
 	std::printf("arch    : %d\n", TEST_ARCH);
 	compute_t*h;
 

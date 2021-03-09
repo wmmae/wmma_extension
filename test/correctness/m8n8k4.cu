@@ -150,7 +150,7 @@ void test() {
 	test<c_t, d_t, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::mem_row_major, nvcuda::wmma::mem_row_major>();
 
 int main() {
-	std::printf("-- m8n8k4 test --\n");
+	std::printf("-- test (%s) --\n", __FILE__);
 	std::printf("arch   : %d\n", TEST_ARCH);
 
 	TEST(float, float);

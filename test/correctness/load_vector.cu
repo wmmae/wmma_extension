@@ -72,9 +72,9 @@ __global__ void test_load_vector_acc_kernel(
 
 template <class Use, int m, int n, int k, class T, class Layout>
 void test() {
+	std::printf("-- test (%s) --\n", __FILE__);
 	std::size_t cor_size = 0;
 	std::size_t vec_length = 0;
-	std::printf("-- load_vector test --\n");
 	std::printf("arch   : %d\n", TEST_ARCH);
 	if (std::is_same<Layout, nvcuda::wmma::col_major>::value) {
 		std::printf("layout : col_major\n");

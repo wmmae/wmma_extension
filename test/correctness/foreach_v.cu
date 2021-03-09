@@ -60,9 +60,9 @@ __global__ void test_foreach_v_kernel(
 
 template <class Use, class layout>
 void test() {
+	std::printf("-- test (%s) --\n", __FILE__);
 	std::size_t cor_size = 0;
 	std::size_t vec_length = 0;
-	std::printf("-- foreach_v test --\n");
 	std::printf("arch   : %d\n", TEST_ARCH);
 	if (std::is_same<layout, nvcuda::wmma::col_major>::value) {
 		std::printf("layout : col_major\n");
