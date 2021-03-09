@@ -17,6 +17,7 @@ namespace wmma {
 #if __CUDA_ARCH__ < 710
 namespace detail_namespace = mtk::wmma::detail::sm_70;
 #elif __CUDA_ARCH__ < 800
+#include "detail/m16n8k16.hpp"
 namespace detail_namespace = mtk::wmma::detail::sm_75;
 #else
 namespace detail_namespace = mtk::wmma::detail::sm_80;
@@ -120,6 +121,58 @@ __device__ inline void store_vector(T* const ptr, nvcuda::wmma::fragment<nvcuda:
 			for (unsigned i = 0; i < fragment_index_count; i++)
 				ptr[mem_index] = mtk::wmma::detail::common::cast<typename mtk::wmma::detail::common::storage_t<T>::type>(frag.x[frag_index_list[i]]) * mul;
 		});
+}
+
+// ------------------------------
+// LD/ST functions for mma fragments
+// ------------------------------
+
+template <class Use, int M, int N, int K, class FT, class Layout, class T>
+__device__ inline void load_matrix_sync(nvcuda::wmma::fragment<Use, M, N, K, FT, Layout>& frag, const T* const ptr, const unsigned ldm, const bool sync = true) {
+	// length of leading dimension of the input fragment
+	constexpr unsigned old_ldm = mtk::wmma::detail::common::layout_switch<Layout, mtk::wmma::detail::common::get_M<Use, M, N, K>::value, mtk::wmma::detail::common::get_M<Use, M, N, K>::value>::value;
+	mtk::wmma::foreach<decltype(frag)>(
+		[&](const unsigned* frag_index_list, const unsigned fragment_index_count, const unsigned mem_index) {
+			const unsigned offset = (mem_index / old_ldm) * ldm;
+			for (unsigned i = 0; i < fragment_index_count; i++) {
+				const unsigned frag_index = frag_index_list[i];
+				frag.x[frag_index] = mtk::wmma::detail::common::cast<typename mtk::wmma::detail::common::storage_t<FT>::type>(ptr[offset]);
+			}
+		});
+	if (sync)
+		__syncthreads();
+}
+
+template <int M, int N, int K, class FT, class T>
+__device__ inline void load_matrix_sync(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, FT>& frag, const T* const ptr, const unsigned ldm, const nvcuda::wmma::layout_t layout, const bool sync = true) {
+	// length of leading dimension of the input fragment
+	constexpr unsigned old_ldm = (layout == nvcuda::wmma::mem_col_major) ? mtk::wmma::detail::common::get_M<Use, M, N, K>::value : mtk::wmma::detail::common::get_M<Use, M, N, K>::value>::value;
+	mtk::wmma::foreach<decltype(frag)>(layout,
+		[&](const unsigned* frag_index_list, const unsigned fragment_index_count, const unsigned mem_index) {
+			const unsigned offset = (mem_index / old_ldm) * ldm;
+			for (unsigned i = 0; i < fragment_index_count; i++) {
+				const unsigned frag_index = frag_index_list[i];
+				frag.x[frag_index] = mtk::wmma::detail::common::cast<typename mtk::wmma::detail::common::storage_t<FT>::type>(ptr[offset]);
+			}
+		});
+	if (sync)
+		__syncthreads();
+}
+
+template <int M, int N, int K, class FT, class T>
+__device__ inline void store_matrix_sync(T* const ptr, const nvcuda::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, FT>& frag, const unsigned ldm, const nvcuda::wmma::layout_t layout, const bool sync = true) {
+	// length of leading dimension of the input fragment
+	constexpr unsigned old_ldm = (layout == nvcuda::wmma::mem_col_major) ? mtk::wmma::detail::common::get_M<Use, M, N, K>::value : mtk::wmma::detail::common::get_M<Use, M, N, K>::value>::value;
+	mtk::wmma::foreach<decltype(frag)>(layout,
+		[&](const unsigned* frag_index_list, const unsigned fragment_index_count, const unsigned mem_index) {
+			const unsigned offset = (mem_index / old_ldm) * ldm;
+			for (unsigned i = 0; i < fragment_index_count; i++) {
+				const unsigned frag_index = frag_index_list[i];
+				ptr[offset] = mtk::wmma::detail::common::cast<typename mtk::wmma::detail::common::storage_t<T>::type>(frag.x[frag_index]);
+			}
+		});
+	if (sync)
+		__syncthreads();
 }
 
 // ------------------------------
