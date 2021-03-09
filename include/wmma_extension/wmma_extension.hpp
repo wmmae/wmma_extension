@@ -45,7 +45,7 @@ __device__ inline void foreach_v(Func func) {
 	// Requirering `frag` as an argument does not look good but it can not be helped because C++ does not support partial template specialization of a templeta function.
 	// The `frag` below does not consume registers because of optimization by nvcc.
 	// So this implementation is not a problem.
-	typename std::remove_reference<Frag_T>::type frag;
+	typename std::remove_const<typename std::remove_reference<Frag_T>::type>::type frag;
 	detail_namespace::foreach_v(frag, func);
 }
 
@@ -54,9 +54,35 @@ __device__ inline void foreach_v(const nvcuda::wmma::layout_t layout, Func func)
 	// Requirering `frag` as an argument does not look good but it can not be helped because C++ does not support partial template specialization of a templeta function.
 	// The `frag` below does not consume registers because of optimization by nvcc.
 	// So this implementation is not a problem.
-	typename std::remove_reference<Frag_T>::type frag;
+	typename std::remove_const<typename std::remove_reference<Frag_T>::type>::type frag;
 	detail_namespace::foreach_v(frag, layout, func);
 }
+
+namespace mma {
+template <class Frag_T, class Func>
+__device__ inline void foreach(Func func) {
+	typename std::remove_const<typename std::remove_reference<Frag_T>::type>::type frag;
+	mtk::wmma::mma::foreach(frag, func);
+}
+
+template <class Frag_T, class Func>
+__device__ inline void foreach(const nvcuda::wmma::layout_t layout, Func func) {
+	typename std::remove_const<typename std::remove_reference<Frag_T>::type>::type frag;
+	mtk::wmma::mma::foreach(frag, layout, func);
+}
+
+template <class Frag_T, class Func>
+__device__ inline void foreach_v(Func func) {
+	typename std::remove_reference<Frag_T>::type frag;
+	mtk::wmma::mma::foreach_v(frag, func);
+}
+
+template <class Frag_T, class Func>
+__device__ inline void foreach_v(const nvcuda::wmma::layout_t layout, Func func) {
+	typename std::remove_reference<Frag_T>::type frag;
+	mtk::wmma::mma::foreach_v(frag, layout, func);
+}
+} // namespace mma
 
 // ------------------------------
 // LD/ST functions for vectors
@@ -126,12 +152,12 @@ __device__ inline void store_vector(T* const ptr, nvcuda::wmma::fragment<nvcuda:
 // ------------------------------
 // LD/ST functions for mma fragments
 // ------------------------------
-
+namespace mma {
 template <class Use, int M, int N, int K, class FT, class Layout, class T>
-__device__ inline void load_matrix_sync(nvcuda::wmma::fragment<Use, M, N, K, FT, Layout>& frag, const T* const ptr, const unsigned ldm, const bool sync = true) {
+__device__ inline void load_matrix_sync(mtk::wmma::mma::fragment<Use, M, N, K, FT, Layout>& frag, const T* const ptr, const unsigned ldm, const bool sync = true) {
 	// length of leading dimension of the input fragment
 	constexpr unsigned old_ldm = mtk::wmma::detail::common::layout_switch<Layout, mtk::wmma::detail::common::get_M<Use, M, N, K>::value, mtk::wmma::detail::common::get_M<Use, M, N, K>::value>::value;
-	mtk::wmma::foreach<decltype(frag)>(
+	mtk::wmma::mma::foreach<decltype(frag)>(
 		[&](const unsigned* frag_index_list, const unsigned fragment_index_count, const unsigned mem_index) {
 			const unsigned offset = (mem_index / old_ldm) * ldm;
 			for (unsigned i = 0; i < fragment_index_count; i++) {
@@ -144,10 +170,11 @@ __device__ inline void load_matrix_sync(nvcuda::wmma::fragment<Use, M, N, K, FT,
 }
 
 template <int M, int N, int K, class FT, class T>
-__device__ inline void load_matrix_sync(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, FT>& frag, const T* const ptr, const unsigned ldm, const nvcuda::wmma::layout_t layout, const bool sync = true) {
+__device__ inline void load_matrix_sync(mtk::wmma::mma::fragment<nvcuda::wmma::accumulator, M, N, K, FT>& frag, const T* const ptr, const unsigned ldm, const nvcuda::wmma::layout_t layout, const bool sync = true) {
 	// length of leading dimension of the input fragment
-	constexpr unsigned old_ldm = (layout == nvcuda::wmma::mem_col_major) ? mtk::wmma::detail::common::get_M<Use, M, N, K>::value : mtk::wmma::detail::common::get_M<Use, M, N, K>::value>::value;
-	mtk::wmma::foreach<decltype(frag)>(layout,
+	using Use = nvcuda::wmma::accumulator;
+	const unsigned old_ldm = (layout == nvcuda::wmma::mem_col_major) ? mtk::wmma::detail::common::get_M<Use, M, N, K>::value : mtk::wmma::detail::common::get_M<Use, M, N, K>::value;
+	mtk::wmma::mma::foreach<decltype(frag)>(layout,
 		[&](const unsigned* frag_index_list, const unsigned fragment_index_count, const unsigned mem_index) {
 			const unsigned offset = (mem_index / old_ldm) * ldm;
 			for (unsigned i = 0; i < fragment_index_count; i++) {
@@ -160,10 +187,11 @@ __device__ inline void load_matrix_sync(nvcuda::wmma::fragment<nvcuda::wmma::acc
 }
 
 template <int M, int N, int K, class FT, class T>
-__device__ inline void store_matrix_sync(T* const ptr, const nvcuda::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, FT>& frag, const unsigned ldm, const nvcuda::wmma::layout_t layout, const bool sync = true) {
+__device__ inline void store_matrix_sync(T* const ptr, const mtk::wmma::mma::fragment<nvcuda::wmma::accumulator, M, N, K, FT>& frag, const unsigned ldm, const nvcuda::wmma::layout_t layout, const bool sync = true) {
 	// length of leading dimension of the input fragment
-	constexpr unsigned old_ldm = (layout == nvcuda::wmma::mem_col_major) ? mtk::wmma::detail::common::get_M<Use, M, N, K>::value : mtk::wmma::detail::common::get_M<Use, M, N, K>::value>::value;
-	mtk::wmma::foreach<decltype(frag)>(layout,
+	using Use = nvcuda::wmma::accumulator;
+	const unsigned old_ldm = (layout == nvcuda::wmma::mem_col_major) ? mtk::wmma::detail::common::get_M<Use, M, N, K>::value : mtk::wmma::detail::common::get_M<Use, M, N, K>::value;
+	mtk::wmma::mma::foreach<decltype(frag)>(layout,
 		[&](const unsigned* frag_index_list, const unsigned fragment_index_count, const unsigned mem_index) {
 			const unsigned offset = (mem_index / old_ldm) * ldm;
 			for (unsigned i = 0; i < fragment_index_count; i++) {
@@ -174,6 +202,7 @@ __device__ inline void store_matrix_sync(T* const ptr, const nvcuda::wmma::fragm
 	if (sync)
 		__syncthreads();
 }
+} // namespace mma
 
 // ------------------------------
 // Identity matrix making function

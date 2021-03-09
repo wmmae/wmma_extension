@@ -15,6 +15,7 @@ class tf32;
 namespace mtk {
 namespace wmma {
 
+namespace mma {
 template <typename T, int size>
 struct __align__(4) __frag_base {
 	T x[size];
@@ -42,6 +43,7 @@ __device__ inline void fill_fragment(__frag_base<float, 4>& f, const T v) {
 
 template <class Use, int m, int n, int k, class T, class Layout = void>
 class fragment;
+} // namespace mma
 
 namespace detail {
 namespace common {
