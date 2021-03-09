@@ -14,6 +14,16 @@ class tf32;
 
 namespace mtk {
 namespace wmma {
+
+template <typename T, int size>
+struct __align__(4) __frag_base {
+	T x[size];
+	enum {num_elements = size};
+};
+
+template <class Use, int m, int n, int k, class T, class Layout = void>
+class fragment;
+
 namespace detail {
 namespace common {
 template <class T>
