@@ -87,9 +87,9 @@ template <int M, int N, int K> struct get_N<nvcuda::wmma::matrix_a   , M, N, K>{
 template <int M, int N, int K> struct get_N<nvcuda::wmma::matrix_b   , M, N, K>{static const int value = N;};
 template <int M, int N, int K> struct get_N<nvcuda::wmma::accumulator, M, N, K>{static const int value = N;};
 
-template <class Layout, int col_value, int row_calue> struct layout_switch;
-template <int col_value, int row_calue> struct layout_switch<nvcuda::wmma::col_major, col_value, row_value> {static const int value = col_value;};
-template <int col_value, int row_calue> struct layout_switch<nvcuda::wmma::row_major, col_value, row_value> {static const int value = row_value;};
+template <class Layout, int col_value, int row_value> struct layout_switch;
+template <int col_value, int row_value> struct layout_switch<nvcuda::wmma::col_major, col_value, row_value> {static const int value = col_value;};
+template <int col_value, int row_value> struct layout_switch<nvcuda::wmma::row_major, col_value, row_value> {static const int value = row_value;};
 
 } // namespace common
 } // namespace detail
