@@ -7,20 +7,6 @@
 #define TEST_ARCH (-1)
 #endif
 
-// #define TEST_TF32
-
-#ifndef TEST_TF32
-constexpr std::size_t M = 16;
-constexpr std::size_t N = 16;
-constexpr std::size_t K = 16;
-#else
-constexpr std::size_t M = 16;
-constexpr std::size_t N = 16;
-constexpr std::size_t K = 8;
-#endif
-
-using compute_t = half;
-
 template <class T, class S>
 __device__ __host__ T convert(const S);
 template <> __device__ __host__ float convert<float, float>(const float a) {return a;}
@@ -28,22 +14,24 @@ template <> __device__ __host__ float convert<float, half >(const half  a) {retu
 template <> __device__ __host__ half  convert<half , float>(const float a) {return __float2half(a);}
 template <> __device__ __host__ half  convert<half , half >(const half  a) {return a;}
 
-__global__ void make_eye_kernel(compute_t* const eye, const compute_t a) {
-	nvcuda::wmma::fragment<nvcuda::wmma::accumulator, N, M, K, compute_t> frag_c;
-	nvcuda::wmma::fill_fragment(frag_c, convert<compute_t>(1.0f));
+template <class T, int M, int N, int K>
+__global__ void make_eye_kernel(T* const eye, const T a) {
+	nvcuda::wmma::fragment<nvcuda::wmma::accumulator, N, M, K, T> frag_c;
+	nvcuda::wmma::fill_fragment(frag_c, convert<T>(1.0f));
 	mtk::wmma::add_eye(frag_c, a);
 	nvcuda::wmma::store_matrix_sync(eye, frag_c, N, nvcuda::wmma::mem_col_major);
 }
 
+template <class T, int M, int N, int K>
 void test() {
 	std::printf("-- test (%s) --\n", __FILE__);
 	std::printf("arch    : %d\n", TEST_ARCH);
-	compute_t*h;
+	T *h;
 
-	cudaMallocHost(&h, sizeof(compute_t) * N * N);
+	cudaMallocHost(&h, sizeof(T) * N * N);
 
 	cudaDeviceSynchronize();
-	make_eye_kernel<<<1, 32>>>(h, convert<compute_t>(2.0f));
+	make_eye_kernel<T, M, N, K><<<1, 32>>>(h, convert<T>(2.0f));
 	cudaDeviceSynchronize();
 
 	double max_error = 0.0;
@@ -58,5 +46,9 @@ void test() {
 }
 
 int main() {
-	test();
+	test<float, 16, 16, 16>();
+	test<half , 16, 16, 16>();
+#ifdef TEST_TF32
+	test<float, 16, 16, 8 >();
+#endif
 }
