@@ -5,8 +5,8 @@
 This extension provides features for
 - mapping between memory and fragment
 - operationf for vectors
-	- loading a vector as a fragment
-	- storing a fragment as a vector
+    - loading a vector as a fragment
+    - storing a fragment as a vector
 - making eye matrix fragment
 - etc
 
@@ -18,7 +18,7 @@ This extension also provides a C++ interface of experimental function:
 which is available in only PTX.
 See [detail](./docs/m8n8k4.md).
 
-**Important!!**
+**Caution!!**
 
 WMMA API does not have backward compatibility.
 Please specify an appropriate virtual architecture for real GPU when you use this library.
@@ -41,13 +41,13 @@ This function calculates the mapping of memory and fragment elements.
 nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major> frag_b;
 __shared__ compute_t matrix[16 * 16];
 mtk::wmma::foreach<decltype(frag_b)>(
-		[&](const unsigned* frag_index_list, const unsigned fragment_index_count, const unsigned mem_index) {
-			const auto m = mem_index % 16;
-			const auto n = mem_index / 16;
-			for (unsigned i = 0; i < fragment_index_count; i++)
-				frag_b.x[frag_index_list[i]] = convert_to<half>(matrix[n * 16 + m]);
-		});
-	);
+        [&](const unsigned* frag_index_list, const unsigned fragment_index_count, const unsigned mem_index) {
+            const auto m = mem_index % 16;
+            const auto n = mem_index / 16;
+            for (unsigned i = 0; i < fragment_index_count; i++)
+                frag_b.x[frag_index_list[i]] = convert_to<half>(matrix[n * 16 + m]);
+        });
+    );
 ```
 
 - Arguments
@@ -60,10 +60,10 @@ This function calculates the mapping of a given vector and fragment elements.
 nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major> frag_b;
 __shared__ compute_t vector[16];
 mtk::wmma::foreach_v<decltype(frag_b)>(
-		[&](const unsigned* frag_index_list, const unsigned fragment_index_count, const unsigned mem_index) {
-			for (unsigned i = 0; i < fragment_index_count; i++)
-				frag_b.x[frag_index_list[i]] = convert_to<half>(vector[mem_index]);
-		});
+        [&](const unsigned* frag_index_list, const unsigned fragment_index_count, const unsigned mem_index) {
+            for (unsigned i = 0; i < fragment_index_count; i++)
+                frag_b.x[frag_index_list[i]] = convert_to<half>(vector[mem_index]);
+        });
 // is equivalent to `load_vector`
 ```
 
@@ -75,10 +75,10 @@ mtk::wmma::foreach_v<decltype(frag_b)>(
 nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, float> frag_c;
 __shared__ compute_t vector[16];
 mtk::wmma::foreach_v<decltype(frag_c)>(nvcuda::wmma::mem_col_major,
-		[&](const unsigned* frag_index_list, const unsigned fragment_index_count, const unsigned mem_index) {
-			for (unsigned i = 0; i < fragment_index_count; i++)
-				vector[mem_index] = convert_to<compute_t>(frag_c.x[frag_index_list[i]]);
-		});
+        [&](const unsigned* frag_index_list, const unsigned fragment_index_count, const unsigned mem_index) {
+            for (unsigned i = 0; i < fragment_index_count; i++)
+                vector[mem_index] = convert_to<compute_t>(frag_c.x[frag_index_list[i]]);
+        });
 // is equivalent to `store_vector`
 ```
 
@@ -90,24 +90,24 @@ mtk::wmma::foreach_v<decltype(frag_c)>(nvcuda::wmma::mem_col_major,
 #include <wmma_extension/wmma_extension.hpp>
 
 __global__ void kernel() {
-	nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major> frag_a;
-	nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major> frag_b;
-	nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, float> frag_c;
+    nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major> frag_a;
+    nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major> frag_b;
+    nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, float> frag_c;
 
-	__shared__ float vec16[16];
+    __shared__ float vec16[16];
 
-	mtk::wmma::load_vector(frag_a, vec16);
-	mtk::wmma::load_vector(frag_b, vec16);
+    mtk::wmma::load_vector(frag_a, vec16);
+    mtk::wmma::load_vector(frag_b, vec16);
 
-	nvcuda::wmma::fill_fragment(frag_c, 0.0f);
-	nvcuda::wmma::mma_sync(frag_c, frag_a, frag_b, frag_c);
+    nvcuda::wmma::fill_fragment(frag_c, 0.0f);
+    nvcuda::wmma::mma_sync(frag_c, frag_a, frag_b, frag_c);
 
-	mtk::wmma::store_vector(vec16, frag_c, nvcuda::wmma::mem_col_major);
+    mtk::wmma::store_vector(vec16, frag_c, nvcuda::wmma::mem_col_major);
 }
 ```
 
 ## Other functions
-### make_eye
+### make_identity_matrix / add_eye
 ![load_matrix](docs/make_eye-en.svg)
 - Arguments
   - dst_fragment : Destination fragment (`accumulator`)
