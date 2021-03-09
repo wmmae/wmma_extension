@@ -2,7 +2,7 @@ TEST_ARCH=70
 ROOT_DIR=../../include
 NVCC=nvcc
 NVCCFLAGS=-std=c++17 -I$(ROOT_DIR) -arch=sm_$(TEST_ARCH) -DTEST_ARCH=$(TEST_ARCH)
-HEADERS=$(shell find ../../../include -name '*.hpp')
+HEADERS=$(shell find ../../include -name '*.hpp')
 
 TARGET=
 TARGET+=add_eye.test
