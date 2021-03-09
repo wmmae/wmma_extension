@@ -95,6 +95,52 @@ __device__ inline void foreach_v(nvcuda::wmma::fragment<nvcuda::wmma::accumulato
 	}
 }
 
+// Mma
+__device__ inline void mma_sync(
+		fragment<nvcuda::wmma::accumulator, 16, 8, 16, float>& d,
+		const fragment<nvcuda::wmma::matrix_a, 16, 8, 16, half, nvcuda::wmma::row_major>& a,
+		const fragment<nvcuda::wmma::matrix_b, 16, 8, 16, half, nvcuda::wmma::col_major>& b,
+		const fragment<nvcuda::wmma::accumulator, 16, 8, 16, float>& c) {
+	asm(R"({
+    mma.sync.aligned.m16n8k16.row.col.f32.f16.f16.f32
+      {%0, %1, %2, %3},
+      {%4, %5, %6, %7},
+      {%8, %9},
+      {%10, %11, %12, %13};
+})"
+			: "=f"(d.x[0]), "=f"(d.x[1]), "=f"(d.x[2]), "=f"(d.x[3])
+			: "r"(*reinterpret_cast<const unsigned*>(a.x)),
+			"r"(*reinterpret_cast<const unsigned*>(a.x + 2)),
+			"r"(*reinterpret_cast<const unsigned*>(a.x + 4)),
+			"r"(*reinterpret_cast<const unsigned*>(a.x + 6)),
+			"r"(*reinterpret_cast<const unsigned*>(b.x)),
+			"r"(*reinterpret_cast<const unsigned*>(b.x + 2)),
+			"f"(c.x[0]), "f"(c.x[1]), "f"(c.x[2]), "f"(c.x[3]));
+}
+
+__device__ inline void mma_sync(
+		fragment<nvcuda::wmma::accumulator, 16, 8, 16, half>& d,
+		const fragment<nvcuda::wmma::matrix_a, 16, 8, 16, half, nvcuda::wmma::row_major>& a,
+		const fragment<nvcuda::wmma::matrix_b, 16, 8, 16, half, nvcuda::wmma::col_major>& b,
+		const fragment<nvcuda::wmma::accumulator, 16, 8, 16, half>& c) {
+	asm(R"({
+    mma.sync.aligned.m16n8k16.row.col.f16.f16.f16.16f
+      {%0, %1},
+      {%2, %3, %4, %5},
+      {%6, %7},
+      {%8, %9}
+})"
+			: "r"(*reinterpret_cast<unsigned*>(d.x)),
+			"r"(*reinterpret_cast<unsigned*>(d.x + 2))
+			: "r"(*reinterpret_cast<const unsigned*>(a.x)),
+			"r"(*reinterpret_cast<const unsigned*>(a.x + 2)),
+			"r"(*reinterpret_cast<const unsigned*>(a.x + 4)),
+			"r"(*reinterpret_cast<const unsigned*>(a.x + 6)),
+			"r"(*reinterpret_cast<const unsigned*>(b.x)),
+			"r"(*reinterpret_cast<const unsigned*>(b.x + 2)),
+			"r"(*reinterpret_cast<const unsigned*>(c.x)),
+			"r"(*reinterpret_cast<const unsigned*>(c.x + 2))
+}
 } // namespace wmma
 } // namespace mtk
 
