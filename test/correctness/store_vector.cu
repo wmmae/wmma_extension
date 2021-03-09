@@ -51,7 +51,7 @@ void test(const nvcuda::wmma::layout_t layout) {
 	cudaMallocHost(&dst_mem, M * sizeof(float));
 
 	for (std::size_t i = 0; i < M * N; i++) {
-			src_mem[i] = static_cast<float>(i);
+		src_mem[i] = static_cast<float>(i);
 	}
 
 	cudaDeviceSynchronize();
@@ -62,6 +62,9 @@ void test(const nvcuda::wmma::layout_t layout) {
 		std::printf("%3.1f ", dst_mem[i]);
 	}
 	std::printf("\n");
+
+	cudaFreeHost(src_mem);
+	cudaFreeHost(dst_mem);
 }
 
 int main() {
