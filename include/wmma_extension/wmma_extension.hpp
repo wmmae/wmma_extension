@@ -22,46 +22,9 @@ namespace detail_namespace = mtk::wmma::detail::sm_75;
 namespace detail_namespace = mtk::wmma::detail::sm_80;
 #endif
 
-template <int M, int N, int K, class MemMajor, class T, class FT>
-__device__ inline void load_vector(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, M, N, K, FT, MemMajor>& frag, const T* const ptr, const bool fill = true) {
-	detail_namespace::load_vector(frag, ptr, fill);
-}
-
-template <int M, int N, int K, class MemMajor, class T, class FT>
-__device__ inline void load_vector(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, M, N, K, FT, MemMajor>& frag, const T* const ptr, const T mul, const bool fill = true) {
-	detail_namespace::load_vector(frag, ptr, mul, fill);
-}
-
-template <int M, int N, int K, class MemMajor, class T, class FT>
-__device__ inline void load_vector(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, M, N, K, FT, MemMajor>& frag, const T* const ptr, const bool fill = true) {
-	detail_namespace::load_vector(frag, ptr, fill);
-}
-
-template <int M, int N, int K, class MemMajor, class T, class FT>
-__device__ inline void load_vector(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, M, N, K, FT, MemMajor>& frag, const T* const ptr, const T mul, const bool fill = true) {
-	detail_namespace::load_vector(frag, ptr, mul, fill);
-}
-
-template <int M, int N, int K, class T, class FT>
-__device__ inline void load_vector(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, FT>& frag, const T* const ptr, const nvcuda::wmma::layout_t layout, const bool fill = true) {
-	detail_namespace::load_vector(frag, ptr, layout, fill);
-}
-
-template <int M, int N, int K, class T, class FT>
-__device__ inline void load_vector(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, FT>& frag, const T* const ptr, const T mul, const nvcuda::wmma::layout_t layout, const bool fill = true) {
-	detail_namespace::load_vector(frag, ptr, mul, layout, fill);
-}
-
-template <int M, int N, int K, class T>
-__device__ inline void store_vector(T* const ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, T>& frag, const nvcuda::wmma::layout_t layout) {
-	detail_namespace::store_vector(ptr, frag, layout);
-}
-
-template <int M, int N, int K, class T>
-__device__ inline void store_vector(T* const ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, T>& frag, const T mul, const nvcuda::wmma::layout_t layout) {
-	detail_namespace::store_vector(ptr, frag, mul, layout);
-}
-
+// ------------------------------
+// Primitive functions
+// ------------------------------
 template <class MatrixType, int M, int N, int K, class MemMajor, class Func, class FT>
 __device__ inline void foreach(nvcuda::wmma::fragment<MatrixType, M, N, K, FT, MemMajor>& frag, Func func) {
 	detail_namespace::foreach(frag, func);
@@ -94,21 +57,88 @@ __device__ inline void foreach_v(const nvcuda::wmma::layout_t layout, Func func)
 	detail_namespace::foreach_v(frag, layout, func);
 }
 
-template <class MatrixType, int M, int N, int K, class MemMajor, class T, class Func, class FT>
-__device__ inline void load_matrix_with_operation(nvcuda::wmma::fragment<MatrixType, M, N, K, FT, MemMajor>& frag, const T* const ptr, unsigned ldm, Func func) {
-	detail_namespace::load_matrix_with_operation(frag, ptr, ldm, func);
+// ------------------------------
+// LD/ST functions for vectors
+// ------------------------------
+template <class Use, int M, int N, int K, class FT, class Layout, class T>
+__device__ inline void load_vector(nvcuda::wmma::fragment<Use, M, N, K, FT, Layout>& frag, const T* const ptr, const bool fill = true) {
+	if (fill)
+		mtk::wmma::fill_zero(frag);
+	mtk::wmma::foreach_v<decltype(frag)>(
+		[&](const unsigned* frag_index_list, const unsigned fragment_index_count, const unsigned mem_index) {
+			for (unsigned i = 0; i < fragment_index_count; i++)
+				frag.x[frag_index_list[i]] = mtk::wmma::detail::common::cast<typename mtk::wmma::detail::common::storage_t<FT>::type>(ptr[mem_index]);
+		});
+}
+
+template <class Use, int M, int N, int K, class FT, class Layout, class T>
+__device__ inline void load_vector(nvcuda::wmma::fragment<Use, M, N, K, FT, Layout>& frag, const T* const ptr, const T mul, const bool fill = true) {
+	if (fill)
+		mtk::wmma::fill_zero(frag);
+	mtk::wmma::foreach_v<decltype(frag)>(
+		[&](const unsigned* frag_index_list, const unsigned fragment_index_count, const unsigned mem_index) {
+			for (unsigned i = 0; i < fragment_index_count; i++)
+				frag.x[frag_index_list[i]] = mtk::wmma::detail::common::cast<typename mtk::wmma::detail::common::storage_t<FT>::type>(ptr[mem_index] * mul);
+		});
+}
+
+template <class Use, int M, int N, int K, class FT, class Layout, class T>
+__device__ inline void load_vector(nvcuda::wmma::fragment<Use, M, N, K, FT, Layout>& frag, const T* const ptr, const nvcuda::wmma::layout_t layout, const bool fill = true) {
+	if (fill)
+		mtk::wmma::fill_zero(frag);
+	mtk::wmma::foreach_v<decltype(frag)>(layout,
+		[&](const unsigned* frag_index_list, const unsigned fragment_index_count, const unsigned mem_index) {
+			for (unsigned i = 0; i < fragment_index_count; i++)
+				frag.x[frag_index_list[i]] = mtk::wmma::detail::common::cast<typename mtk::wmma::detail::common::storage_t<FT>::type>(ptr[mem_index]);
+		});
+}
+
+template <class Use, int M, int N, int K, class FT, class Layout, class T>
+__device__ inline void load_vector(nvcuda::wmma::fragment<Use, M, N, K, FT, Layout>& frag, const T* const ptr, const nvcuda::wmma::layout_t layout, const T mul, const bool fill = true) {
+	if (fill)
+		mtk::wmma::fill_zero(frag);
+	mtk::wmma::foreach_v<decltype(frag)>(layout,
+		[&](const unsigned* frag_index_list, const unsigned fragment_index_count, const unsigned mem_index) {
+			for (unsigned i = 0; i < fragment_index_count; i++)
+				frag.x[frag_index_list[i]] = mtk::wmma::detail::common::cast<typename mtk::wmma::detail::common::storage_t<FT>::type>(ptr[mem_index] * mul);
+		});
+}
+
+template <int M, int N, int K, class FT, class T>
+__device__ inline void store_vector(T* const ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, FT>& frag, const nvcuda::wmma::layout_t layout) {
+	mtk::wmma::foreach_v<decltype(frag)>(layout,
+		[&](const unsigned* frag_index_list, const unsigned fragment_index_count, const unsigned mem_index) {
+			for (unsigned i = 0; i < fragment_index_count; i++)
+				ptr[mem_index] = mtk::wmma::detail::common::cast<typename mtk::wmma::detail::common::storage_t<T>::type>(frag.x[frag_index_list[i]]);
+		});
+}
+
+template <int M, int N, int K, class FT, class T>
+__device__ inline void store_vector(T* const ptr, nvcuda::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, FT>& frag, const T mul, const nvcuda::wmma::layout_t layout) {
+	mtk::wmma::foreach_v<decltype(frag)>(layout,
+		[&](const unsigned* frag_index_list, const unsigned fragment_index_count, const unsigned mem_index) {
+			for (unsigned i = 0; i < fragment_index_count; i++)
+				ptr[mem_index] = mtk::wmma::detail::common::cast<typename mtk::wmma::detail::common::storage_t<T>::type>(frag.x[frag_index_list[i]]) * mul;
+		});
+}
+
+// ------------------------------
+// Identity matrix making function
+// ------------------------------
+template <int M, int N, int K, class T, class FT>
+__device__ void add_eye(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, T>& frag, const FT a) {
+	detail_namespace::add_eye(frag, a);
 }
 
 template <int M, int N, int K, class T>
-__device__ inline void make_identity_matrix(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, T>& frag) {
-	detail_namespace::make_identity_matrix(frag);
+__device__ void make_identity_matrix(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, T>& frag) {
+	mtk::wmma::fill_zero(frag);
+	mtk::wmma::add_eye(frag, mtk::wmma::detail::common::cast<T>(1.0f));
 }
 
-template <int M, int N, int K, class T>
-__device__ inline void add_eye(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, T>& frag, const T alpha) {
-	detail_namespace::add_eye(frag, alpha);
-}
-
+// ------------------------------
+// Loading direct product vector functions
+// ------------------------------
 template <class MatrixType, int M, int N, int K, class MemMajor, class T, class S, class FT>
 __device__ inline void make_direct_product_fragment(
 		nvcuda::wmma::fragment<MatrixType, M, N, K, FT, MemMajor>& frag_x,
@@ -143,21 +173,6 @@ __device__ inline void make_direct_product_fragment_c3(
 		const bool fill = true
 		) {
 	detail_namespace::make_direct_product_fragment<3>(frag_x, x, fill);
-}
-
-// For only CC >= 80
-template <class MatrixType, int M, int N, int K, class MemMajor, class T, class FT>
-__device__ inline void load_vector_with_rounding(nvcuda::wmma::fragment<MatrixType, M, N, K, FT, MemMajor>& frag, const T* const ptr, const bool fill = true) {
-#if __CUDA_ARCH__ >= 800
-	detail_namespace::load_vector_with_rounding(frag, ptr, fill);
-#endif
-}
-
-template <class MatrixType, int M, int N, int K, class MemMajor, class T, class FT>
-__device__ inline void load_vector_with_rounding(nvcuda::wmma::fragment<MatrixType, M, N, K, FT, MemMajor>& frag, const T* const ptr, const T mul, const bool fill = true) {
-#if __CUDA_ARCH__ >= 800
-	detail_namespace::load_vector_with_rounding(frag, ptr, mul, fill);
-#endif
 }
 
 template <class MatrixType, int M, int N, int K, class MemMajor, class T>

@@ -36,7 +36,7 @@ __global__ void test_store_vector_kernel(
 }
 
 void test(const nvcuda::wmma::layout_t layout) {
-	std::printf("-- store_vector test --\n");
+	std::printf("-- test (%s) --\n", __FILE__);
 	std::printf("arch   : %d\n", TEST_ARCH);
 	if (layout == nvcuda::wmma::mem_col_major) {
 		std::printf("layout : col_major\n");
@@ -51,7 +51,7 @@ void test(const nvcuda::wmma::layout_t layout) {
 	cudaMallocHost(&dst_mem, M * sizeof(float));
 
 	for (std::size_t i = 0; i < M * N; i++) {
-			src_mem[i] = static_cast<float>(i);
+		src_mem[i] = static_cast<float>(i);
 	}
 
 	cudaDeviceSynchronize();
@@ -62,6 +62,9 @@ void test(const nvcuda::wmma::layout_t layout) {
 		std::printf("%3.1f ", dst_mem[i]);
 	}
 	std::printf("\n");
+
+	cudaFreeHost(src_mem);
+	cudaFreeHost(dst_mem);
 }
 
 int main() {

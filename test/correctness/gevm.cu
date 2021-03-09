@@ -32,7 +32,7 @@ __global__ void test_gevm_kernel(
 }
 
 void test() {
-	std::printf("-- gevm test --\n");
+	std::printf("-- test (%s) --\n", __FILE__);
 	std::printf("arch   : %d\n", TEST_ARCH);
 	half* src_mem;
 	float* dst_mem;

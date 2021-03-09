@@ -25,7 +25,7 @@ __global__ void test_load_vector_kernel(
 
 template <class layout>
 void test() {
-	std::printf("-- load_vector test --\n");
+	std::printf("-- test (%s) --\n", __FILE__);
 	std::printf("arch   : %d\n", TEST_ARCH);
 	if (std::is_same<layout, nvcuda::wmma::col_major>::value) {
 		std::printf("layout : col_major\n");

@@ -1,7 +1,7 @@
 #include <iostream>
 #include <random>
 #include <type_traits>
-#include <wmma_extension.hpp>
+#include <wmma_extension/wmma_extension.hpp>
 
 #ifndef TEST_ARCH
 #define TEST_ARCH (-1)
@@ -60,7 +60,7 @@ __global__ void matmul16x16_kernel(float* const c_ptr, const float* const a_ptr,
 }
 
 void test() {
-	std::printf("-- foreach test --\n");
+	std::printf("-- test (%s) --\n", __FILE__);
 	std::printf("arch    : %d\n", TEST_ARCH);
 
 	float *a, *b, *c;
