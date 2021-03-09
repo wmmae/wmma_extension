@@ -6,30 +6,11 @@
 namespace mtk {
 namespace wmma {
 
-template <> class fragment<nvcuda::wmma::matrix_a   , 16, 8, 16, half, nvcuda::wmma::row_major> : public __frag_base<half, 8>{};
-template <> class fragment<nvcuda::wmma::matrix_b   , 16, 8, 16, half, nvcuda::wmma::col_major> : public __frag_base<half, 4>{};
+template <> class fragment<nvcuda::wmma::matrix_a   , 16, 8, 16, half , nvcuda::wmma::row_major> : public __frag_base<half, 8>{};
+template <> class fragment<nvcuda::wmma::matrix_b   , 16, 8, 16, half , nvcuda::wmma::col_major> : public __frag_base<half, 4>{};
 template <> class fragment<nvcuda::wmma::accumulator, 16, 8, 16, float> : public __frag_base<float, 4>{};
 template <> class fragment<nvcuda::wmma::accumulator, 16, 8, 16, half > : public __frag_base<half , 4>{};
 
-
-template <class T>
-__device__ inline void fill_fragment(__frag_base<half, 8>& f, const T v) {
-#pragma unroll
-	for (unsigned i = 0; i < f.num_elements; i++)
-		f.x[i] = v; 
-}
-template <class T>
-__device__ inline void fill_fragment(__frag_base<half, 4>& f, const T v) {
-#pragma unroll
-	for (unsigned i = 0; i < f.num_elements; i++)
-		f.x[i] = v; 
-}
-template <class T>
-__device__ inline void fill_fragment(__frag_base<float, 4>& f, const T v) {
-#pragma unroll
-	for (unsigned i = 0; i < f.num_elements; i++)
-		f.x[i] = v; 
-}
 
 // foreach
 template <class Func>
@@ -48,7 +29,7 @@ __device__ inline void foreach(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 8,
 }
 
 template <class Func>
-__device__ inline void foreach(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 8, 16, 8, half, nvcuda::wmma::row_major>& frag, Func func) {
+__device__ inline void foreach(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 8, 16, 8, half, nvcuda::wmma::col_major>& frag, Func func) {
 	const unsigned col = mtk::wmma::detail::common::get_lane_id() / 4;
 	const unsigned row_block_id = mtk::wmma::detail::common::get_lane_id() % 4;
 
