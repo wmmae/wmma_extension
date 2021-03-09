@@ -108,7 +108,7 @@ __global__ void direct_product_kernel(float* const h, const float* const u, cons
 
 template <unsigned CORRECTION_TERMS>
 void test() {
-	std::printf("-- direct_product test --\n");
+	std::printf("-- test (%s) --\n", __FILE__);
 	std::printf("arch    : %d\n", TEST_ARCH);
 	std::printf("c terms : %u\n", CORRECTION_TERMS);
 	float *u;
