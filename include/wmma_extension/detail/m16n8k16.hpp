@@ -56,6 +56,45 @@ __device__ inline void foreach(nvcuda::wmma::fragment<nvcuda::wmma::accumulator,
 		}
 	}
 }
+
+// foreach_v
+template <class Func>
+__device__ inline void foreach_v(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 8, 16, 8, half, nvcuda::wmma::row_major>& frag, Func func) {
+	if (mtk::wmma::detail::common::get_lane_id() >= 4)
+		return;
+
+	{const unsigned frag_index_list[1] = {0};func(frag_index_list, 1, mtk::wmma::detail::common::get_lane_id() * 2 + 0);}
+	{const unsigned frag_index_list[1] = {1};func(frag_index_list, 1, mtk::wmma::detail::common::get_lane_id() * 2 + 1);}
+	{const unsigned frag_index_list[1] = {4};func(frag_index_list, 1, mtk::wmma::detail::common::get_lane_id() * 2 + 8);}
+	{const unsigned frag_index_list[1] = {5};func(frag_index_list, 1, mtk::wmma::detail::common::get_lane_id() * 2 + 9);}
+}
+
+template <class Func>
+__device__ inline void foreach_v(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 8, 16, 8, half, nvcuda::wmma::col_major>& frag, Func func) {
+	if (mtk::wmma::detail::common::get_lane_id() >= 4)
+		return;
+
+	{const unsigned frag_index_list[1] = {0};func(frag_index_list, 1, mtk::wmma::detail::common::get_lane_id() * 2 + 0);}
+	{const unsigned frag_index_list[1] = {1};func(frag_index_list, 1, mtk::wmma::detail::common::get_lane_id() * 2 + 1);}
+	{const unsigned frag_index_list[1] = {2};func(frag_index_list, 1, mtk::wmma::detail::common::get_lane_id() * 2 + 8);}
+	{const unsigned frag_index_list[1] = {3};func(frag_index_list, 1, mtk::wmma::detail::common::get_lane_id() * 2 + 9);}
+}
+
+template <class Func, class T>
+__device__ inline void foreach_v(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 8, 16, 8, T>& frag, const nvcuda::wmma::layout_t layout, Func func) {
+	if (layout == nvcuda::wmma::mem_col_major) {
+		if (mtk::wmma::detail::common::get_lane_id() && 0b11)
+			return;
+		{const unsigned frag_index_list[1] = {0};func(frag_index_list, 1, mtk::wmma::detail::common::get_lane_id() / 4 + 0);}
+		{const unsigned frag_index_list[1] = {2};func(frag_index_list, 1, mtk::wmma::detail::common::get_lane_id() / 4 + 8);}
+	} else {
+		if (mtk::wmma::detail::common::get_lane_id() >= 4)
+			return;
+		{const unsigned frag_index_list[1] = {0};func(frag_index_list, 1, mtk::wmma::detail::common::get_lane_id() * 2 + 0);}
+		{const unsigned frag_index_list[1] = {1};func(frag_index_list, 1, mtk::wmma::detail::common::get_lane_id() * 2 + 1);}
+	}
+}
+
 } // namespace wmma
 } // namespace mtk
 
