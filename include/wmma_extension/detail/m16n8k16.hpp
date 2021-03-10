@@ -22,8 +22,8 @@ __device__ inline void foreach(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_a, 
 		for (unsigned j = 0; j < 2; j++) {
 			const auto col = i * 8 + col_block_id * 2;
 			const auto row = row_block_id + j * 8;
-			{const unsigned frag_index_list[1] = {(i * 4 + j * 2 + 0)};func(frag_index_list, 1, row + (col + 0) * 16);}
-			{const unsigned frag_index_list[1] = {(i * 4 + j * 2 + 1)};func(frag_index_list, 1, row + (col + 1) * 16);}
+			{const unsigned frag_index_list[1] = {(i * 4 + j * 2 + 0)};func(frag_index_list, 1, row * 16 + (col + 0));}
+			{const unsigned frag_index_list[1] = {(i * 4 + j * 2 + 1)};func(frag_index_list, 1, row * 16 + (col + 1));}
 		}
 	}
 }
