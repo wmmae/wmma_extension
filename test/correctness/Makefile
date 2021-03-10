@@ -13,7 +13,7 @@ TARGET+=foreach_v_acc.test
 TARGET+=gevm.test
 TARGET+=load_vector.test
 TARGET+=store_vector.test
-TARGET+=m8n8k4.test
+#TARGET+=m8n8k4.test
 TARGET+=m16n8k16.test
 TARGET+=print_fragment.test
 
