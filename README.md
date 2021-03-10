@@ -140,7 +140,7 @@ __global__ void m16n8k16_kernel(float* const d, const half* const a, const half*
 ```
 
 ### Supported fragments
-- m16n8k14 (sm_75 of later)
+- m16n8k16 (sm_80 or later)
 
 # LICENSE
 MIT
