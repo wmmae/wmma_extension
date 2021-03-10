@@ -8,15 +8,10 @@ This extension provides features for
     - loading a vector as a fragment
     - storing a fragment as a vector
 - making eye matrix fragment
+- C++ interface of `mma` instructions
 - etc
 
 without using extra shared memory.
-
-This extension also provides a C++ interface of experimental function:
-- `mma.m8n8k4` for `f16/f32` (sm_70)
-
-which is available in only PTX.
-See [detail](./docs/m8n8k4.md).
 
 **Caution!!**
 
@@ -124,6 +119,28 @@ This function output the elements of a fragment.
 - Arguments
   - frag : Target fragment
   - name : printing name of fragment (`char*`, optional)
+
+## C++ interface of `mma` instructions
+
+```cpp
+__global__ void m16n8k16_kernel(float* const d, const half* const a, const half* const b, const float* const c) {
+	mtk::wmma::mma::fragment<nvcuda::wmma::matrix_a   , 16, 8, 16, half, nvcuda::wmma::col_major> frag_a;
+	mtk::wmma::mma::fragment<nvcuda::wmma::matrix_b   , 16, 8, 16, half, nvcuda::wmma::col_major> frag_b;
+	mtk::wmma::mma::fragment<nvcuda::wmma::accumulator, 16, 8, 16, float> frag_c;
+	mtk::wmma::mma::fragment<nvcuda::wmma::accumulator, 16, 8, 16, float> frag_d;
+
+	mtk::wmma::mma::load_matrix_sync(frag_a, a, 16);
+	mtk::wmma::mma::load_matrix_sync(frag_b, b, 8);
+	mtk::wmma::mma::load_matrix_sync(frag_c, c, 16, nvcuda::wmma::mem_col_major);
+
+	mtk::wmma::mma::mma_sync(frag_d, frag_a, frag_b, frag_c);
+
+	mtk::wmma::mma::store_matrix_sync(d, frag_d, 16, nvcuda::wmma::mem_col_major);
+}
+```
+
+### Supported fragments
+- m16n8k14 (sm_75 of later)
 
 # LICENSE
 MIT
