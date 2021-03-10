@@ -1,4 +1,4 @@
-TEST_ARCH=70
+TEST_ARCH=80
 ROOT_DIR=../../include
 NVCC=nvcc
 NVCCFLAGS=-std=c++17 -I$(ROOT_DIR) -arch=sm_$(TEST_ARCH) -DTEST_ARCH=$(TEST_ARCH)
@@ -13,7 +13,8 @@ TARGET+=foreach_v_acc.test
 TARGET+=gevm.test
 TARGET+=load_vector.test
 TARGET+=store_vector.test
-TARGET+=m8n8k4.test
+#TARGET+=m8n8k4.test
+TARGET+=m16n8k16.test
 TARGET+=print_fragment.test
 
 all: $(TARGET)

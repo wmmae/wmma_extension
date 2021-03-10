@@ -14,6 +14,37 @@ class tf32;
 
 namespace mtk {
 namespace wmma {
+
+namespace mma {
+template <typename T, int size>
+struct __align__(4) __frag_base {
+	T x[size];
+	enum {num_elements = size};
+};
+
+template <class T>
+__device__ inline void fill_fragment(__frag_base<half, 8>& f, const T v) {
+#pragma unroll
+	for (unsigned i = 0; i < f.num_elements; i++)
+		f.x[i] = v;
+}
+template <class T>
+__device__ inline void fill_fragment(__frag_base<half, 4>& f, const T v) {
+#pragma unroll
+	for (unsigned i = 0; i < f.num_elements; i++)
+		f.x[i] = v;
+}
+template <class T>
+__device__ inline void fill_fragment(__frag_base<float, 4>& f, const T v) {
+#pragma unroll
+	for (unsigned i = 0; i < f.num_elements; i++)
+		f.x[i] = v;
+}
+
+template <class Use, int m, int n, int k, class T, class Layout = void>
+class fragment;
+} // namespace mma
+
 namespace detail {
 namespace common {
 template <class T>
@@ -45,9 +76,23 @@ inline __device__ unsigned get_lane_id() {
 	asm(R"({mov.s32 %0, %laneid;})":"=r"(lane_id));
 	return lane_id;
 }
+
+template <class Use, int M, int N, int K> struct get_M;
+template <int M, int N, int K> struct get_M<nvcuda::wmma::matrix_a   , M, N, K>{static const int value = M;};
+template <int M, int N, int K> struct get_M<nvcuda::wmma::matrix_b   , M, N, K>{static const int value = K;};
+template <int M, int N, int K> struct get_M<nvcuda::wmma::accumulator, M, N, K>{static const int value = M;};
+
+template <class Use, int M, int N, int K> struct get_N;
+template <int M, int N, int K> struct get_N<nvcuda::wmma::matrix_a   , M, N, K>{static const int value = K;};
+template <int M, int N, int K> struct get_N<nvcuda::wmma::matrix_b   , M, N, K>{static const int value = N;};
+template <int M, int N, int K> struct get_N<nvcuda::wmma::accumulator, M, N, K>{static const int value = N;};
+
+template <class Layout, int col_value, int row_value> struct layout_switch;
+template <int col_value, int row_value> struct layout_switch<nvcuda::wmma::col_major, col_value, row_value> {static const int value = col_value;};
+template <int col_value, int row_value> struct layout_switch<nvcuda::wmma::row_major, col_value, row_value> {static const int value = row_value;};
+
 } // namespace common
 } // namespace detail
-
 template <class Use, int M, int N, int K, class Layout>
 __device__ inline void fill_zero(nvcuda::wmma::fragment<Use, M, N, K, float, Layout>& frag) {
 	int4* const i4 = reinterpret_cast<int4*>(frag.x);
