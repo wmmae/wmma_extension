@@ -39,6 +39,24 @@ struct fill_zero_core<16, T> {
 		*reinterpret_cast<int4*>(ptr) = make_int4(0, 0, 0, 0);
 	}
 };
+
+template <class T>
+struct fill_zero_core<32, T> {
+	__device__ void operator()(T* const ptr) {
+		*(reinterpret_cast<int4*>(ptr) + 0) = make_int4(0, 0, 0, 0);
+		*(reinterpret_cast<int4*>(ptr) + 1) = make_int4(0, 0, 0, 0);
+	}
+};
+
+template <class T>
+struct fill_zero_core<64, T> {
+	__device__ void operator()(T* const ptr) {
+		*(reinterpret_cast<int4*>(ptr) + 0) = make_int4(0, 0, 0, 0);
+		*(reinterpret_cast<int4*>(ptr) + 1) = make_int4(0, 0, 0, 0);
+		*(reinterpret_cast<int4*>(ptr) + 2) = make_int4(0, 0, 0, 0);
+		*(reinterpret_cast<int4*>(ptr) + 3) = make_int4(0, 0, 0, 0);
+	}
+};
 } // namespace detail
 
 namespace mma {
