@@ -15,6 +15,50 @@ class tf32;
 namespace mtk {
 namespace wmma {
 
+namespace detail {
+template <unsigned byte, class T>
+struct fill_zero_core;
+
+template <class T>
+struct fill_zero_core<4, T> {
+	__device__ void operator()(T* const ptr) {
+		*reinterpret_cast<int*>(ptr) = 0;
+	}
+};
+
+template <class T>
+struct fill_zero_core<8, T> {
+	__device__ void operator()(T* const ptr) {
+		*reinterpret_cast<int2*>(ptr) = make_int2(0, 0);
+	}
+};
+
+template <class T>
+struct fill_zero_core<16, T> {
+	__device__ void operator()(T* const ptr) {
+		*reinterpret_cast<int4*>(ptr) = make_int4(0, 0, 0, 0);
+	}
+};
+
+template <class T>
+struct fill_zero_core<32, T> {
+	__device__ void operator()(T* const ptr) {
+		*(reinterpret_cast<int4*>(ptr) + 0) = make_int4(0, 0, 0, 0);
+		*(reinterpret_cast<int4*>(ptr) + 1) = make_int4(0, 0, 0, 0);
+	}
+};
+
+template <class T>
+struct fill_zero_core<64, T> {
+	__device__ void operator()(T* const ptr) {
+		*(reinterpret_cast<int4*>(ptr) + 0) = make_int4(0, 0, 0, 0);
+		*(reinterpret_cast<int4*>(ptr) + 1) = make_int4(0, 0, 0, 0);
+		*(reinterpret_cast<int4*>(ptr) + 2) = make_int4(0, 0, 0, 0);
+		*(reinterpret_cast<int4*>(ptr) + 3) = make_int4(0, 0, 0, 0);
+	}
+};
+} // namespace detail
+
 namespace mma {
 template <typename T, int size>
 struct __align__(4) __frag_base {
@@ -43,6 +87,18 @@ __device__ inline void fill_fragment(__frag_base<float, 4>& f, const T v) {
 
 template <class Use, int m, int n, int k, class T, class Layout = void>
 class fragment;
+
+template <class Use, int M, int N, int K, class Layout>
+__device__ inline void fill_zero(mtk::wmma::mma::fragment<Use, M, N, K, float, Layout>& frag) {
+	constexpr unsigned size = 4 * mtk::wmma::mma::fragment<Use, M, N, K, float, Layout>::num_elements;
+	detail::fill_zero_core<size, float>{}(reinterpret_cast<float*>(frag.x));
+}
+
+template <class Use, int M, int N, int K, class Layout>
+__device__ inline void fill_zero(mtk::wmma::mma::fragment<Use, M, N, K, half, Layout>& frag) {
+	constexpr unsigned size = 2 * mtk::wmma::mma::fragment<Use, M, N, K, half, Layout>::num_elements;
+	detail::fill_zero_core<size, half>{}(reinterpret_cast<half*>(frag.x));
+}
 } // namespace mma
 
 namespace detail {
@@ -95,29 +151,20 @@ template <int col_value, int row_value> struct layout_switch<nvcuda::wmma::row_m
 } // namespace detail
 template <class Use, int M, int N, int K, class Layout>
 __device__ inline void fill_zero(nvcuda::wmma::fragment<Use, M, N, K, float, Layout>& frag) {
-	int4* const i4 = reinterpret_cast<int4*>(frag.x);
-	const unsigned size = sizeof(float) * nvcuda::wmma::fragment<Use, M, N, K, float, Layout>::num_elements;
-	for (unsigned i = 0; i < size / sizeof(int4); i++) {
-		i4[i] = make_int4(0, 0, 0, 0);
-	}
+	const unsigned size = 4 * nvcuda::wmma::fragment<Use, M, N, K, float, Layout>::num_elements;
+	detail::fill_zero_core<size, float>{}(reinterpret_cast<float*>(frag.x));
 }
 template <class Use, int M, int N, int K, class Layout>
 __device__ inline void fill_zero(nvcuda::wmma::fragment<Use, M, N, K, half, Layout>& frag) {
-	int4* const i4 = reinterpret_cast<int4*>(frag.x);
-	const unsigned size = sizeof(half) * nvcuda::wmma::fragment<Use, M, N, K, half, Layout>::num_elements;
-	for (unsigned i = 0; i < size / sizeof(int4); i++) {
-		i4[i] = make_int4(0, 0, 0, 0);
-	}
+	const unsigned size = 2 * nvcuda::wmma::fragment<Use, M, N, K, half, Layout>::num_elements;
+	detail::fill_zero_core<size, half>{}(reinterpret_cast<half*>(frag.x));
 }
 
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
 template <class Use, int M, int N, int K, class Layout>
 __device__ inline void fill_zero(nvcuda::wmma::fragment<Use, M, N, K, nvcuda::wmma::precision::tf32, Layout>& frag) {
-	int4* const i4 = reinterpret_cast<int4*>(frag.x);
-	const unsigned size = sizeof(float) * nvcuda::wmma::fragment<Use, M, N, K, nvcuda::wmma::precision::tf32, Layout>::num_elements;
-	for (unsigned i = 0; i < size / sizeof(int4); i++) {
-		i4[i] = make_int4(0, 0, 0, 0);
-	}
+	const unsigned size = 4 * nvcuda::wmma::fragment<Use, M, N, K, nvcuda::wmma::precision::tf32, Layout>::num_elements;
+	detail::fill_zero_core<size, float>{}(reinterpret_cast<float*>(frag.x));
 }
 #endif
 } // namespace wmma
