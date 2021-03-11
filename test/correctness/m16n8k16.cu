@@ -25,6 +25,8 @@ __global__ void m16n8k16_test_kernel(T* const d, const half* const a, const half
 	const unsigned ldc = (c_layout == nvcuda::wmma::mem_col_major) ? M : N;
 	const unsigned ldd = (d_layout == nvcuda::wmma::mem_col_major) ? M : N;
 
+	mtk::wmma::mma::fill_zero(frag_d);
+
 	mtk::wmma::mma::load_matrix_sync(frag_a, a, lda);
 	mtk::wmma::mma::load_matrix_sync(frag_b, b, ldb);
 	mtk::wmma::mma::load_matrix_sync(frag_c, c, ldc, c_layout);
