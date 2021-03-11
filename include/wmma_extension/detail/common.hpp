@@ -15,6 +15,32 @@ class tf32;
 namespace mtk {
 namespace wmma {
 
+namespace detail {
+template <unsigned byte, class T>
+struct fill_zero_core;
+
+template <class T>
+struct fill_zero_core<4, T> {
+	__device__ void operator()(T* const ptr) {
+		*reinterpret_cast<int*>(ptr) = 0;
+	}
+};
+
+template <class T>
+struct fill_zero_core<8, T> {
+	__device__ void operator()(T* const ptr) {
+		*reinterpret_cast<int2*>(ptr) = make_int2(0, 0);
+	}
+};
+
+template <class T>
+struct fill_zero_core<16, T> {
+	__device__ void operator()(T* const ptr) {
+		*reinterpret_cast<int4*>(ptr) = make_int4(0, 0, 0, 0);
+	}
+};
+} // namespace detail
+
 namespace mma {
 template <typename T, int size>
 struct __align__(4) __frag_base {
