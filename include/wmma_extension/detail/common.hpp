@@ -151,29 +151,20 @@ template <int col_value, int row_value> struct layout_switch<nvcuda::wmma::row_m
 } // namespace detail
 template <class Use, int M, int N, int K, class Layout>
 __device__ inline void fill_zero(nvcuda::wmma::fragment<Use, M, N, K, float, Layout>& frag) {
-	int4* const i4 = reinterpret_cast<int4*>(frag.x);
-	const unsigned size = sizeof(float) * nvcuda::wmma::fragment<Use, M, N, K, float, Layout>::num_elements;
-	for (unsigned i = 0; i < size / sizeof(int4); i++) {
-		i4[i] = make_int4(0, 0, 0, 0);
-	}
+	const unsigned size = 4 * nvcuda::wmma::fragment<Use, M, N, K, float, Layout>::num_elements;
+	detail::fill_zero_core<size, float>{}(reinterpret_cast<float*>(frag.x));
 }
 template <class Use, int M, int N, int K, class Layout>
 __device__ inline void fill_zero(nvcuda::wmma::fragment<Use, M, N, K, half, Layout>& frag) {
-	int4* const i4 = reinterpret_cast<int4*>(frag.x);
-	const unsigned size = sizeof(half) * nvcuda::wmma::fragment<Use, M, N, K, half, Layout>::num_elements;
-	for (unsigned i = 0; i < size / sizeof(int4); i++) {
-		i4[i] = make_int4(0, 0, 0, 0);
-	}
+	const unsigned size = 2 * nvcuda::wmma::fragment<Use, M, N, K, half, Layout>::num_elements;
+	detail::fill_zero_core<size, half>{}(reinterpret_cast<half*>(frag.x));
 }
 
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
 template <class Use, int M, int N, int K, class Layout>
 __device__ inline void fill_zero(nvcuda::wmma::fragment<Use, M, N, K, nvcuda::wmma::precision::tf32, Layout>& frag) {
-	int4* const i4 = reinterpret_cast<int4*>(frag.x);
-	const unsigned size = sizeof(float) * nvcuda::wmma::fragment<Use, M, N, K, nvcuda::wmma::precision::tf32, Layout>::num_elements;
-	for (unsigned i = 0; i < size / sizeof(int4); i++) {
-		i4[i] = make_int4(0, 0, 0, 0);
-	}
+	const unsigned size = 4 * nvcuda::wmma::fragment<Use, M, N, K, nvcuda::wmma::precision::tf32, Layout>::num_elements;
+	detail::fill_zero_core<size, float>{}(reinterpret_cast<float*>(frag.x));
 }
 #endif
 } // namespace wmma
