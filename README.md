@@ -142,5 +142,13 @@ __global__ void m16n8k16_kernel(float* const d, const half* const a, const half*
 ### Supported fragments
 - m16n8k16 (sm_80 or later)
 
+### Supported functions
+- `foreach`
+- `foreach_v`
+- `load_matrix_sync`
+- `store_matrix_sync`
+- `fill_fragment`
+- `fill_zero`
+
 # LICENSE
 MIT
