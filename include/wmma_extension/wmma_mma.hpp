@@ -86,6 +86,42 @@ __device__ inline void store_matrix_sync(T* const ptr, const mtk::wmma::mma::fra
 		__syncthreads();
 }
 
+// ------------------------------
+// LD/ST vector functions for mma fragments
+// ------------------------------
+template <class Use, int M, int N, int K, class FT, class Layout, class T>
+__device__ inline void load_vector(mtk::wmma::mma::fragment<Use, M, N, K, FT, Layout>& frag, const T* const ptr) {
+	mtk::wmma::mma::foreach_v<decltype(frag)>(
+		[&](const unsigned* frag_index_list, const unsigned fragment_index_count, const unsigned mem_index) {
+			for (unsigned i = 0; i < fragment_index_count; i++) {
+				const unsigned frag_index = frag_index_list[i];
+				frag.x[frag_index] = mtk::wmma::detail::common::cast<typename mtk::wmma::detail::common::storage_t<FT>::type>(ptr[mem_index]);
+			}
+		});
+}
+
+template <int M, int N, int K, class FT, class T>
+__device__ inline void load_vector(mtk::wmma::mma::fragment<nvcuda::wmma::accumulator, M, N, K, FT>& frag, const T* const ptr, const unsigned ldm, const nvcuda::wmma::layout_t layout) {
+	mtk::wmma::mma::foreach_v<decltype(frag)>(layout,
+		[&](const unsigned* frag_index_list, const unsigned fragment_index_count, const unsigned mem_index) {
+			for (unsigned i = 0; i < fragment_index_count; i++) {
+				const unsigned frag_index = frag_index_list[i];
+				frag.x[frag_index] = mtk::wmma::detail::common::cast<typename mtk::wmma::detail::common::storage_t<FT>::type>(ptr[mem_index]);
+			}
+		});
+}
+
+template <int M, int N, int K, class FT, class T>
+__device__ inline void store_vector(T* const ptr, const mtk::wmma::mma::fragment<nvcuda::wmma::accumulator, M, N, K, FT>& frag, const unsigned ldm, const nvcuda::wmma::layout_t layout) {
+	mtk::wmma::mma::foreach_v<decltype(frag)>(layout,
+		[&](const unsigned* frag_index_list, const unsigned fragment_index_count, const unsigned mem_index) {
+			for (unsigned i = 0; i < fragment_index_count; i++) {
+				const unsigned frag_index = frag_index_list[i];
+				ptr[mem_index] = mtk::wmma::detail::common::cast<typename mtk::wmma::detail::common::storage_t<T>::type>(frag.x[frag_index]);
+			}
+		});
+}
+
 template <class MatrixType, int M, int N, int K, class MemMajor, class T>
 __device__ inline void print_fragment(const mtk::wmma::mma::fragment<MatrixType, M, N, K, T, MemMajor>& frag, const char* name = "") {
 	if ((threadIdx.x & 0x1f) == 0) {
