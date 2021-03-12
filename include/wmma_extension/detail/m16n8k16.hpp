@@ -83,7 +83,7 @@ __device__ inline void foreach_v(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_b
 template <class Func, class T>
 __device__ inline void foreach_v(mtk::wmma::mma::fragment<nvcuda::wmma::accumulator, 16, 8, 16, T>& frag, const nvcuda::wmma::layout_t layout, Func func) {
 	if (layout == nvcuda::wmma::mem_col_major) {
-		if (mtk::wmma::detail::common::get_lane_id() && 0b11)
+		if (mtk::wmma::detail::common::get_lane_id() & 0b11)
 			return;
 		{const unsigned frag_index_list[1] = {0};func(frag_index_list, 1, mtk::wmma::detail::common::get_lane_id() / 4 + 0);}
 		{const unsigned frag_index_list[1] = {2};func(frag_index_list, 1, mtk::wmma::detail::common::get_lane_id() / 4 + 8);}
