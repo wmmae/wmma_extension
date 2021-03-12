@@ -101,7 +101,7 @@ __device__ inline void load_vector(mtk::wmma::mma::fragment<Use, M, N, K, FT, La
 }
 
 template <int M, int N, int K, class FT, class T>
-__device__ inline void load_vector(mtk::wmma::mma::fragment<nvcuda::wmma::accumulator, M, N, K, FT>& frag, const T* const ptr, const unsigned ldm, const nvcuda::wmma::layout_t layout) {
+__device__ inline void load_vector(mtk::wmma::mma::fragment<nvcuda::wmma::accumulator, M, N, K, FT>& frag, const T* const ptr, const nvcuda::wmma::layout_t layout) {
 	mtk::wmma::mma::foreach_v<decltype(frag)>(layout,
 		[&](const unsigned* frag_index_list, const unsigned fragment_index_count, const unsigned mem_index) {
 			for (unsigned i = 0; i < fragment_index_count; i++) {
@@ -112,7 +112,7 @@ __device__ inline void load_vector(mtk::wmma::mma::fragment<nvcuda::wmma::accumu
 }
 
 template <int M, int N, int K, class FT, class T>
-__device__ inline void store_vector(T* const ptr, const mtk::wmma::mma::fragment<nvcuda::wmma::accumulator, M, N, K, FT>& frag, const unsigned ldm, const nvcuda::wmma::layout_t layout) {
+__device__ inline void store_vector(T* const ptr, const mtk::wmma::mma::fragment<nvcuda::wmma::accumulator, M, N, K, FT>& frag, const nvcuda::wmma::layout_t layout) {
 	mtk::wmma::mma::foreach_v<decltype(frag)>(layout,
 		[&](const unsigned* frag_index_list, const unsigned fragment_index_count, const unsigned mem_index) {
 			for (unsigned i = 0; i < fragment_index_count; i++) {
