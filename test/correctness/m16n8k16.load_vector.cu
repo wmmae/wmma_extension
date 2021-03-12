@@ -65,7 +65,6 @@ __global__ void test_load_vector_acc_kernel(
 		mtk::wmma::mma::load_matrix_sync(cor_frag, cor, n, nvcuda::wmma::mem_row_major);
 	}
 
-
 	auto error = convert<typename mtk::wmma::detail::common::storage_t<T>::type, float>(0.0f);
 	for (unsigned i = 0; i < vec_frag.num_elements; i++) {
 		error += m_abs(vec_frag.x[i] - cor_frag.x[i]);
@@ -81,7 +80,7 @@ void test() {
 	std::printf("arch   : %d\n", TEST_ARCH);
 	if (std::is_same<Layout, nvcuda::wmma::col_major>::value) {
 		std::printf("layout : col_major\n");
-	} else if (std::is_same<Layout, nvcuda::wmma::col_major>::value) {
+	} else if (std::is_same<Layout, nvcuda::wmma::row_major>::value) {
 		std::printf("layout : row_major\n");
 	} else {
 		std::printf("layout : void\n");
@@ -134,14 +133,14 @@ void test() {
 	}
 
 	for (std::size_t i = 0; i < vec_length; i++) {
-		const float v = i / 3.0f;
+		const float v = i * 1.f;
 		src_mem[i] = convert<storage_t, float>(v);
 		cor_mem[i] = convert<storage_t, float>(v);
 	}
 
 	cudaDeviceSynchronize();
 	if constexpr (std::is_same<Use, nvcuda::wmma::accumulator>::value) {
-		test_load_vector_acc_kernel<m, n, k, T, void><<<1, 32>>>(src_mem, cor_mem);
+		test_load_vector_acc_kernel<m, n, k, T, Layout><<<1, 32>>>(src_mem, cor_mem);
 	} else {
 		test_load_vector_ab_kernel<Use, m, n, k, T, Layout><<<1, 32>>>(src_mem, cor_mem);
 	}
