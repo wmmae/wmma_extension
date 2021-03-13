@@ -5,7 +5,7 @@
 
 namespace mtk {
 namespace wmma {
-
+namespace mma {
 template <> class fragment<nvcuda::wmma::matrix_a, 8, 8, 4, half, nvcuda::wmma::col_major> : public __frag_base<half, 4>{};
 template <> class fragment<nvcuda::wmma::matrix_a, 8, 8, 4, half, nvcuda::wmma::row_major> : public __frag_base<half, 4>{};
 template <> class fragment<nvcuda::wmma::matrix_b, 8, 8, 4, half, nvcuda::wmma::col_major> : public __frag_base<half, 4>{};
@@ -22,7 +22,8 @@ __device__ inline void fill_fragment(__frag_base<T, size>& f, const T v) {
 }
 
 template <class T, class Func>
-__device__ inline void foreach(mtk::wmma::fragment<nvcuda::wmma::matrix_a, 8, 8, 4, half, nvcuda::wmma::col_major>& f, Func func) {
+__device__ inline void foreach(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_a, 8, 8, 4, half, nvcuda::wmma::col_major>& f, Func func) {
+	constexpr unsigned ldm = 16;
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	const unsigned col = lane_id & 0x3;
 	const unsigned row_offset = ((lane_id >> 4) << 2);
@@ -35,7 +36,8 @@ __device__ inline void foreach(mtk::wmma::fragment<nvcuda::wmma::matrix_a, 8, 8,
 }
 
 template <class T, class Func>
-__device__ inline void foreach(mtk::wmma::fragment<nvcuda::wmma::matrix_a, 8, 8, 4, half, nvcuda::wmma::row_major>& f, Func func) {
+__device__ inline void foreach(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_a, 8, 8, 4, half, nvcuda::wmma::row_major>& f, Func func) {
+	constexpr unsigned ldm = 16;
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	const unsigned row = (lane_id & 0x3) + ((lane_id >> 4) << 2);
 	const unsigned mem_offset = row * ldm;
@@ -47,7 +49,8 @@ __device__ inline void foreach(mtk::wmma::fragment<nvcuda::wmma::matrix_a, 8, 8,
 }
 
 template <class T, class Func>
-__device__ inline void foreach(mtk::wmma::fragment<nvcuda::wmma::matrix_b, 8, 8, 4, half, nvcuda::wmma::col_major>& f, Func func) {
+__device__ inline void foreach(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_b, 8, 8, 4, half, nvcuda::wmma::col_major>& f, Func func) {
+	constexpr unsigned ldm = 16;
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	const unsigned col = (lane_id & 0x3) + ((lane_id >> 4) << 2);
 	const unsigned mem_offset = col * ldm;
@@ -59,7 +62,8 @@ __device__ inline void foreach(mtk::wmma::fragment<nvcuda::wmma::matrix_b, 8, 8,
 }
 
 template <class T, class Func>
-__device__ inline void foreach(mtk::wmma::fragment<nvcuda::wmma::matrix_b, 8, 8, 4, half, nvcuda::wmma::row_major>& f, Func func) {
+__device__ inline void foreach(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_b, 8, 8, 4, half, nvcuda::wmma::row_major>& f, Func func) {
+	constexpr unsigned ldm = 16;
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	const unsigned row = lane_id & 0x3;
 	const unsigned col_offset = ((lane_id >> 4) << 2);
@@ -73,7 +77,8 @@ __device__ inline void foreach(mtk::wmma::fragment<nvcuda::wmma::matrix_b, 8, 8,
 
 // foreach_v
 template <class T, class Func>
-__device__ inline void foreach_v(mtk::wmma::fragment<nvcuda::wmma::matrix_a, 8, 8, 4, half, nvcuda::wmma::col_major>& f, Func func) {
+__device__ inline void foreach_v(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_a, 8, 8, 4, half, nvcuda::wmma::col_major>& f, Func func) {
+	constexpr unsigned ldm = 16;
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	if (lane_id % 4) return;
 	const unsigned col = lane_id & 0x3;
@@ -87,7 +92,8 @@ __device__ inline void foreach_v(mtk::wmma::fragment<nvcuda::wmma::matrix_a, 8, 
 }
 
 template <class T, class Func>
-__device__ inline void foreach_v(mtk::wmma::fragment<nvcuda::wmma::matrix_a, 8, 8, 4, half, nvcuda::wmma::row_major>& f, Func func) {
+__device__ inline void foreach_v(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_a, 8, 8, 4, half, nvcuda::wmma::row_major>& f, Func func) {
+	constexpr unsigned ldm = 16;
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	if (lane_id & 0b10011) return;
 	const unsigned row = (lane_id & 0x3) + ((lane_id >> 4) << 2);
@@ -97,7 +103,8 @@ __device__ inline void foreach_v(mtk::wmma::fragment<nvcuda::wmma::matrix_a, 8, 
 }
 
 template <class T, class Func>
-__device__ inline void foreach_v(mtk::wmma::fragment<nvcuda::wmma::matrix_b, 8, 8, 4, half, nvcuda::wmma::col_major>& f, Func func) {
+__device__ inline void foreach_v(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_b, 8, 8, 4, half, nvcuda::wmma::col_major>& f, Func func) {
+	constexpr unsigned ldm = 16;
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	if (lane_id & 0b10011) return;
 	const unsigned col = (lane_id & 0x3) + ((lane_id >> 4) << 2);
@@ -110,7 +117,8 @@ __device__ inline void foreach_v(mtk::wmma::fragment<nvcuda::wmma::matrix_b, 8, 
 }
 
 template <class T, class Func>
-__device__ inline void foreach_v(mtk::wmma::fragment<nvcuda::wmma::matrix_b, 8, 8, 4, half, nvcuda::wmma::row_major>& f, Func func) {
+__device__ inline void foreach_v(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_b, 8, 8, 4, half, nvcuda::wmma::row_major>& f, Func func) {
+	constexpr unsigned ldm = 16;
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	if (lane_id % 4) return;
 	const unsigned row = lane_id & 0x3;
@@ -167,33 +175,7 @@ WMMAE_MMA884_F16_F16(col, col);
 WMMAE_MMA884_F16_F16(row, col);
 WMMAE_MMA884_F16_F16(col, row);
 WMMAE_MMA884_F16_F16(row, row);
-
-// Debug function
-template <class MatrixType, int M, int N, int K, class MemMajor, class T>
-__device__ inline void print_fragment(const mtk::wmma::fragment<MatrixType, M, N, K, T, MemMajor>& frag, const char* name = "") {
-	if ((threadIdx.x & 0x1f) == 0) {
-		if (name[0] != '\0') {
-			printf("%s = \n", name);
-		}
-	}
-	for (unsigned i = 0; i < warpSize; i++) {
-		if (i == (threadIdx.x & 0x1f)) {
-			for (unsigned j = 0; j < frag.num_elements; j++) {
-				const auto v = mtk::wmma::detail::common::cast<float>(frag.x[j]);
-				if (v == 0.0f) {
-					printf(" %.3e ", 0.0f);
-				} else if (v > 0) {
-					printf(" %.3e ", v);
-				} else {
-					printf("%.3e ", v);
-				}
-			}
-			printf("\n");
-		}
-		__syncthreads();
-	}
-}
-
+} // namespace mma
 } // namespace wmma
 } // namespace mtk
 
