@@ -167,33 +167,6 @@ WMMAE_MMA884_F16_F16(col, col);
 WMMAE_MMA884_F16_F16(row, col);
 WMMAE_MMA884_F16_F16(col, row);
 WMMAE_MMA884_F16_F16(row, row);
-
-// Debug function
-template <class MatrixType, int M, int N, int K, class MemMajor, class T>
-__device__ inline void print_fragment(const mtk::wmma::fragment<MatrixType, M, N, K, T, MemMajor>& frag, const char* name = "") {
-	if ((threadIdx.x & 0x1f) == 0) {
-		if (name[0] != '\0') {
-			printf("%s = \n", name);
-		}
-	}
-	for (unsigned i = 0; i < warpSize; i++) {
-		if (i == (threadIdx.x & 0x1f)) {
-			for (unsigned j = 0; j < frag.num_elements; j++) {
-				const auto v = mtk::wmma::detail::common::cast<float>(frag.x[j]);
-				if (v == 0.0f) {
-					printf(" %.3e ", 0.0f);
-				} else if (v > 0) {
-					printf(" %.3e ", v);
-				} else {
-					printf("%.3e ", v);
-				}
-			}
-			printf("\n");
-		}
-		__syncthreads();
-	}
-}
-
 } // namespace wmma
 } // namespace mtk
 
