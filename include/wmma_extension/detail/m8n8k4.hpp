@@ -21,7 +21,7 @@ __device__ inline void fill_fragment(__frag_base<T, size>& f, const T v) {
 		f.x[i] = v; 
 }
 
-template <class T, class Func>
+template <class Func>
 __device__ inline void foreach(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_a, 8, 8, 4, half, nvcuda::wmma::col_major>& f, Func func) {
 	constexpr unsigned ldm = 8;
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
@@ -35,7 +35,7 @@ __device__ inline void foreach(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_a, 
 	{const unsigned frag_index_list[1] = {3};func(frag_index_list, 1, mem_offset + 3);}
 }
 
-template <class T, class Func>
+template <class Func>
 __device__ inline void foreach(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_a, 8, 8, 4, half, nvcuda::wmma::row_major>& f, Func func) {
 	constexpr unsigned ldm = 4;
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
@@ -48,7 +48,7 @@ __device__ inline void foreach(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_a, 
 	{const unsigned frag_index_list[1] = {3};func(frag_index_list, 1, mem_offset + 3);}
 }
 
-template <class T, class Func>
+template <class Func>
 __device__ inline void foreach(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_b, 8, 8, 4, half, nvcuda::wmma::col_major>& f, Func func) {
 	constexpr unsigned ldm = 4;
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
@@ -61,7 +61,7 @@ __device__ inline void foreach(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_b, 
 	{const unsigned frag_index_list[1] = {3};func(frag_index_list, 1, mem_offset + 3);}
 }
 
-template <class T, class Func>
+template <class Func>
 __device__ inline void foreach(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_b, 8, 8, 4, half, nvcuda::wmma::row_major>& f, Func func) {
 	constexpr unsigned ldm = 8;
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
@@ -75,7 +75,7 @@ __device__ inline void foreach(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_b, 
 	{const unsigned frag_index_list[1] = {3};func(frag_index_list, 1, mem_offset + 3);}
 }
 
-template <class T, class Func>
+template <class Func>
 __device__ inline void foreach(mtk::wmma::mma::fragment<nvcuda::wmma::accumulator, 8, 8, 4, half, void>& f, const nvcuda::wmma::layout_t layout, Func func) {
 	constexpr unsigned ldm = 8;
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
@@ -92,11 +92,13 @@ __device__ inline void foreach(mtk::wmma::mma::fragment<nvcuda::wmma::accumulato
 	}
 }
 
-template <class T, class Func>
+template <class Func>
 __device__ inline void foreach(mtk::wmma::mma::fragment<nvcuda::wmma::accumulator, 8, 8, 4, float, void>& f, const nvcuda::wmma::layout_t layout, Func func) {
 	constexpr unsigned ldm = 8;
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
-	const unsigned row = (lane_id & 0x3) + ((lane_id & 0x10) >> 2);
+	const unsigned row_offset = (lane_id & 0x1) + ((lane_id & 0x10) >> 2);
+	const unsigned col_offset = (lane_id & 0x2);
+
 	if (layout == nvcuda::wmma::mem_col_major) {
 #pragma unroll
 		for (unsigned i = 0; i < f.num_elements; i++) {
