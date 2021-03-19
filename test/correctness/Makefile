@@ -1,4 +1,4 @@
-TEST_ARCH=80
+TEST_ARCH=70
 ROOT_DIR=../../include
 NVCC=nvcc
 NVCCFLAGS=-std=c++17 -I$(ROOT_DIR) -arch=sm_$(TEST_ARCH) -DTEST_ARCH=$(TEST_ARCH)
@@ -13,10 +13,22 @@ TARGET+=foreach_v_acc.test
 TARGET+=gevm.test
 TARGET+=load_vector.test
 TARGET+=store_vector.test
-#TARGET+=m8n8k4.test
-TARGET+=m16n8k16.test
-TARGET+=m16n8k16.load_vector.test
 TARGET+=print_fragment.test
+
+ifeq (${TEST_ARCH}, 70)
+	TARGET+=m8n8k4.test
+endif
+ifeq (${TEST_ARCH}, 75)
+	TARGET+=m8n8k4.test
+endif
+ifeq (${TEST_ARCH}, 80)
+	TARGET+=m16n8k16.test
+	TARGET+=m16n8k16.load_vector.test
+endif
+ifeq (${TEST_ARCH}, 86)
+	TARGET+=m16n8k16.test
+	TARGET+=m16n8k16.load_vector.test
+endif
 
 all: $(TARGET)
 
@@ -24,4 +36,4 @@ all: $(TARGET)
 	$(NVCC) $(NVCCFLAGS) -o $@ $<
 
 clean:
-	rm -f $(TARGET)
+	rm -f *.test
