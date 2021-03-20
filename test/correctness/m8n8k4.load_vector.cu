@@ -148,9 +148,14 @@ void test() {
 }
 
 int main() {
+	test<nvcuda::wmma::matrix_a   , 8, 8, 4, half , nvcuda::wmma::col_major>();
 	test<nvcuda::wmma::matrix_a   , 8, 8, 4, half , nvcuda::wmma::row_major>();
 
 	test<nvcuda::wmma::matrix_b   , 8, 8, 4, half , nvcuda::wmma::col_major>();
+	test<nvcuda::wmma::matrix_b   , 8, 8, 4, half , nvcuda::wmma::row_major>();
+
+	test<nvcuda::wmma::accumulator, 8, 8, 4, half , nvcuda::wmma::col_major>();
+	test<nvcuda::wmma::accumulator, 8, 8, 4, half , nvcuda::wmma::row_major>();
 
 	test<nvcuda::wmma::accumulator, 8, 8, 4, float, nvcuda::wmma::col_major>();
 	test<nvcuda::wmma::accumulator, 8, 8, 4, float, nvcuda::wmma::row_major>();
