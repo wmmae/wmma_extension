@@ -17,9 +17,11 @@ TARGET+=print_fragment.test
 
 ifeq (${TEST_ARCH}, 70)
 	TARGET+=m8n8k4.test
+	TARGET+=m8n8k4.load_vector.test
 endif
 ifeq (${TEST_ARCH}, 75)
 	TARGET+=m8n8k4.test
+	TARGET+=m8n8k4.load_vector.test
 endif
 ifeq (${TEST_ARCH}, 80)
 	TARGET+=m16n8k16.test
