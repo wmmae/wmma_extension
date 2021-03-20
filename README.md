@@ -140,7 +140,8 @@ __global__ void m16n8k16_kernel(float* const d, const half* const a, const half*
 ```
 
 ### Supported fragments
-- m16n8k16 (sm_80 or later)
+- m16n8k16 (sm_80 and later)
+- m8n8k4 (sm_70 and sm_75)
 
 ### Supported functions
 - `foreach`
