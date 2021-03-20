@@ -187,10 +187,7 @@ __device__ inline void foreach_v(mtk::wmma::mma::fragment<nvcuda::wmma::accumula
 
 template <class Func>
 __device__ inline void foreach_v(mtk::wmma::mma::fragment<nvcuda::wmma::accumulator, 8, 8, 4, float, void>& f, const nvcuda::wmma::layout_t layout, Func func) {
-	constexpr unsigned ldm = 8;
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
-	const unsigned row_offset = (lane_id & 0x1) + ((lane_id & 0x10) >> 2);
-	const unsigned col_offset = (lane_id & 0x2);
 
 	if (layout == nvcuda::wmma::mem_col_major) {
 		if (lane_id & 0b10) return;
