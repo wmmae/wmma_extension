@@ -3,6 +3,7 @@
 #include <random>
 #include <mma.h>
 #include <wmma_extension/wmma_extension.hpp>
+#include <wmma_extension/wmma_mma.hpp>
 
 #ifndef TEST_ARCH
 #define TEST_ARCH (-1)
@@ -14,23 +15,23 @@ constexpr unsigned K = 4;
 
 template <class T, class S, class a_layout, class b_layout, nvcuda::wmma::layout_t c_layout, nvcuda::wmma::layout_t d_layout>
 __global__ void m8n8k4_test_kernel(T* const d, const half* const a, const half* const b, const S* const c) {
-	mtk::wmma::fragment<nvcuda::wmma::matrix_a, M, N, K, half, a_layout> frag_a;
-	mtk::wmma::fragment<nvcuda::wmma::matrix_b, M, N, K, half, b_layout> frag_b;
-	mtk::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, T> frag_c;
-	mtk::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, S> frag_d;
+	mtk::wmma::mma::fragment<nvcuda::wmma::matrix_a, M, N, K, half, a_layout> frag_a;
+	mtk::wmma::mma::fragment<nvcuda::wmma::matrix_b, M, N, K, half, b_layout> frag_b;
+	mtk::wmma::mma::fragment<nvcuda::wmma::accumulator, M, N, K, T> frag_c;
+	mtk::wmma::mma::fragment<nvcuda::wmma::accumulator, M, N, K, S> frag_d;
 
 	const unsigned lda = std::is_same<a_layout, nvcuda::wmma::col_major>::value ? M : K;
 	const unsigned ldb = std::is_same<b_layout, nvcuda::wmma::col_major>::value ? K : N;
 	const unsigned ldc = M;
 	const unsigned ldd = M;
 
-	mtk::wmma::load_matrix_sync(frag_a, a, lda);
-	mtk::wmma::load_matrix_sync(frag_b, b, ldb);
-	mtk::wmma::load_matrix_sync(frag_c, c, ldc, c_layout);
+	mtk::wmma::mma::load_matrix_sync(frag_a, a, lda);
+	mtk::wmma::mma::load_matrix_sync(frag_b, b, ldb);
+	mtk::wmma::mma::load_matrix_sync(frag_c, c, ldc, c_layout);
 
-	mtk::wmma::mma_sync(frag_d, frag_a, frag_b, frag_c);
+	mtk::wmma::mma::mma_sync(frag_d, frag_a, frag_b, frag_c);
 
-	mtk::wmma::store_matrix_sync(d, frag_d, ldd, d_layout);
+	mtk::wmma::mma::store_matrix_sync(d, frag_d, ldd, d_layout);
 }
 
 
