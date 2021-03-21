@@ -148,10 +148,28 @@ void test() {
 }
 
 int main() {
+#if TEST_ARCH == 80 || TEST_ARCH == 86
 	test<nvcuda::wmma::matrix_a   , 16, 8, 16, half , nvcuda::wmma::row_major>();
-
 	test<nvcuda::wmma::matrix_b   , 16, 8, 16, half , nvcuda::wmma::col_major>();
-
 	test<nvcuda::wmma::accumulator, 16, 8, 16, float, nvcuda::wmma::col_major>();
 	test<nvcuda::wmma::accumulator, 16, 8, 16, float, nvcuda::wmma::row_major>();
+#endif
+
+#if TEST_ARCH == 80 || TEST_ARCH == 86 || TEST_ARCH == 75
+	test<nvcuda::wmma::matrix_a   , 16, 8, 8, half , nvcuda::wmma::row_major>();
+	test<nvcuda::wmma::matrix_b   , 16, 8, 8, half , nvcuda::wmma::col_major>();
+	test<nvcuda::wmma::accumulator, 16, 8, 8, float, nvcuda::wmma::col_major>();
+	test<nvcuda::wmma::accumulator, 16, 8, 8, float, nvcuda::wmma::row_major>();
+#endif
+
+#if TEST_ARCH == 70 || TEST_ARCH == 75
+	test<nvcuda::wmma::matrix_a   , 8, 8, 4, half , nvcuda::wmma::col_major>();
+	test<nvcuda::wmma::matrix_a   , 8, 8, 4, half , nvcuda::wmma::row_major>();
+	test<nvcuda::wmma::matrix_b   , 8, 8, 4, half , nvcuda::wmma::col_major>();
+	test<nvcuda::wmma::matrix_b   , 8, 8, 4, half , nvcuda::wmma::row_major>();
+	test<nvcuda::wmma::accumulator, 8, 8, 4, half , nvcuda::wmma::col_major>();
+	test<nvcuda::wmma::accumulator, 8, 8, 4, half , nvcuda::wmma::row_major>();
+	test<nvcuda::wmma::accumulator, 8, 8, 4, float, nvcuda::wmma::col_major>();
+	test<nvcuda::wmma::accumulator, 8, 8, 4, float, nvcuda::wmma::row_major>();
+#endif
 }
