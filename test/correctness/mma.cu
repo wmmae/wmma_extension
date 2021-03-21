@@ -4,26 +4,29 @@
 #include <mma.h>
 #include <wmma_extension/wmma_extension.hpp>
 #include <wmma_extension/wmma_mma.hpp>
+#include "common.hpp"
 
 #ifndef TEST_ARCH
 #define TEST_ARCH (-1)
 #endif
 
-constexpr unsigned M = 8;
+constexpr unsigned M = 16;
 constexpr unsigned N = 8;
-constexpr unsigned K = 4;
+constexpr unsigned K = 16;
 
-template <class T, class S, class a_layout, class b_layout, nvcuda::wmma::layout_t c_layout, nvcuda::wmma::layout_t d_layout>
-__global__ void m8n8k4_test_kernel(T* const d, const half* const a, const half* const b, const S* const c) {
-	mtk::wmma::mma::fragment<nvcuda::wmma::matrix_a, M, N, K, half, a_layout> frag_a;
-	mtk::wmma::mma::fragment<nvcuda::wmma::matrix_b, M, N, K, half, b_layout> frag_b;
+template <int M, int N, int K, class T, class S, class a_layout, class b_layout, nvcuda::wmma::layout_t c_layout, nvcuda::wmma::layout_t d_layout>
+__global__ void m16n8k16_test_kernel(T* const d, const half* const a, const half* const b, const S* const c) {
+	mtk::wmma::mma::fragment<nvcuda::wmma::matrix_a   , M, N, K, half, a_layout> frag_a;
+	mtk::wmma::mma::fragment<nvcuda::wmma::matrix_b   , M, N, K, half, b_layout> frag_b;
 	mtk::wmma::mma::fragment<nvcuda::wmma::accumulator, M, N, K, T> frag_c;
 	mtk::wmma::mma::fragment<nvcuda::wmma::accumulator, M, N, K, S> frag_d;
 
 	const unsigned lda = std::is_same<a_layout, nvcuda::wmma::col_major>::value ? M : K;
 	const unsigned ldb = std::is_same<b_layout, nvcuda::wmma::col_major>::value ? K : N;
-	const unsigned ldc = M;
-	const unsigned ldd = M;
+	const unsigned ldc = (c_layout == nvcuda::wmma::mem_col_major) ? M : N;
+	const unsigned ldd = (d_layout == nvcuda::wmma::mem_col_major) ? M : N;
+
+	mtk::wmma::mma::fill_zero(frag_d);
 
 	mtk::wmma::mma::load_matrix_sync(frag_a, a, lda);
 	mtk::wmma::mma::load_matrix_sync(frag_b, b, ldb);
@@ -80,32 +83,26 @@ double get_residual(const half* const a, const half* const b, const S* const c, 
 	return std::sqrt(diff_norm / base_norm);
 }
 
-template <class T> std::string get_layout_name();
-template <> std::string get_layout_name<nvcuda::wmma::col_major>() {return "col";}
-template <> std::string get_layout_name<nvcuda::wmma::row_major>() {return "row";}
 std::string get_layout_name(const nvcuda::wmma::layout_t layout) {
 	if (layout == nvcuda::wmma::mem_col_major) {
-		return "col";
+		return mtk::test_utils::get_string<nvcuda::wmma::col_major>();
 	} else {
-		return "row";
+		return mtk::test_utils::get_string<nvcuda::wmma::row_major>();
 	}
 }
 
-template <class T> std::string get_type_name();
-template <> std::string get_type_name<half >() {return "half";}
-template <> std::string get_type_name<float>() {return "float";}
 
-template <class T, class S, class a_layout, class b_layout, nvcuda::wmma::layout_t c_layout, nvcuda::wmma::layout_t d_layout>
+template <int M, int N, int K, class T, class S, class a_layout, class b_layout, nvcuda::wmma::layout_t c_layout, nvcuda::wmma::layout_t d_layout>
 void test() {
 	T* d_ptr;
 	S* c_ptr;
 	half* a_ptr;
 	half* b_ptr;
 
-	cudaMallocHost(&a_ptr, N * N * sizeof(half));
-	cudaMallocHost(&b_ptr, N * N * sizeof(half));
-	cudaMallocHost(&c_ptr, N * N * sizeof(T));
-	cudaMallocHost(&d_ptr, N * N * sizeof(S));
+	cudaMallocHost(&a_ptr, M * K * sizeof(half));
+	cudaMallocHost(&b_ptr, K * N * sizeof(half));
+	cudaMallocHost(&c_ptr, M * N * sizeof(T));
+	cudaMallocHost(&d_ptr, M * N * sizeof(S));
 
 	std::mt19937 mt(std::random_device{}());
 	std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
@@ -121,40 +118,27 @@ void test() {
 	}
 
 	cudaDeviceSynchronize();
-	m8n8k4_test_kernel<T, S, a_layout, b_layout, c_layout, d_layout><<<1, 32>>>(d_ptr, a_ptr, b_ptr, c_ptr);
+	m16n8k16_test_kernel<M, N, K, T, S, a_layout, b_layout, c_layout, d_layout><<<1, 32>>>(d_ptr, a_ptr, b_ptr, c_ptr);
 	cudaDeviceSynchronize();
 	std::printf("[TEST] a_%5s_%s, b_%5s_%s, c_%5s_%s, d_%5s_%s : res = %e\n",
-			get_type_name<half>().c_str(), get_layout_name<a_layout>().c_str(),
-			get_type_name<half>().c_str(), get_layout_name<b_layout>().c_str(),
-			get_type_name<S   >().c_str(), get_layout_name(c_layout).c_str(),
-			get_type_name<T   >().c_str(), get_layout_name(d_layout).c_str(),
+			mtk::test_utils::get_string<half>().c_str(), mtk::test_utils::get_string<a_layout>().c_str(),
+			mtk::test_utils::get_string<half>().c_str(), mtk::test_utils::get_string<b_layout>().c_str(),
+			mtk::test_utils::get_string<S   >().c_str(), get_layout_name(c_layout).c_str(),
+			mtk::test_utils::get_string<T   >().c_str(), get_layout_name(d_layout).c_str(),
 			get_residual<T, S, a_layout, b_layout, c_layout, d_layout>(a_ptr, b_ptr, c_ptr, d_ptr)
 			);
 }
-
-#define TEST(c_t, d_t) \
-	test<c_t, d_t, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_col_major, nvcuda::wmma::mem_col_major>(); \
-	test<c_t, d_t, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_row_major, nvcuda::wmma::mem_col_major>(); \
-	test<c_t, d_t, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_col_major, nvcuda::wmma::mem_col_major>(); \
-	test<c_t, d_t, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_row_major, nvcuda::wmma::mem_col_major>(); \
-	test<c_t, d_t, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_col_major, nvcuda::wmma::mem_row_major>(); \
-	test<c_t, d_t, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_row_major, nvcuda::wmma::mem_row_major>(); \
-	test<c_t, d_t, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_col_major, nvcuda::wmma::mem_row_major>(); \
-	test<c_t, d_t, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_row_major, nvcuda::wmma::mem_row_major>(); \
-	test<c_t, d_t, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::mem_col_major, nvcuda::wmma::mem_col_major>(); \
-	test<c_t, d_t, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::mem_row_major, nvcuda::wmma::mem_col_major>(); \
-	test<c_t, d_t, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::mem_col_major, nvcuda::wmma::mem_col_major>(); \
-	test<c_t, d_t, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::mem_row_major, nvcuda::wmma::mem_col_major>(); \
-	test<c_t, d_t, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::mem_col_major, nvcuda::wmma::mem_row_major>(); \
-	test<c_t, d_t, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::mem_row_major, nvcuda::wmma::mem_row_major>(); \
-	test<c_t, d_t, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::mem_col_major, nvcuda::wmma::mem_row_major>(); \
-	test<c_t, d_t, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::mem_row_major, nvcuda::wmma::mem_row_major>();
 
 int main() {
 	std::printf("-- test (%s) --\n", __FILE__);
 	std::printf("arch   : %d\n", TEST_ARCH);
 
-	TEST(float, float);
-	TEST(half , float);
-	TEST(half , half );
+	test<16, 8, 16, float, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_col_major, nvcuda::wmma::mem_col_major>();
+	test<16, 8, 16, float, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_col_major, nvcuda::wmma::mem_row_major>();
+	test<16, 8, 16, float, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_row_major, nvcuda::wmma::mem_col_major>();
+	test<16, 8, 16, float, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_row_major, nvcuda::wmma::mem_row_major>();
+	test<16, 8, 16, half , half , nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_col_major, nvcuda::wmma::mem_col_major>();
+	test<16, 8, 16, half , half , nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_col_major, nvcuda::wmma::mem_row_major>();
+	test<16, 8, 16, half , half , nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_row_major, nvcuda::wmma::mem_col_major>();
+	test<16, 8, 16, half , half , nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_row_major, nvcuda::wmma::mem_row_major>();
 }
