@@ -16,6 +16,7 @@ TARGET+=store_vector.test
 TARGET+=print_fragment.test
 TARGET+=fill.test
 TARGET+=mma.test
+TARGET+=vector.test
 
 all: $(TARGET)
 
