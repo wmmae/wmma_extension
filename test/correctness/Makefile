@@ -14,6 +14,7 @@ TARGET+=gevm.test
 TARGET+=load_vector.test
 TARGET+=store_vector.test
 TARGET+=print_fragment.test
+TARGET+=fill.test
 
 ifeq (${TEST_ARCH}, 70)
 	TARGET+=m8n8k4.test
