@@ -30,6 +30,13 @@ struct fragment_layout<nvcuda::wmma::accumulator, nvcuda::wmma::col_major> {usin
 template <>
 struct fragment_layout<nvcuda::wmma::accumulator, nvcuda::wmma::row_major> {using type = void;};
 
+template <class T>
+__device__ float error_threshold();
+template <>
+__device__ float error_threshold<float>() {return 1e-6f;};
+template <>
+__device__ float error_threshold<half >() {return 1e-3f;};
+
 template <class Use, int m, int n, int k, class T, class Layout>
 __global__ void test_load_vector_ab_kernel(
 		const typename mtk::wmma::detail::common::storage_t<T>::type* const src,
@@ -46,7 +53,11 @@ __global__ void test_load_vector_ab_kernel(
 	for (unsigned i = 0; i < vec_frag.num_elements; i++) {
 		error += m_abs(vec_frag.x[i] - cor_frag.x[i]);
 	}
-	printf("[%2u] error = %e\n", threadIdx.x, convert<float>(error));
+	printf("[%2u] error = %e (%s)\n",
+			threadIdx.x,
+			convert<float>(error),
+			(convert<float>(error) < error_threshold<T>() ? "PASSED" : "FAILED")
+			);
 }
 
 template <int m, int n, int k, class T, class Layout>
@@ -69,7 +80,11 @@ __global__ void test_load_vector_acc_kernel(
 	for (unsigned i = 0; i < vec_frag.num_elements; i++) {
 		error += m_abs(vec_frag.x[i] - cor_frag.x[i]);
 	}
-	printf("[%2u] error = %e\n", threadIdx.x, convert<float>(error));
+	printf("[%2u] error = %e (%s)\n",
+			threadIdx.x,
+			convert<float>(error),
+			(convert<float>(error) < error_threshold<T>() ? "PASSED" : "FAILED")
+			);
 }
 
 template <class Use, int m, int n, int k, class T, class Layout>
@@ -148,15 +163,28 @@ void test() {
 }
 
 int main() {
+#if TEST_ARCH == 80 || TEST_ARCH == 86
+	test<nvcuda::wmma::matrix_a   , 16, 8, 16, half , nvcuda::wmma::row_major>();
+	test<nvcuda::wmma::matrix_b   , 16, 8, 16, half , nvcuda::wmma::col_major>();
+	test<nvcuda::wmma::accumulator, 16, 8, 16, float, nvcuda::wmma::col_major>();
+	test<nvcuda::wmma::accumulator, 16, 8, 16, float, nvcuda::wmma::row_major>();
+#endif
+
+#if TEST_ARCH == 80 || TEST_ARCH == 86 || TEST_ARCH == 75
+	test<nvcuda::wmma::matrix_a   , 16, 8, 8, half , nvcuda::wmma::row_major>();
+	test<nvcuda::wmma::matrix_b   , 16, 8, 8, half , nvcuda::wmma::col_major>();
+	test<nvcuda::wmma::accumulator, 16, 8, 8, float, nvcuda::wmma::col_major>();
+	test<nvcuda::wmma::accumulator, 16, 8, 8, float, nvcuda::wmma::row_major>();
+#endif
+
+#if TEST_ARCH == 70 || TEST_ARCH == 75
 	test<nvcuda::wmma::matrix_a   , 8, 8, 4, half , nvcuda::wmma::col_major>();
 	test<nvcuda::wmma::matrix_a   , 8, 8, 4, half , nvcuda::wmma::row_major>();
-
 	test<nvcuda::wmma::matrix_b   , 8, 8, 4, half , nvcuda::wmma::col_major>();
 	test<nvcuda::wmma::matrix_b   , 8, 8, 4, half , nvcuda::wmma::row_major>();
-
 	test<nvcuda::wmma::accumulator, 8, 8, 4, half , nvcuda::wmma::col_major>();
 	test<nvcuda::wmma::accumulator, 8, 8, 4, half , nvcuda::wmma::row_major>();
-
 	test<nvcuda::wmma::accumulator, 8, 8, 4, float, nvcuda::wmma::col_major>();
 	test<nvcuda::wmma::accumulator, 8, 8, 4, float, nvcuda::wmma::row_major>();
+#endif
 }
