@@ -20,9 +20,16 @@ template <unsigned byte, class T>
 struct fill_zero_core;
 
 template <class T>
+struct fill_zero_core<2, T> {
+	__device__ void operator()(T* const ptr) {
+		*reinterpret_cast<uint16_t*>(ptr) = 0;
+	}
+};
+
+template <class T>
 struct fill_zero_core<4, T> {
 	__device__ void operator()(T* const ptr) {
-		*reinterpret_cast<int*>(ptr) = 0;
+		*reinterpret_cast<uint32_t*>(ptr) = 0;
 	}
 };
 
@@ -74,6 +81,12 @@ __device__ inline void fill_fragment(__frag_base<half, 8>& f, const T v) {
 }
 template <class T>
 __device__ inline void fill_fragment(__frag_base<half, 4>& f, const T v) {
+#pragma unroll
+	for (unsigned i = 0; i < f.num_elements; i++)
+		f.x[i] = v;
+}
+template <class T>
+__device__ inline void fill_fragment(__frag_base<half, 2>& f, const T v) {
 #pragma unroll
 	for (unsigned i = 0; i < f.num_elements; i++)
 		f.x[i] = v;
