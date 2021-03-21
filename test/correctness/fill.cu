@@ -1,20 +1,10 @@
 #include <iostream>
 #include <wmma_extension/wmma_mma.hpp>
+#include "common.hpp"
 
 #ifndef TEST_ARCH
 #define TEST_ARCH (-1)
 #endif
-
-template <class T>
-std::string get_string();
-template <> std::string get_string<float>() {return "float";}
-template <> std::string get_string<half >() {return "half";}
-template <> std::string get_string<nvcuda::wmma::col_major>() {return "col_major";}
-template <> std::string get_string<nvcuda::wmma::row_major>() {return "row_major";}
-template <> std::string get_string<void>() {return "row_major";}
-template <> std::string get_string<nvcuda::wmma::matrix_a>()  {return "matrix_a";}
-template <> std::string get_string<nvcuda::wmma::matrix_b>()  {return "matrix_b";}
-template <> std::string get_string<nvcuda::wmma::accumulator>()  {return "accumulator";}
 
 __device__ float to_float(const float a) {return a;}
 __device__ float to_float(const half  a) {return __half2float(a);}
@@ -48,10 +38,10 @@ __global__ void fill_test_kernel() {
 template <class Use, int M, int N, int K, class T, class Layout>
 void test() {
 	std::printf("[TEST] %11s, %d, %d, %d, %5s, %8s\n",
-			get_string<Use>().c_str(),
+			mtk::test_utils::get_string<Use>().c_str(),
 			M, N, K,
-			get_string<T>().c_str(),
-			get_string<Layout>().c_str()
+			mtk::test_utils::get_string<T>().c_str(),
+			mtk::test_utils::get_string<Layout>().c_str()
 			);
 	fill_test_kernel<Use, M, N, K, T, Layout><<<1, 32>>>();
 	cudaDeviceSynchronize();
