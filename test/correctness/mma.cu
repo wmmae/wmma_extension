@@ -10,10 +10,6 @@
 #define TEST_ARCH (-1)
 #endif
 
-constexpr unsigned M = 16;
-constexpr unsigned N = 8;
-constexpr unsigned K = 16;
-
 template <int M, int N, int K, class T, class S, class a_layout, class b_layout, nvcuda::wmma::layout_t c_layout, nvcuda::wmma::layout_t d_layout>
 __global__ void m16n8k16_test_kernel(T* const d, const half* const a, const half* const b, const S* const c) {
 	mtk::wmma::mma::fragment<nvcuda::wmma::matrix_a   , M, N, K, half, a_layout> frag_a;
@@ -38,7 +34,7 @@ __global__ void m16n8k16_test_kernel(T* const d, const half* const a, const half
 }
 
 
-template <class T, class S, class a_layout, class b_layout, nvcuda::wmma::layout_t c_layout, nvcuda::wmma::layout_t d_layout>
+template <int M, int N, int K, class T, class S, class a_layout, class b_layout, nvcuda::wmma::layout_t c_layout, nvcuda::wmma::layout_t d_layout>
 double get_residual(const half* const a, const half* const b, const S* const c, const T* const d) {
 	double base_norm = 0.0;
 	double diff_norm = 0.0;
@@ -114,18 +110,19 @@ void test() {
 		b_ptr[i] = mtk::wmma::detail::common::cast<half>(dist(mt));
 	}
 	for (std::size_t i = 0; i < M * N; i++) {
-		c_ptr[i] = mtk::wmma::detail::common::cast<half>(dist(mt));
+		c_ptr[i] = mtk::wmma::detail::common::cast<T>(dist(mt));
 	}
 
 	cudaDeviceSynchronize();
 	m16n8k16_test_kernel<M, N, K, T, S, a_layout, b_layout, c_layout, d_layout><<<1, 32>>>(d_ptr, a_ptr, b_ptr, c_ptr);
 	cudaDeviceSynchronize();
-	std::printf("[TEST] a_%5s_%s, b_%5s_%s, c_%5s_%s, d_%5s_%s : res = %e\n",
+	std::printf("[TEST] M=%2d, N=%2d, K=%2d, a_%5s_%s, b_%5s_%s, c_%5s_%s, d_%5s_%s : res = %e\n",
+			M, N, K,
 			mtk::test_utils::get_string<half>().c_str(), mtk::test_utils::get_string<a_layout>().c_str(),
 			mtk::test_utils::get_string<half>().c_str(), mtk::test_utils::get_string<b_layout>().c_str(),
 			mtk::test_utils::get_string<S   >().c_str(), get_layout_name(c_layout).c_str(),
 			mtk::test_utils::get_string<T   >().c_str(), get_layout_name(d_layout).c_str(),
-			get_residual<T, S, a_layout, b_layout, c_layout, d_layout>(a_ptr, b_ptr, c_ptr, d_ptr)
+			get_residual<M, N, K, T, S, a_layout, b_layout, c_layout, d_layout>(a_ptr, b_ptr, c_ptr, d_ptr)
 			);
 }
 
@@ -138,10 +135,6 @@ int main() {
 	test<16, 8, 16, float, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_col_major, nvcuda::wmma::mem_row_major>();
 	test<16, 8, 16, float, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_row_major, nvcuda::wmma::mem_col_major>();
 	test<16, 8, 16, float, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_row_major, nvcuda::wmma::mem_row_major>();
-	test<16, 8, 16, half , half , nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_col_major, nvcuda::wmma::mem_col_major>();
-	test<16, 8, 16, half , half , nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_col_major, nvcuda::wmma::mem_row_major>();
-	test<16, 8, 16, half , half , nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_row_major, nvcuda::wmma::mem_col_major>();
-	test<16, 8, 16, half , half , nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_row_major, nvcuda::wmma::mem_row_major>();
 #endif
 
 #if TEST_ARCH == 80 || TEST_ARCH == 86 || TEST_ARCH == 75
@@ -149,10 +142,6 @@ int main() {
 	test<16, 8, 8, float, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_col_major, nvcuda::wmma::mem_row_major>();
 	test<16, 8, 8, float, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_row_major, nvcuda::wmma::mem_col_major>();
 	test<16, 8, 8, float, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_row_major, nvcuda::wmma::mem_row_major>();
-	test<16, 8, 8, half , half , nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_col_major, nvcuda::wmma::mem_col_major>();
-	test<16, 8, 8, half , half , nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_col_major, nvcuda::wmma::mem_row_major>();
-	test<16, 8, 8, half , half , nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_row_major, nvcuda::wmma::mem_col_major>();
-	test<16, 8, 8, half , half , nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_row_major, nvcuda::wmma::mem_row_major>();
 #endif
 
 #if TEST_ARCH == 70 || TEST_ARCH == 75
