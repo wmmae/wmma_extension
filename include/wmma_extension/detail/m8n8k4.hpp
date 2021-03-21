@@ -13,14 +13,6 @@ template <> class fragment<nvcuda::wmma::matrix_b, 8, 8, 4, half, nvcuda::wmma::
 template <> class fragment<nvcuda::wmma::accumulator, 8, 8, 4, float> : public __frag_base<float, 8>{};
 template <> class fragment<nvcuda::wmma::accumulator, 8, 8, 4, half> : public __frag_base<half, 8>{};
 
-
-template <class T, int size>
-__device__ inline void fill_fragment(__frag_base<T, size>& f, const T v) {
-#pragma unroll
-	for (unsigned i = 0; i < f.num_elements; i++)
-		f.x[i] = v; 
-}
-
 template <class Func>
 __device__ inline void foreach(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_a, 8, 8, 4, half, nvcuda::wmma::col_major>& f, Func func) {
 	constexpr unsigned ldm = 8;
