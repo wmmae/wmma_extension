@@ -1,5 +1,6 @@
 #ifndef __WMMAE_WMMA_MMA_HPP__
 #define __WMMAE_WMMA_MMA_HPP__
+#include "wmma_extension.hpp"
 #include "detail/m16n8k16.hpp"
 #include "detail/m16n8k8.hpp"
 #include "detail/m8n8k4.hpp"
