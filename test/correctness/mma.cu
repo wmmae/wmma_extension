@@ -2,7 +2,6 @@
 #include <type_traits>
 #include <random>
 #include <mma.h>
-#include <wmma_extension/wmma_extension.hpp>
 #include <wmma_extension/wmma_mma.hpp>
 #include "common.hpp"
 
