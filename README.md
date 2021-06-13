@@ -123,6 +123,8 @@ This function output the elements of a fragment.
 ## C++ interface of `mma` instructions
 
 ```cpp
+#include <wmma_extension/wmma_mma.hpp>
+
 __global__ void m16n8k16_kernel(float* const d, const half* const a, const half* const b, const float* const c) {
     mtk::wmma::mma::fragment<nvcuda::wmma::matrix_a   , 16, 8, 16, half, nvcuda::wmma::col_major> frag_a;
     mtk::wmma::mma::fragment<nvcuda::wmma::matrix_b   , 16, 8, 16, half, nvcuda::wmma::col_major> frag_b;
