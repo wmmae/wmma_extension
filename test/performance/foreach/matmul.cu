@@ -80,11 +80,11 @@ __global__ void matmul<true>(float* const c_ptr, const float* const a_ptr, const
 						const auto f_index = frag_index_list[i];
 						const unsigned r = mem_index & 0xf;
 						const unsigned c = mem_index >> 4;
-						const unsigned long i = r + c * block_size;
-						frag_db[0].x[f_index] = __float2half(matrix_b_block_head[i] - __half2float(frag_b[0].x[f_index]));
-						frag_db[1].x[f_index] = __float2half(matrix_b_block_head[i + FDIM] - __half2float(frag_b[1].x[f_index]));
-						frag_db[2].x[f_index] = __float2half(matrix_b_block_head[i + FDIM * block_size] - __half2float(frag_b[2].x[f_index]));
-						frag_db[3].x[f_index] = __float2half(matrix_b_block_head[i + FDIM * block_size + FDIM] - __half2float(frag_b[3].x[f_index]));
+						const unsigned long j = r + c * block_size;
+						frag_db[0].x[f_index] = __float2half(matrix_b_block_head[j] - __half2float(frag_b[0].x[f_index]));
+						frag_db[1].x[f_index] = __float2half(matrix_b_block_head[j + FDIM] - __half2float(frag_b[1].x[f_index]));
+						frag_db[2].x[f_index] = __float2half(matrix_b_block_head[j + FDIM * block_size] - __half2float(frag_b[2].x[f_index]));
+						frag_db[3].x[f_index] = __float2half(matrix_b_block_head[j + FDIM * block_size + FDIM] - __half2float(frag_b[3].x[f_index]));
 					}
 				});
 
