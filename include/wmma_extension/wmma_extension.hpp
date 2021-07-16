@@ -36,6 +36,7 @@ __device__ inline void foreach(Func func) {
 	// So this implementation is not a problem.
 	typename std::remove_reference<Frag_T>::type frag;
 	detail_namespace::foreach(frag, func);
+	__syncwarp();
 }
 
 template <class Frag_T, class Func>
@@ -45,6 +46,7 @@ __device__ inline void foreach_v(Func func) {
 	// So this implementation is not a problem.
 	typename std::remove_const<typename std::remove_reference<Frag_T>::type>::type frag;
 	detail_namespace::foreach_v(frag, func);
+	__syncwarp();
 }
 
 template <class Frag_T, class Func>
@@ -54,6 +56,7 @@ __device__ inline void foreach_v(const nvcuda::wmma::layout_t layout, Func func)
 	// So this implementation is not a problem.
 	typename std::remove_const<typename std::remove_reference<Frag_T>::type>::type frag;
 	detail_namespace::foreach_v(frag, layout, func);
+	__syncwarp();
 }
 
 // ------------------------------
@@ -127,12 +130,14 @@ __device__ inline void store_vector(T* const ptr, nvcuda::wmma::fragment<nvcuda:
 template <int M, int N, int K, class T, class FT>
 __device__ void add_eye(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, T>& frag, const FT a) {
 	detail_namespace::add_eye(frag, a);
+	__syncwarp();
 }
 
 template <int M, int N, int K, class T>
 __device__ void make_identity_matrix(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, T>& frag) {
 	mtk::wmma::fill_zero(frag);
 	mtk::wmma::add_eye(frag, mtk::wmma::detail::common::cast<T>(1.0f));
+	__syncwarp();
 }
 
 // ------------------------------
@@ -145,6 +150,7 @@ __device__ inline void make_direct_product_fragment(
 		const bool fill = true
 		) {
 	detail_namespace::make_direct_product_fragment<T, S, 2>(frag_x, x, dx, fill);
+	__syncwarp();
 }
 
 template <class MatrixType, int M, int N, int K, class MemMajor, class T, class S, class FT>
@@ -154,6 +160,7 @@ __device__ inline void make_direct_product_fragment_c3(
 		const bool fill = true
 		) {
 	detail_namespace::make_direct_product_fragment<T, S, 3>(frag_x, x, dx, fill);
+	__syncwarp();
 }
 
 template <class MatrixType, int M, int N, int K, class MemMajor, class FT>
@@ -163,6 +170,7 @@ __device__ inline void make_direct_product_fragment(
 		const bool fill = true
 		) {
 	detail_namespace::make_direct_product_fragment<2>(frag_x, x, fill);
+	__syncwarp();
 }
 
 template <class MatrixType, int M, int N, int K, class MemMajor, class FT>
@@ -172,6 +180,7 @@ __device__ inline void make_direct_product_fragment_c3(
 		const bool fill = true
 		) {
 	detail_namespace::make_direct_product_fragment<3>(frag_x, x, fill);
+	__syncwarp();
 }
 
 template <class MatrixType, int M, int N, int K, class MemMajor, class T>
