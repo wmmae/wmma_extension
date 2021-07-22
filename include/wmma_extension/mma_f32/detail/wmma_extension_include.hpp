@@ -3,4 +3,3 @@
 #include "../../wmma_extension.hpp"
 #include "../../wmma_mma.hpp"
 #endif
-#endif
