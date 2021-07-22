@@ -104,5 +104,17 @@ using policy = mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f
 - `mtk::wmma::mma_f32::store_vector`
 - `mtk::wmma::mma_f32::fill_zero`
 
-## Lisence
-MIT
+## SIMT Core computation
+
+This library provides fragments and functionf for mma operations using CUDA SIMT Core with the same API as WMMA API.
+
+| fm | fn | fk | LayoutA | LayoutB | Type  | Operation      | Supported arch |
+| -- | -- | -- | ------- | ------- | ----- | -------------- | ---------------|
+| 16 | 16 | 16 | col/row | col/row | float | simt           | sm_70 or later |
+
+### Policy
+```cuda
+using simt_policy = typename mtk::wmma::mma_f32::default_policy<float, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_simt>::type;
+
+mtk::wmma::mma_f32::fragment<nvcuda::wmma::mma_f32::matrix_a, N, N, N, half, nvcuda::wmma::mma_f32::col_major, simt_policy> frag_a;
+```
