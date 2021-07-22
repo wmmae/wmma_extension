@@ -64,16 +64,32 @@ __device__ inline void print_fragment(const nvcuda::wmma::fragment<MatrixType, M
 				const auto n = static_cast<int>(mtk::wmma::detail::common::cast<float>(frag.x[j])) / get_ldm<MatrixType, MemMajor>(M, N, K);
 				const auto m = static_cast<int>(mtk::wmma::detail::common::cast<float>(frag.x[j])) % get_ldm<MatrixType, MemMajor>(M, N, K);
 				printf("(");
-				if (m == 0) {
-					printf("%3d ", 0);
-				} else if (m > 0) {
-					printf("%3d ", m);
+				if (std::is_same<MemMajor, nvcuda::wmma::col_major>::value) {
+					if (m == 0) {
+						printf("%3d ", 0);
+					} else if (m > 0) {
+						printf("%3d ", m);
+					}
+				} else {
+					if (n == 0) {
+						printf("%3d ", 0);
+					} else if (n > 0) {
+						printf("%3d ", n);
+					}
 				}
 				printf(",");
-				if (n == 0) {
-					printf("%3d ", 0);
-				} else if (n > 0) {
-					printf("%3d ", n);
+				if (std::is_same<MemMajor, nvcuda::wmma::col_major>::value) {
+					if (n == 0) {
+						printf("%3d ", 0);
+					} else if (n > 0) {
+						printf("%3d ", n);
+					}
+				} else {
+					if (m == 0) {
+						printf("%3d ", 0);
+					} else if (m > 0) {
+						printf("%3d ", m);
+					}
 				}
 				printf(") ");
 			}
@@ -98,16 +114,32 @@ __device__ inline void print_fragment(const nvcuda::wmma::fragment<MatrixType, M
 				const auto n = static_cast<int>(mtk::wmma::detail::common::cast<float>(frag.x[j])) / ld;
 				const auto m = static_cast<int>(mtk::wmma::detail::common::cast<float>(frag.x[j])) % ld;
 				printf("(");
-				if (m == 0) {
-					printf("%3d ", 0);
-				} else if (m > 0) {
-					printf("%3d ", m);
+				if (layout == nvcuda::wmma::mem_col_major) {
+					if (m == 0) {
+						printf("%3d ", 0);
+					} else if (m > 0) {
+						printf("%3d ", m);
+					}
+				} else {
+					if (n == 0) {
+						printf("%3d ", 0);
+					} else if (n > 0) {
+						printf("%3d ", n);
+					}
 				}
 				printf(",");
-				if (n == 0) {
-					printf("%3d ", 0);
-				} else if (n > 0) {
-					printf("%3d ", n);
+				if (layout == nvcuda::wmma::mem_col_major) {
+					if (n == 0) {
+						printf("%3d ", 0);
+					} else if (n > 0) {
+						printf("%3d ", n);
+					}
+				} else {
+					if (m == 0) {
+						printf("%3d ", 0);
+					} else if (m > 0) {
+						printf("%3d ", m);
+					}
 				}
 				printf(") ");
 			}
