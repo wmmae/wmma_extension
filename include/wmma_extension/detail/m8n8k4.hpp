@@ -13,6 +13,7 @@ template <> class fragment<nvcuda::wmma::matrix_b, 8, 8, 4, half, nvcuda::wmma::
 template <> class fragment<nvcuda::wmma::accumulator, 8, 8, 4, float> : public __frag_base<float, 8>{};
 template <> class fragment<nvcuda::wmma::accumulator, 8, 8, 4, half> : public __frag_base<half, 8>{};
 
+
 template <class Func>
 __device__ inline void foreach(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_a, 8, 8, 4, half, nvcuda::wmma::col_major>& f, Func func) {
 	constexpr unsigned ldm = 8;
@@ -105,6 +106,84 @@ __device__ inline void foreach(mtk::wmma::mma::fragment<nvcuda::wmma::accumulato
 			const unsigned col = col_offset + ((i & 0x1) + (i & 0x4));
 			{const unsigned frag_index_list[1] = {i};func(frag_index_list, 1, row * ldm + col);}
 		}
+	}
+}
+
+// foreach_ij
+template <class Func>
+__device__ inline void foreach_ij(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_a, 8, 8, 4, half, nvcuda::wmma::col_major>& f, Func func) {
+	constexpr unsigned ldm = 8;
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+	const unsigned col = lane_id & 0x3;
+	const unsigned row_offset = ((lane_id >> 4) << 2);
+
+	{const unsigned frag_index_list[1] = {0};func(frag_index_list, 1, row_offset + 0, col);}
+	{const unsigned frag_index_list[1] = {1};func(frag_index_list, 1, row_offset + 1, col);}
+	{const unsigned frag_index_list[1] = {2};func(frag_index_list, 1, row_offset + 2, col);}
+	{const unsigned frag_index_list[1] = {3};func(frag_index_list, 1, row_offset + 3, col);}
+}
+
+template <class Func>
+__device__ inline void foreach_ij(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_a, 8, 8, 4, half, nvcuda::wmma::row_major>& f, Func func) {
+	constexpr unsigned ldm = 4;
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+	const unsigned row = (lane_id & 0x3) + ((lane_id >> 4) << 2);
+
+	{const unsigned frag_index_list[1] = {0};func(frag_index_list, 1, row, 0);}
+	{const unsigned frag_index_list[1] = {1};func(frag_index_list, 1, row, 1);}
+	{const unsigned frag_index_list[1] = {2};func(frag_index_list, 1, row, 2);}
+	{const unsigned frag_index_list[1] = {3};func(frag_index_list, 1, row, 3);}
+}
+
+template <class Func>
+__device__ inline void foreach_ij(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_b, 8, 8, 4, half, nvcuda::wmma::col_major>& f, Func func) {
+	constexpr unsigned ldm = 4;
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+	const unsigned col = (lane_id & 0x3) + ((lane_id >> 4) << 2);
+
+	{const unsigned frag_index_list[1] = {0};func(frag_index_list, 1, 0, col);}
+	{const unsigned frag_index_list[1] = {1};func(frag_index_list, 1, 1, col);}
+	{const unsigned frag_index_list[1] = {2};func(frag_index_list, 1, 2, col);}
+	{const unsigned frag_index_list[1] = {3};func(frag_index_list, 1, 3, col);}
+}
+
+template <class Func>
+__device__ inline void foreach_ij(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_b, 8, 8, 4, half, nvcuda::wmma::row_major>& f, Func func) {
+	constexpr unsigned ldm = 8;
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+	const unsigned row = lane_id & 0x3;
+	const unsigned col_offset = ((lane_id >> 4) << 2);
+	const unsigned mem_offset = row * ldm + col_offset;
+
+	{const unsigned frag_index_list[1] = {0};func(frag_index_list, 1, row, col_offset + 0);}
+	{const unsigned frag_index_list[1] = {1};func(frag_index_list, 1, row, col_offset + 1);}
+	{const unsigned frag_index_list[1] = {2};func(frag_index_list, 1, row, col_offset + 2);}
+	{const unsigned frag_index_list[1] = {3};func(frag_index_list, 1, row, col_offset + 3);}
+}
+
+template <class Func>
+__device__ inline void foreach_ij(mtk::wmma::mma::fragment<nvcuda::wmma::accumulator, 8, 8, 4, half, void>& f, const nvcuda::wmma::layout_t layout, Func func) {
+	constexpr unsigned ldm = 8;
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+	const unsigned row = (lane_id & 0x3) + ((lane_id & 0x10) >> 2);
+#pragma unroll
+	for (unsigned i = 0; i < 8; i++) {
+		{const unsigned frag_index_list[1] = {i};func(frag_index_list, 1, row, i);}
+	}
+}
+
+template <class Func>
+__device__ inline void foreach_ij(mtk::wmma::mma::fragment<nvcuda::wmma::accumulator, 8, 8, 4, float, void>& f, const nvcuda::wmma::layout_t layout, Func func) {
+	constexpr unsigned ldm = 8;
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+	const unsigned row_offset = (lane_id & 0x1) + ((lane_id & 0x10) >> 2);
+	const unsigned col_offset = (lane_id & 0x2);
+
+#pragma unroll
+	for (unsigned i = 0; i < f.num_elements; i++) {
+		const unsigned row = row_offset + (i & 0x2);
+		const unsigned col = col_offset + ((i & 0x1) + (i & 0x4));
+		{const unsigned frag_index_list[1] = {i};func(frag_index_list, 1, row, col);}
 	}
 }
 
