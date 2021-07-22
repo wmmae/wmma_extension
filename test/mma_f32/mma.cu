@@ -1,10 +1,6 @@
 #include <iostream>
 #include <random>
 #include "utils.hpp"
-#include <wmma_extension/mma_f32/tcec.hpp>
-#ifdef TEST_SIMT
-#include <wmma_extension/hmma_f32_f32_no_tc.hpp>
-#endif
 
 template <class T, class ErrorCorrection>
 constexpr double error_threshold = 0.0;
