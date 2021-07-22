@@ -3,7 +3,7 @@ NVCC=nvcc
 INCDIR=../../include
 
 TEST_TF32=YES
-TEST_SIMT=NO
+TEST_SIMT=YES
 
 NVCCFLAGS=-std=c++14 -I$(INCDIR) -Xcompiler="-fopenmp" --ptxas-options=-v -lcublas
 NVCCFLAGS+=-gencode arch=compute_86,code=sm_86
