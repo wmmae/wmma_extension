@@ -41,7 +41,7 @@ __device__ inline void foreach(Func func) {
 
 template <class MatrixType, int M, int N, int K, class MemMajor, class Func, class FT>
 __device__ inline void foreach_ij(nvcuda::wmma::fragment<MatrixType, M, N, K, FT, MemMajor>& frag, Func func) {
-	detail_namespace::foreach(frag, func);
+	detail_namespace::foreach_ij(frag, func);
 }
 
 template <class Frag_T, class Func>
