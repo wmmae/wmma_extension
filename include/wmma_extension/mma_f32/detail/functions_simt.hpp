@@ -23,6 +23,23 @@ struct foreach_wrapper<Use, T, Layout, Policy<mtk::wmma::mma_f32::op_simt, Error
 	}
 };
 
+// foreach_ij
+template <class Use, class T, class Layout, class ErrorCorrection, int fm, int fn, int fk>
+struct foreach_ij_wrapper<Use, T, Layout, Policy<mtk::wmma::mma_f32::op_simt, ErrorCorrection, fm, fn, fk>> {
+	template <class Func>
+	__device__ void operator()(Func func) {
+		mtk::wmma::mma_simt::foreach_ij<typename mtk::wmma::mma_simt::fragment<Use, fm, fn, fk, T, Layout>>(
+				func
+				);
+	}
+	template <class Func>
+	__device__ void operator()(const nvcuda::wmma::layout_t layout, Func func) {
+		mtk::wmma::mma_simt::foreach_ij<typename mtk::wmma::mma_simt::fragment<Use, fm, fn, fk, T, Layout>>(
+				layout, func
+				);
+	}
+};
+
 // foreach_v
 template <class Use, class T, class Layout, class ErrorCorrection, int fm, int fn, int fk>
 struct foreach_v_wrapper<Use, T, Layout, Policy<mtk::wmma::mma_f32::op_simt, ErrorCorrection, fm, fn, fk>> {
