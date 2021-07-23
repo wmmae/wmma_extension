@@ -75,8 +75,9 @@ void test() {
 		}
 	}
 
-	std::printf("%s{Use=%10s,M=%2d,N=%2d,K=%2d,Type=%s,Layout=%8s}:",
+	std::printf("%s{SM=%2d,Use=%10s,M=%2d,N=%2d,K=%2d,Type=%s,Layout=%8s}:",
 			__FILE__,
+			TEST_ARCH,
 			mtk::test_utils::get_string<Use>().c_str(),
 			M, N, K,
 			mtk::test_utils::get_string<Type>().c_str(),
