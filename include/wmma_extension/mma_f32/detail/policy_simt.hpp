@@ -17,8 +17,8 @@ namespace detail {
 // Default policy selector
 // ===================================
 template <class T>
-struct default_policy<T                            , mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_simt> {
-	using type = mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_simt, mtk::wmma::mma_f32::op_without_error_correction, 16, 16, 16>;
+struct default_policy<T                            , mtk::wmma::mma_f32::without_ec, mtk::wmma::mma_f32::op_simt> {
+	using type = mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_simt, mtk::wmma::mma_f32::without_ec, 16, 16, 16>;
 };
 
 // ===================================

@@ -13,8 +13,11 @@ struct op_mma;
 struct op_wmma;
 
 // Error correction policy
-struct op_with_error_correction;
-struct op_without_error_correction;
+struct with_ec;
+struct without_ec;
+// Alias for compatibility
+using op_with_error_correction = with_ec;
+using op_without_error_correction = without_ec;
 
 template <class Op, class ErrorCorrection, int m_, int n_, int k_>
 struct Policy {
@@ -29,7 +32,7 @@ namespace detail {
 // ===================================
 // Default policy selector
 // ===================================
-template <class T, class ErrorCorrection = mtk::wmma::mma_f32::op_with_error_correction, class Op = mtk::wmma::mma_f32::op_wmma>
+template <class T, class ErrorCorrection = mtk::wmma::mma_f32::with_ec, class Op = mtk::wmma::mma_f32::op_wmma>
 struct default_policy;
 template <class ErrorCorrection>
 struct default_policy<half                         , ErrorCorrection, mtk::wmma::mma_f32::op_wmma> {using type = mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_wmma, ErrorCorrection, 16, 16, 16>;};

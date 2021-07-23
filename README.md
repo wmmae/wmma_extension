@@ -9,7 +9,7 @@ This extension provides features for
     - storing a fragment as a vector
 - making eye matrix fragment
 - C++ interface of `mma` instructions
-- fragment and loding/storing/mma functions [[detail](./docs/mma_f32.md)]
+- fragment and loding/storing/mma functions with Error Correction [[detail](./docs/mma_f32.md)]
 - etc
 
 without using extra shared memory.

@@ -344,7 +344,7 @@ void test_batched_sgemm(
 	std::fflush(stdout);
 
 	using FRAGMENT_T = half;
-	using TC_Policy = mtk::wmma::mma_f32::detail::default_policy<FRAGMENT_T, mtk::wmma::mma_f32::op_with_error_correction, mtk::wmma::mma_f32::op_mma>::type;
+	using TC_Policy = mtk::wmma::mma_f32::detail::default_policy<FRAGMENT_T, mtk::wmma::mma_f32::with_ec, mtk::wmma::mma_f32::op_mma>::type;
 
 	float **d_a_ptr_array;
 	float **d_b_ptr_array;
