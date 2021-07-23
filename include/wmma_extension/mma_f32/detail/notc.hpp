@@ -1,9 +1,9 @@
 #ifndef __MTK_HMMA_F32_F32_NO_TC_HPP__
 #define __MTK_HMMA_F32_F32_NO_TC_HPP__
 
-#include "detail/common.hpp"
-#include "detail/policy_simt.hpp"
-#include "detail/functions_simt.hpp"
+#include "common.hpp"
+#include "policy_simt.hpp"
+#include "functions_simt.hpp"
 
 namespace mtk {
 namespace wmma {

@@ -491,3 +491,4 @@ __device__ void mma_sync(
 #endif
 
 #include "detail/no_cor.hpp"
+#include "detail/notc.hpp"

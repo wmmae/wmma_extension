@@ -3,9 +3,6 @@
 #include <cuda_fp16.h>
 #include <string>
 #include <wmma_extension/mma_f32/tcec.hpp>
-#ifdef TEST_SIMT
-#include <wmma_extension/mma_f32/notc.hpp>
-#endif
 
 namespace mtk {
 namespace test_utils {
