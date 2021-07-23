@@ -116,7 +116,61 @@ __device__ inline void foreach(mtk::wmma::mma_simt::fragment<nvcuda::wmma::accum
 	}
 }
 
-// foreach
+// foreach_ij
+template <class Func, class T>
+__device__ void foreach_ij(
+		fragment<nvcuda::wmma::matrix_a, 16, 16, 16, T, nvcuda::wmma::col_major>& frag, const Func func
+		) {
+	const auto m = threadIdx.x & 0xf;
+	const auto n_offset = (threadIdx.x >> 4) << 3;
+	for (unsigned i = 0; i < frag.num_elements; i++) {
+		{const unsigned frag_index_list[1] = {i};func(frag_index_list, 1, m, n_offset + i);}
+	}
+}
+
+template <class Func, class T>
+__device__ void foreach_ij(
+		fragment<nvcuda::wmma::matrix_a, 16, 16, 16, T, nvcuda::wmma::row_major>& frag, const Func func
+		) {
+	const auto m = threadIdx.x & 0xf;
+	const auto n_offset = (threadIdx.x >> 4) << 3;
+	for (unsigned i = 0; i < frag.num_elements; i++) {
+		{const unsigned frag_index_list[1] = {i};func(frag_index_list, 1, m, n_offset + i);}
+	}
+}
+
+template <class Func, class T>
+__device__ void foreach_ij(
+		fragment<nvcuda::wmma::matrix_b, 16, 16, 16, T, nvcuda::wmma::col_major>& frag, const Func func
+		) {
+	const auto n = threadIdx.x & 0xf;
+	const auto m_offset = (threadIdx.x >> 4) << 3;
+	for (unsigned i = 0; i < frag.num_elements; i++) {
+		{const unsigned frag_index_list[1] = {i};func(frag_index_list, 1, m_offset + i, n);}
+	}
+}
+
+template <class Func, class T>
+__device__ void foreach_ij(
+		fragment<nvcuda::wmma::matrix_b, 16, 16, 16, T, nvcuda::wmma::row_major>& frag, const Func func
+		) {
+	const auto n = threadIdx.x & 0xf;
+	const auto m_offset = (threadIdx.x >> 4) << 3;
+	for (unsigned i = 0; i < frag.num_elements; i++) {
+		{const unsigned frag_index_list[1] = {i};func(frag_index_list, 1, m_offset + i, n);}
+	}
+}
+
+template <class Func, class T>
+__device__ inline void foreach_ij(mtk::wmma::mma_simt::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag, const nvcuda::wmma::layout_t layout, const Func func) {
+	const auto n = threadIdx.x & 0xf;
+	const auto m_offset = (threadIdx.x >> 4) << 3;
+	for (unsigned i = 0; i < frag.num_elements; i++) {
+		{const unsigned frag_index_list[1] = {i};func(frag_index_list, 1, m_offset + i, n);}
+	}
+}
+
+// foreach_v
 template <class Func, class T>
 __device__ void foreach_v(
 		fragment<nvcuda::wmma::matrix_a, 16, 16, 16, T, nvcuda::wmma::col_major>& frag, const Func func
