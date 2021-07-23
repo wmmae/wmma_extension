@@ -15,6 +15,9 @@ struct op_wmma;
 // Error correction policy
 struct with_ec;
 struct without_ec;
+// Alias for compatibility
+using op_with_error_correction = with_ec;
+using op_without_error_correction = without_ec;
 
 template <class Op, class ErrorCorrection, int m_, int n_, int k_>
 struct Policy {
