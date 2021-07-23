@@ -82,7 +82,7 @@ void load_vector_test() {
 	std::printf("Size   : %u, %u, %u\n", m, n, k);
 	std::printf("Policy : Policy<%7s,%9s,%2u,%2u,%2u>\n",
 			mtk::test_utils::to_string<typename Policy::op>().c_str(),
-			std::is_same<typename Policy::error_correction, mtk::wmma::mma_f32::op_with_error_correction>::value ? "{w/ ec}" : "{w/o ec}",
+			std::is_same<typename Policy::error_correction, mtk::wmma::mma_f32::with_ec>::value ? "{w/ ec}" : "{w/o ec}",
 			Policy::m,
 			Policy::n,
 			Policy::k);
@@ -143,7 +143,7 @@ void store_vector_test() {
 	std::printf("Size   : %u, %u, %u\n", m, n, k);
 	std::printf("Policy : Policy<%7s,%9s,%2u,%2u,%2u>\n",
 			mtk::test_utils::to_string<typename Policy::op>().c_str(),
-			std::is_same<typename Policy::error_correction, mtk::wmma::mma_f32::op_with_error_correction>::value ? "{w/ ec}" : "{w/o ec}",
+			std::is_same<typename Policy::error_correction, mtk::wmma::mma_f32::with_ec>::value ? "{w/ ec}" : "{w/o ec}",
 			Policy::m,
 			Policy::n,
 			Policy::k);
@@ -190,50 +190,50 @@ void store_vector_test() {
 }
 
 int main() {
-	load_vector_test<nvcuda::wmma::matrix_a    , 32, 32, 32, half, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type>();
-	load_vector_test<nvcuda::wmma::matrix_b    , 32, 32, 32, half, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type>();
-	load_vector_test<nvcuda::wmma::accumulator , 32, 32, 32, half, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type>();
-	load_vector_test<nvcuda::wmma::matrix_a    , 32, 32, 32, half, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type>();
-	load_vector_test<nvcuda::wmma::matrix_b    , 32, 32, 32, half, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type>();
-	load_vector_test<nvcuda::wmma::accumulator , 32, 32, 32, half, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type>();
-	store_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, half, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type>();
-	store_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, half, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type>();
-	load_vector_test<nvcuda::wmma::matrix_a    , 32, 32, 32, half, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type>();
-	load_vector_test<nvcuda::wmma::matrix_b    , 32, 32, 32, half, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type>();
-	load_vector_test<nvcuda::wmma::accumulator , 32, 32, 32, half, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type>();
-	load_vector_test<nvcuda::wmma::matrix_a    , 32, 32, 32, half, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type>();
-	load_vector_test<nvcuda::wmma::matrix_b    , 32, 32, 32, half, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type>();
-	load_vector_test<nvcuda::wmma::accumulator , 32, 32, 32, half, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type>();
-	store_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, half, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type>();
-	store_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, half, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type>();
+	load_vector_test<nvcuda::wmma::matrix_a    , 32, 32, 32, half, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::with_ec   , mtk::wmma::mma_f32::op_wmma>::type>();
+	load_vector_test<nvcuda::wmma::matrix_b    , 32, 32, 32, half, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::with_ec   , mtk::wmma::mma_f32::op_wmma>::type>();
+	load_vector_test<nvcuda::wmma::accumulator , 32, 32, 32, half, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::with_ec   , mtk::wmma::mma_f32::op_wmma>::type>();
+	load_vector_test<nvcuda::wmma::matrix_a    , 32, 32, 32, half, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::with_ec   , mtk::wmma::mma_f32::op_wmma>::type>();
+	load_vector_test<nvcuda::wmma::matrix_b    , 32, 32, 32, half, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::with_ec   , mtk::wmma::mma_f32::op_wmma>::type>();
+	load_vector_test<nvcuda::wmma::accumulator , 32, 32, 32, half, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::with_ec   , mtk::wmma::mma_f32::op_wmma>::type>();
+	store_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, half, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::with_ec   , mtk::wmma::mma_f32::op_wmma>::type>();
+	store_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, half, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::with_ec   , mtk::wmma::mma_f32::op_wmma>::type>();
+	load_vector_test<nvcuda::wmma::matrix_a    , 32, 32, 32, half, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::without_ec, mtk::wmma::mma_f32::op_wmma>::type>();
+	load_vector_test<nvcuda::wmma::matrix_b    , 32, 32, 32, half, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::without_ec, mtk::wmma::mma_f32::op_wmma>::type>();
+	load_vector_test<nvcuda::wmma::accumulator , 32, 32, 32, half, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::without_ec, mtk::wmma::mma_f32::op_wmma>::type>();
+	load_vector_test<nvcuda::wmma::matrix_a    , 32, 32, 32, half, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::without_ec, mtk::wmma::mma_f32::op_wmma>::type>();
+	load_vector_test<nvcuda::wmma::matrix_b    , 32, 32, 32, half, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::without_ec, mtk::wmma::mma_f32::op_wmma>::type>();
+	load_vector_test<nvcuda::wmma::accumulator , 32, 32, 32, half, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::without_ec, mtk::wmma::mma_f32::op_wmma>::type>();
+	store_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, half, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::without_ec, mtk::wmma::mma_f32::op_wmma>::type>();
+	store_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, half, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::without_ec, mtk::wmma::mma_f32::op_wmma>::type>();
 
 #ifdef TEST_SIMT
-	load_vector_test<nvcuda::wmma::matrix_a    , 32, 32, 32, float, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<float, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_simt>::type>();
-	load_vector_test<nvcuda::wmma::matrix_b    , 32, 32, 32, float, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<float, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_simt>::type>();
-	load_vector_test<nvcuda::wmma::accumulator , 32, 32, 32, float, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<float, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_simt>::type>();
-	load_vector_test<nvcuda::wmma::matrix_a    , 32, 32, 32, float, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<float, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_simt>::type>();
-	load_vector_test<nvcuda::wmma::matrix_b    , 32, 32, 32, float, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<float, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_simt>::type>();
-	load_vector_test<nvcuda::wmma::accumulator , 32, 32, 32, float, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<float, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_simt>::type>();
-	store_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, float, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<float, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_simt>::type>();
-	store_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, float, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<float, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_simt>::type>();
+	load_vector_test<nvcuda::wmma::matrix_a    , 32, 32, 32, float, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<float, mtk::wmma::mma_f32::without_ec, mtk::wmma::mma_f32::op_simt>::type>();
+	load_vector_test<nvcuda::wmma::matrix_b    , 32, 32, 32, float, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<float, mtk::wmma::mma_f32::without_ec, mtk::wmma::mma_f32::op_simt>::type>();
+	load_vector_test<nvcuda::wmma::accumulator , 32, 32, 32, float, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<float, mtk::wmma::mma_f32::without_ec, mtk::wmma::mma_f32::op_simt>::type>();
+	load_vector_test<nvcuda::wmma::matrix_a    , 32, 32, 32, float, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<float, mtk::wmma::mma_f32::without_ec, mtk::wmma::mma_f32::op_simt>::type>();
+	load_vector_test<nvcuda::wmma::matrix_b    , 32, 32, 32, float, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<float, mtk::wmma::mma_f32::without_ec, mtk::wmma::mma_f32::op_simt>::type>();
+	load_vector_test<nvcuda::wmma::accumulator , 32, 32, 32, float, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<float, mtk::wmma::mma_f32::without_ec, mtk::wmma::mma_f32::op_simt>::type>();
+	store_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, float, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<float, mtk::wmma::mma_f32::without_ec, mtk::wmma::mma_f32::op_simt>::type>();
+	store_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, float, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<float, mtk::wmma::mma_f32::without_ec, mtk::wmma::mma_f32::op_simt>::type>();
 #endif
 
 #ifdef TEST_TF32
-	load_vector_test<nvcuda::wmma::matrix_a    , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type>();
-	load_vector_test<nvcuda::wmma::matrix_b    , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type>();
-	load_vector_test<nvcuda::wmma::accumulator , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type>();
-	load_vector_test<nvcuda::wmma::matrix_a    , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type>();
-	load_vector_test<nvcuda::wmma::matrix_b    , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type>();
-	load_vector_test<nvcuda::wmma::accumulator , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type>();
-	store_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type>();
-	store_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_with_error_correction   , mtk::wmma::mma_f32::op_wmma>::type>();
-	load_vector_test<nvcuda::wmma::matrix_a    , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type>();
-	load_vector_test<nvcuda::wmma::matrix_b    , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type>();
-	load_vector_test<nvcuda::wmma::accumulator , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type>();
-	load_vector_test<nvcuda::wmma::matrix_a    , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type>();
-	load_vector_test<nvcuda::wmma::matrix_b    , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type>();
-	load_vector_test<nvcuda::wmma::accumulator , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type>();
-	store_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type>();
-	store_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_wmma>::type>();
+	load_vector_test<nvcuda::wmma::matrix_a    , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::with_ec   , mtk::wmma::mma_f32::op_wmma>::type>();
+	load_vector_test<nvcuda::wmma::matrix_b    , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::with_ec   , mtk::wmma::mma_f32::op_wmma>::type>();
+	load_vector_test<nvcuda::wmma::accumulator , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::with_ec   , mtk::wmma::mma_f32::op_wmma>::type>();
+	load_vector_test<nvcuda::wmma::matrix_a    , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::with_ec   , mtk::wmma::mma_f32::op_wmma>::type>();
+	load_vector_test<nvcuda::wmma::matrix_b    , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::with_ec   , mtk::wmma::mma_f32::op_wmma>::type>();
+	load_vector_test<nvcuda::wmma::accumulator , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::with_ec   , mtk::wmma::mma_f32::op_wmma>::type>();
+	store_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::with_ec   , mtk::wmma::mma_f32::op_wmma>::type>();
+	store_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::with_ec   , mtk::wmma::mma_f32::op_wmma>::type>();
+	load_vector_test<nvcuda::wmma::matrix_a    , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::without_ec, mtk::wmma::mma_f32::op_wmma>::type>();
+	load_vector_test<nvcuda::wmma::matrix_b    , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::without_ec, mtk::wmma::mma_f32::op_wmma>::type>();
+	load_vector_test<nvcuda::wmma::accumulator , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::without_ec, mtk::wmma::mma_f32::op_wmma>::type>();
+	load_vector_test<nvcuda::wmma::matrix_a    , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::without_ec, mtk::wmma::mma_f32::op_wmma>::type>();
+	load_vector_test<nvcuda::wmma::matrix_b    , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::without_ec, mtk::wmma::mma_f32::op_wmma>::type>();
+	load_vector_test<nvcuda::wmma::accumulator , 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::without_ec, mtk::wmma::mma_f32::op_wmma>::type>();
+	store_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::without_ec, mtk::wmma::mma_f32::op_wmma>::type>();
+	store_vector_test<nvcuda::wmma::accumulator, 32, 32, 32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, typename mtk::wmma::mma_f32::detail::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::mma_f32::without_ec, mtk::wmma::mma_f32::op_wmma>::type>();
 #endif
 }
