@@ -149,7 +149,6 @@ __device__ inline void foreach_ij(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	const unsigned row = lane_id & 0x3;
 	const unsigned col_offset = ((lane_id >> 4) << 2);
-	const unsigned mem_offset = row * ldm + col_offset;
 
 	{const unsigned frag_index_list[1] = {0};func(frag_index_list, 1, row, col_offset + 0);}
 	{const unsigned frag_index_list[1] = {1};func(frag_index_list, 1, row, col_offset + 1);}
