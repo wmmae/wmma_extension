@@ -111,16 +111,16 @@ __device__ void load_matrix_sync(fragment<Use, m, n, k, T, Layout, mtk::wmma::mm
 	constexpr auto frag_m = mtk::wmma::mma_f32::detail::select_value<Use, Policy::m, Policy::k, Policy::m>::value;
 	constexpr auto frag_n = mtk::wmma::mma_f32::detail::select_value<Use, Policy::k, Policy::n, Policy::n>::value;
 
-	mtk::wmma::mma_f32::detail::foreach_wrapper<Use, T, Layout, Policy>{}(
-			[&](const unsigned frag_index_list[], const unsigned frag_index_count, const unsigned mem_index) {
+	mtk::wmma::mma_f32::detail::foreach_ij_wrapper<Use, T, Layout, Policy>{}(
+			[&](const unsigned frag_index_list[], const unsigned frag_index_count, const unsigned i, const unsigned j) {
 				for (unsigned bm = 0; bm < frag.num_sub_frag_m; bm++) {
 					for (unsigned bn = 0; bn < frag.num_sub_frag_n; bn++) {
-						const auto mem_offset = mtk::wmma::mma_f32::detail::compute_mem_offset<frag_m, frag_n, Layout>{}(mem_index, ldm, bm * frag_m, bn * frag_n);
+						const auto mem_offset = mtk::wmma::mma_f32::detail::compute_mem_offset<frag_m, frag_n, Layout>{}(i, j, ldm, bm * frag_m, bn * frag_n);
 						const auto v = ptr[mem_offset];
 						const auto hv = mtk::wmma::detail::common::cast<T>(v);
 						const auto dhv = mtk::wmma::detail::common::cast<T>(detail::correction_scale_0<T>(v - mtk::wmma::detail::common::cast<float>(hv)));
-						for (unsigned i = 0; i < frag_index_count; i++) {
-							const auto frag_index = frag_index_list[i];
+						for (unsigned f = 0; f < frag_index_count; f++) {
+							const auto frag_index = frag_index_list[f];
 							frag.sub_frag  [bm + frag.num_sub_frag_m * bn].x[frag_index] = hv ;
 							frag.sub_d_frag[bm + frag.num_sub_frag_m * bn].x[frag_index] = dhv;
 						}
@@ -138,16 +138,16 @@ __device__ void load_matrix_sync_with_mul(fragment<Use, m, n, k, T, Layout, mtk:
 	constexpr auto frag_m = mtk::wmma::mma_f32::detail::select_value<Use, Policy::m, Policy::k, Policy::m>::value;
 	constexpr auto frag_n = mtk::wmma::mma_f32::detail::select_value<Use, Policy::k, Policy::n, Policy::n>::value;
 
-	mtk::wmma::mma_f32::detail::foreach_wrapper<Use, T, Layout, Policy>{}(
-			[&](const unsigned frag_index_list[], const unsigned frag_index_count, const unsigned mem_index) {
+	mtk::wmma::mma_f32::detail::foreach_ij_wrapper<Use, T, Layout, Policy>{}(
+			[&](const unsigned frag_index_list[], const unsigned frag_index_count, const unsigned i, const unsigned j) {
 				for (unsigned bm = 0; bm < frag.num_sub_frag_m; bm++) {
 					for (unsigned bn = 0; bn < frag.num_sub_frag_n; bn++) {
-						const auto mem_offset = mtk::wmma::mma_f32::detail::compute_mem_offset<frag_m, frag_n, Layout>{}(mem_index, ldm, bm * frag_m, bn * frag_n);
+						const auto mem_offset = mtk::wmma::mma_f32::detail::compute_mem_offset<frag_m, frag_n, Layout>{}(i, j, ldm, bm * frag_m, bn * frag_n);
 						const auto v = ptr[mem_offset] * mul;
 						const auto hv = mtk::wmma::detail::common::cast<T>(v);
 						const auto dhv = mtk::wmma::detail::common::cast<T>(detail::correction_scale_0<T>(v - mtk::wmma::detail::common::cast<float>(hv)));
-						for (unsigned i = 0; i < frag_index_count; i++) {
-							const auto frag_index = frag_index_list[i];
+						for (unsigned f = 0; f < frag_index_count; f++) {
+							const auto frag_index = frag_index_list[f];
 							frag.sub_frag  [bm + frag.num_sub_frag_m * bn].x[frag_index] = hv ;
 							frag.sub_d_frag[bm + frag.num_sub_frag_m * bn].x[frag_index] = dhv;
 						}
