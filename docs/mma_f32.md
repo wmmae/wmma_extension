@@ -72,13 +72,13 @@ You can get a default policy by `mtk::wmma::mma_f32::detail::default_policy<T>::
 - `T` is `half` or `nvcuda::wmma::precision::tf32`. Unlike `nvcuda::wmma::fragment`, even if `Use` is `nvcuda::wmma::accumulator`, the same is true.
 - `Policy` is a concept of `mtk::wmma::mma_f32::Policy<Op, ErrorCorrection, fm, fn, fk>`.
   - `Op` : `mtk::wmma::mma_f32::op_mma` / `mtk::wmma::mma_f32::op_wmma`
-  - `ErrorCorrection` : `mtk::wmma::mma_f32::op_with_error_correction` / `mtk::wmma::mma_f32::op_without_error_correction`
+  - `ErrorCorrection` : `mtk::wmma::mma_f32::with_ec` / `mtk::wmma::mma_f32::without_ec`
   - `fm`, `fn`, `fk` is a size of internal fragments.
 
 ### Policy
 `default_policy` can make `Policy` easily.
 ```cuda
-using policy = mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::op_with_error_correction, mtk::wmma::mma_f32::op_mma>::type;
+using policy = mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::with_ec, mtk::wmma::mma_f32::op_mma>::type;
 ```
 
 ## Supported fragment
@@ -114,7 +114,7 @@ This library provides fragments and functionf for mma operations using CUDA SIMT
 
 ### Policy
 ```cuda
-using simt_policy = typename mtk::wmma::mma_f32::default_policy<float, mtk::wmma::mma_f32::op_without_error_correction, mtk::wmma::mma_f32::op_simt>::type;
+using simt_policy = typename mtk::wmma::mma_f32::default_policy<float, mtk::wmma::mma_f32::without_ec, mtk::wmma::mma_f32::op_simt>::type;
 
 mtk::wmma::mma_f32::fragment<nvcuda::wmma::mma_f32::matrix_a, N, N, N, half, nvcuda::wmma::mma_f32::col_major, simt_policy> frag_a;
 ```
