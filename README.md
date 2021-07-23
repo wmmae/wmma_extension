@@ -32,7 +32,7 @@ For instance, a program which is compiled with `-arch=sm_70` does not work corre
 # Functions
 ## Primitive functions
 ### foreach
-This function calculates the mapping of memory and fragment elements.
+This function calculates the mapping of the memory and fragment elements.
 ```cuda
 nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major> frag_b;
 __shared__ compute_t matrix[16 * 16];
@@ -46,8 +46,18 @@ mtk::wmma::foreach<decltype(frag_b)>(
     );
 ```
 
-- Arguments
-  - func         : a function which sets fragments from `fragment_index_list`, `fragmnt_index_count` and `mem_index`.
+### foreach_ij
+This function calculates the mapping of the matrix element position (i,j) and fragment elements.
+```cuda
+nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major> frag_b;
+__shared__ compute_t matrix[16 * 16];
+mtk::wmma::foreach_ij<decltype(frag_b)>(
+        [&](const unsigned* frag_index_list, const unsigned fragment_index_count, const unsigned i, const unsigned j) {
+            for (unsigned f = 0; f < fragment_index_count; f++)
+                frag_b.x[frag_index_list[f]] = convert_to<half>(matrix[j * 16 + i]);
+        });
+    );
+```
 
 ### foreach_v
 #### For matrix A/B
@@ -62,9 +72,6 @@ mtk::wmma::foreach_v<decltype(frag_b)>(
         });
 // is equivalent to `load_vector`
 ```
-
-- Arguments
-  - func         : a function which sets fragments from `fragment_index_list`, `fragmnt_index_count` and `mem_index`.
 
 #### For accumulator
 ```cuda

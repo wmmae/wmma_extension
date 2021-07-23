@@ -59,6 +59,65 @@ __device__ inline void foreach(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16
 	}
 }
 
+// -------------------------------
+// foreach_ij
+// -------------------------------
+template <class Func>
+__device__ inline void foreach_ij(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, Func func) {
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+	const auto i_offset = (lane_id & 0b100) * 2 + (lane_id & 0b10000) / 4;
+	const auto j_offset = lane_id & 0b11;
+	for (unsigned x = 0; x < frag.num_elements; x++) {
+		const unsigned i = i_offset + (x & 0b11);
+		const unsigned j = j_offset + (x & 0b1100);
+		const unsigned frag_index_list[1] = {x};
+		func(frag_index_list, 1, i, j);
+	}
+}
+
+template <class Func>
+__device__ inline void foreach_ij(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, Func func) {
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+	const auto i_offset = 0;
+	const auto j_offset = (lane_id & 0b11) + (lane_id & 0b1000) + (lane_id & 0b10000) / 4;
+	for (unsigned x = 0; x < frag.num_elements; x++) {
+		const unsigned i = i_offset + x;
+		const unsigned j = j_offset;
+		const unsigned frag_index_list[1] = {x};
+		func(frag_index_list, 1, i, j);
+	}
+}
+
+template <class Func>
+__device__ inline void foreach_ij(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::row_major>& frag, Func func) {
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+	const auto i_offset = (lane_id & 0b11) + (lane_id & 0b100) * 2 + (lane_id & 0b10000) / 4;
+	const auto j_offset = 0;
+	for (unsigned x = 0; x < frag.num_elements; x++) {
+		const unsigned i = i_offset;
+		const unsigned j = j_offset + x;
+		const unsigned frag_index_list[1] = {x};
+		func(frag_index_list, 1, i, j);
+	}
+
+}
+
+template <class Func>
+__device__ inline void foreach_ij(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>& frag, Func func) {
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+	const auto i_offset = lane_id & 0b11;
+	const auto j_offset = (lane_id & 0b1000) + (lane_id & 0b10000) / 4;
+	for (unsigned x = 0; x < frag.num_elements; x++) {
+		const unsigned i = i_offset + (x & 0b1100);
+		const unsigned j = j_offset + (x & 0b11);
+		const unsigned frag_index_list[1] = {x};
+		func(frag_index_list, 1, i, j);
+	}
+}
+
+// -------------------------------
+// foreach_v
+// -------------------------------
 template <class Func>
 __device__ inline void foreach_v(nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag, Func func) {
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();

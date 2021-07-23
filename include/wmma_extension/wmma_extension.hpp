@@ -39,6 +39,21 @@ __device__ inline void foreach(Func func) {
 	__syncwarp();
 }
 
+template <class MatrixType, int M, int N, int K, class MemMajor, class Func, class FT>
+__device__ inline void foreach_ij(nvcuda::wmma::fragment<MatrixType, M, N, K, FT, MemMajor>& frag, Func func) {
+	detail_namespace::foreach_ij(frag, func);
+}
+
+template <class Frag_T, class Func>
+__device__ inline void foreach_ij(Func func) {
+	// Requirering `frag` as an argument does not look good but it can not be helped because C++ does not support partial template specialization of a templeta function.
+	// The `frag` below does not consume registers because of optimization by nvcc.
+	// So this implementation is not a problem.
+	typename std::remove_reference<Frag_T>::type frag;
+	detail_namespace::foreach_ij(frag, func);
+	__syncwarp();
+}
+
 template <class Frag_T, class Func>
 __device__ inline void foreach_v(Func func) {
 	// Requirering `frag` as an argument does not look good but it can not be helped because C++ does not support partial template specialization of a templeta function.

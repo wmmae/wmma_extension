@@ -8,6 +8,7 @@ TARGET=
 TARGET+=add_eye.test
 TARGET+=direct_product.test
 TARGET+=foreach.test
+TARGET+=foreach_ij.test
 TARGET+=foreach_v.test
 TARGET+=foreach_v_acc.test
 TARGET+=gevm.test
