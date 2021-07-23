@@ -1,101 +1,108 @@
 #include <iostream>
 #include <random>
 #include <type_traits>
+#include <math.h>
 #include <wmma_extension/wmma_extension.hpp>
+#include "common.hpp"
 
 #ifndef TEST_ARCH
 #define TEST_ARCH (-1)
 #endif
 
-// #define TEST_TF32
-
-#ifndef TEST_TF32
-constexpr std::size_t M = 16;
-constexpr std::size_t N = 16;
-constexpr std::size_t K = 16;
-using ab_type = half;
-#else
-constexpr std::size_t M = 16;
-constexpr std::size_t N = 16;
-constexpr std::size_t K = 8;
-using ab_type = nvcuda::wmma::precision::tf32;
-#endif
-
-__global__ void matmul16x16_kernel(float* const c_ptr, const float* const a_ptr, const float* const b_ptr) {
-	nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, M, N, K, ab_type, nvcuda::wmma::col_major> frag_a, frag_da;
-	nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, M, N, K, ab_type, nvcuda::wmma::col_major> frag_b, frag_db;
-	nvcuda::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, float> frag_c;
-
-	mtk::wmma::fill_zero(frag_c);
-
-	mtk::wmma::foreach_ij<decltype(frag_a)>(
-			[&](const unsigned frag_index_list[], const unsigned frag_index_count, const unsigned m, const unsigned n) {
-				const auto a = a_ptr[m + n * M];
-				const auto a_rp = mtk::wmma::detail::common::cast<ab_type>(a);
-				const auto da_rp = mtk::wmma::detail::common::cast<ab_type>(a - mtk::wmma::detail::common::cast<float>(a_rp));
-				for (unsigned i = 0; i < frag_index_count; i++) {
-					const unsigned frag_index = frag_index_list[i];
-					frag_a.x[frag_index] = a_rp;
-					frag_da.x[frag_index] = da_rp;
-				}
-			});
-
-	mtk::wmma::foreach_ij<decltype(frag_b)>(
-			[&](const unsigned frag_index_list[], const unsigned frag_index_count, const unsigned m, const unsigned n) {
-				const auto b = b_ptr[m + n * K];
-				const auto b_rp = mtk::wmma::detail::common::cast<ab_type>(b);
-				const auto db_rp = mtk::wmma::detail::common::cast<ab_type>(b - mtk::wmma::detail::common::cast<float>(b_rp));
-				for (unsigned i = 0; i < frag_index_count; i++) {
-					const unsigned frag_index = frag_index_list[i];
-					frag_b.x[frag_index] = b_rp;
-					frag_db.x[frag_index] = db_rp;
-				}
-			});
-
-	nvcuda::wmma::mma_sync(frag_c, frag_a, frag_db, frag_c);
-	nvcuda::wmma::mma_sync(frag_c, frag_da, frag_b, frag_c);
-	nvcuda::wmma::mma_sync(frag_c, frag_a, frag_b, frag_c);
-
-	nvcuda::wmma::store_matrix_sync(c_ptr, frag_c, N, nvcuda::wmma::mem_col_major);
+__device__ float myabs(const float a) {
+	if (a > 0) {
+		return a;
+	} else {
+		return -a;
+	}
 }
 
-void test() {
-	std::printf("-- test (%s) --\n", __FILE__);
-	std::printf("arch    : %d\n", TEST_ARCH);
+template <class Use, int M, int N, int K, class Type, class Layout, unsigned MATRIX_DIM>
+__global__ void test_kernel(float* const diff, const float* const src, const unsigned ld) {
+	using storage_t = typename mtk::wmma::detail::common::storage_t<Type>::type;
 
-	float *a, *b, *c;
-	cudaMallocHost(&a, sizeof(float) * N * N);
-	cudaMallocHost(&b, sizeof(float) * N * N);
-	cudaMallocHost(&c, sizeof(float) * N * N);
-
-	std::mt19937 mt(std::random_device{}());
-	std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
-	for (unsigned i = 0; i < N * N; i++) {
-		a[i] = dist(mt);
-		b[i] = dist(mt);
-		c[i] = static_cast<float>(0);
+	__shared__ storage_t smem[MATRIX_DIM * MATRIX_DIM];
+	for (unsigned i = 0; i < MATRIX_DIM * MATRIX_DIM; i += blockDim.x) {
+		smem[i + threadIdx.x] = src[i + threadIdx.x];
 	}
 
-	cudaDeviceSynchronize();
-	matmul16x16_kernel<<<1, 32>>>(c, a, b);
-	cudaDeviceSynchronize();
+	nvcuda::wmma::fragment<Use, M, N, K, Type, Layout> frag_nvcuda;
+	nvcuda::wmma::fragment<Use, M, N, K, Type, Layout> frag_mtk;
 
-	double max_error = 0.0;
-	for (unsigned i = 0; i < M; i++) {
-		for (unsigned j = 0; j < N; j++) {
-			double sum = 0.0;
-			for (unsigned k = 0; k < K; k++) {
-				sum += static_cast<double>(a[i + M * k]) * static_cast<double>(b[k + j * K]);
+	nvcuda::wmma::load_matrix_sync(frag_nvcuda, smem, ld);
+
+	mtk::wmma::foreach_ij<decltype(frag_mtk)>(
+			[&](const unsigned* frag_index_list, const unsigned num_indeces, const unsigned i, const unsigned j) {
+				unsigned mem_index;
+				if (std::is_same<Layout, nvcuda::wmma::col_major>::value) {
+					mem_index = i + j * ld;
+				} else {
+					mem_index = i * ld + j;
+				}
+				for (unsigned f = 0; f < num_indeces; f++) {
+					frag_mtk.x[frag_index_list[f]] = smem[mem_index];
+				}
 			}
-			const auto error = std::abs(sum - c[i + j * M]);
-			std::printf("%e ", error);
-			max_error = std::max(max_error, error);
-		}
-		std::printf("\n");
+			);
+
+	float max_diff = 0.f;
+	for (unsigned i = 0; i < frag_mtk.num_elements; i++) {
+		max_diff = max(max_diff, myabs(frag_mtk.x[i] - frag_nvcuda.x[i]));
 	}
-	std::printf("error   : %e\n", max_error);
+	diff[threadIdx.x] = max_diff;
 }
+
+template <class Use, int M, int N, int K, class Type, class Layout>
+void test() {
+	constexpr unsigned MATRIX_DIM = 32;
+	constexpr unsigned warp_size = 32;
+	float* src_matrix;
+	float* diff;
+	cudaMallocHost(&src_matrix, sizeof(float) * MATRIX_DIM * MATRIX_DIM);
+	cudaMallocHost(&diff, sizeof(float) * warp_size);
+
+	for (unsigned i = 0; i < MATRIX_DIM * MATRIX_DIM; i++) {
+		src_matrix[i] = static_cast<float>(i) / (MATRIX_DIM);
+	}
+
+	test_kernel<Use, M, N, K, Type, Layout, MATRIX_DIM><<<1, warp_size>>>(diff, src_matrix, MATRIX_DIM);
+	cudaDeviceSynchronize();
+
+	bool passed = true;
+	for (unsigned i = 0; i < warp_size; i++) {
+		if (diff[i] > (1.f / MATRIX_DIM / 2)) {
+			passed = false;
+		}
+	}
+
+	std::printf("%s{Use=%10s,M=%2d,N=%2d,K=%2d,Type=%s,Layout=%8s}:",
+			__FILE__,
+			mtk::test_utils::get_string<Use>().c_str(),
+			M, N, K,
+			mtk::test_utils::get_string<Type>().c_str(),
+			mtk::test_utils::get_string<Layout>().c_str()
+			);
+	if (passed) {
+		std::printf("PASSED");
+	} else {
+		std::printf("FAILED");
+	}
+	std::printf("\n");
+
+	cudaFreeHost(diff);
+	cudaFreeHost(src_matrix);
+}
+
 
 int main() {
-	test();
+	test<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::row_major>();
+	test<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>();
+	test<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>();
+	test<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major>();
+#ifdef TEST_TF32
+	test<nvcuda::wmma::matrix_a, 16, 16, 8, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major>();
+	test<nvcuda::wmma::matrix_a, 16, 16, 8, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major>();
+	test<nvcuda::wmma::matrix_b, 16, 16, 8, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major>();
+	test<nvcuda::wmma::matrix_b, 16, 16, 8, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major>();
+#endif
 }
