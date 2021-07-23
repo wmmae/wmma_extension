@@ -112,7 +112,6 @@ __device__ inline void foreach(mtk::wmma::mma::fragment<nvcuda::wmma::accumulato
 // foreach_ij
 template <class Func>
 __device__ inline void foreach_ij(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_a, 8, 8, 4, half, nvcuda::wmma::col_major>& f, Func func) {
-	constexpr unsigned ldm = 8;
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	const unsigned col = lane_id & 0x3;
 	const unsigned row_offset = ((lane_id >> 4) << 2);
@@ -125,7 +124,6 @@ __device__ inline void foreach_ij(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_
 
 template <class Func>
 __device__ inline void foreach_ij(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_a, 8, 8, 4, half, nvcuda::wmma::row_major>& f, Func func) {
-	constexpr unsigned ldm = 4;
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	const unsigned row = (lane_id & 0x3) + ((lane_id >> 4) << 2);
 
@@ -137,7 +135,6 @@ __device__ inline void foreach_ij(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_
 
 template <class Func>
 __device__ inline void foreach_ij(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_b, 8, 8, 4, half, nvcuda::wmma::col_major>& f, Func func) {
-	constexpr unsigned ldm = 4;
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	const unsigned col = (lane_id & 0x3) + ((lane_id >> 4) << 2);
 
@@ -149,7 +146,6 @@ __device__ inline void foreach_ij(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_
 
 template <class Func>
 __device__ inline void foreach_ij(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_b, 8, 8, 4, half, nvcuda::wmma::row_major>& f, Func func) {
-	constexpr unsigned ldm = 8;
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	const unsigned row = lane_id & 0x3;
 	const unsigned col_offset = ((lane_id >> 4) << 2);
@@ -163,7 +159,6 @@ __device__ inline void foreach_ij(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_
 
 template <class Func>
 __device__ inline void foreach_ij(mtk::wmma::mma::fragment<nvcuda::wmma::accumulator, 8, 8, 4, half, void>& f, const nvcuda::wmma::layout_t layout, Func func) {
-	constexpr unsigned ldm = 8;
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	const unsigned row = (lane_id & 0x3) + ((lane_id & 0x10) >> 2);
 #pragma unroll
@@ -174,7 +169,6 @@ __device__ inline void foreach_ij(mtk::wmma::mma::fragment<nvcuda::wmma::accumul
 
 template <class Func>
 __device__ inline void foreach_ij(mtk::wmma::mma::fragment<nvcuda::wmma::accumulator, 8, 8, 4, float, void>& f, const nvcuda::wmma::layout_t layout, Func func) {
-	constexpr unsigned ldm = 8;
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	const unsigned row_offset = (lane_id & 0x1) + ((lane_id & 0x10) >> 2);
 	const unsigned col_offset = (lane_id & 0x2);
