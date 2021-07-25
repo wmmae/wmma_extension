@@ -4,8 +4,54 @@
 #include <cublas_v2.h>
 #include "utils.hpp"
 
+#define CP_ASYNC
+
 namespace {
 constexpr unsigned warp_size = 32;
+
+__device__ uint32_t get_smem_ptr_uint(const void* const ptr) {
+  uint32_t smem_ptr;
+
+  asm(
+  "{ .reg .u64 smem_ptr; cvta.to.shared.u64 smem_ptr, %1; cvt.u32.u64 %0, smem_ptr; }\n"
+    : "=r"(smem_ptr) : "l"(ptr));
+
+  return smem_ptr;
+}
+
+template <unsigned SizeInBytes>
+__device__ void cp_async(void* const smem, const void* const gmem, const bool pred_guard = true) {
+	const unsigned smem_int_ptr = get_smem_ptr_uint(smem);
+	asm volatile(
+          "{\n"
+          "  .reg .pred p;\n"
+          "  setp.ne.b32 p, %0, 0;\n"
+          "  @p cp.async.ca.shared.global [%1], [%2], %3;\n"
+          "}\n" ::"r"((int)pred_guard),
+          "r"(smem_int_ptr), "l"(gmem), "n"(SizeInBytes));
+}
+
+__device__ void cp_async_commit() {
+	asm volatile(
+          "{\n"
+		  "cp.async.commit_group;\n"
+          "}\n");
+}
+
+__device__ void cp_async_wait_all() {
+	asm volatile(
+          "{\n"
+		  "cp.async.wait_all;\n"
+          "}\n");
+}
+
+template <int N>
+__device__ void cp_async_wait_group() {
+	asm volatile(
+          "{\n"
+		  "cp.async.wait_group %0;\n"
+          "}\n":: "n"(N));
+}
 
 // SMEM_M * SMEM_N must be larger than or equal to BLOCK_SIZE
 template <unsigned SMEM_M, unsigned SMEM_N, unsigned BLOCK_SIZE>
@@ -22,9 +68,12 @@ __device__ void dmem2smem(
 				const auto j_n = j / SMEM_M;
 				const auto mem_index = j_m + j_n * ld;
 
+#ifndef CP_ASYNC
 				const auto tmp_v4 = *reinterpret_cast<const float4*>(&src_dmem[mem_index]);
-
 				*reinterpret_cast<float4*>(&dst_smem[j]) = tmp_v4;
+#else
+				cp_async<4 * 4>(&dst_smem[j], &src_dmem[mem_index]);
+#endif
 			}
 		} else {
 			for (unsigned i = 0; i < SMEM_M * SMEM_N; i += BLOCK_SIZE) {
@@ -254,6 +303,8 @@ __global__ void bgemm_kernel(
 			// Load col major A using a loader for col major
 			dmem2smem<SMEM_K, SMEM_N, BLOCK_SIZE>(b_smem, real_bk, real_bn, b_dmem + b_dmem_offset, ldb);
 
+			cp_async_commit();
+
 			// Initialize C
 			float* const c_smem = b_smem + SMEM_K * SMEM_N * num_stages;
 			fill_zero<SMEM_M, SMEM_N, BLOCK_SIZE>(c_smem);
@@ -263,6 +314,7 @@ __global__ void bgemm_kernel(
 			unsigned stage = 0;
 			for (unsigned bk = SMEM_K; bk < k; bk += SMEM_K) {
 				// MMA
+				cp_async_wait_all();
 				mma_core<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy>(c_smem, a_smem + stage * SMEM_M * SMEM_K, b_smem + stage * SMEM_K * SMEM_N);
 
 				stage = 1 - stage;
@@ -279,6 +331,7 @@ __global__ void bgemm_kernel(
 			} // loop bk
 
 			// MMA
+			cp_async_wait_all();
 			mma_core<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy>(c_smem, a_smem + stage * SMEM_M * SMEM_K, b_smem + stage * SMEM_K * SMEM_N);
 
 			const auto c_dmem_offset = bm + bn * ldc;
