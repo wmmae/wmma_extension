@@ -4,8 +4,6 @@
 #include <cublas_v2.h>
 #include "utils.hpp"
 
-#define CP_ASYNC
-
 namespace {
 constexpr unsigned warp_size = 32;
 
@@ -20,25 +18,23 @@ __device__ uint32_t get_smem_ptr_uint(const void* const ptr) {
 }
 
 template <unsigned SizeInBytes>
-__device__ void cp_async(void* const smem, const void* const gmem, const bool pred_guard = true) {
+__device__ inline void cp_async(void* const smem, const void* const gmem) {
 	const unsigned smem_int_ptr = get_smem_ptr_uint(smem);
 	asm volatile(
           "{\n"
-          "  .reg .pred p;\n"
-          "  setp.ne.b32 p, %0, 0;\n"
-          "  @p cp.async.ca.shared.global [%1], [%2], %3;\n"
-          "}\n" ::"r"((int)pred_guard),
+          "cp.async.ca.shared.global [%0], [%1], %2;\n"
+          "}\n" ::
           "r"(smem_int_ptr), "l"(gmem), "n"(SizeInBytes));
 }
 
-__device__ void cp_async_commit() {
+__device__ inline void cp_async_commit() {
 	asm volatile(
           "{\n"
 		  "cp.async.commit_group;\n"
           "}\n");
 }
 
-__device__ void cp_async_wait_all() {
+__device__ inline void cp_async_wait_all() {
 	asm volatile(
           "{\n"
 		  "cp.async.wait_all;\n"
@@ -46,7 +42,7 @@ __device__ void cp_async_wait_all() {
 }
 
 template <int N>
-__device__ void cp_async_wait_group() {
+__device__ inline void cp_async_wait_group() {
 	asm volatile(
           "{\n"
 		  "cp.async.wait_group %0;\n"
@@ -68,12 +64,7 @@ __device__ void dmem2smem(
 				const auto j_n = j / SMEM_M;
 				const auto mem_index = j_m + j_n * ld;
 
-#ifndef CP_ASYNC
-				const auto tmp_v4 = *reinterpret_cast<const float4*>(&src_dmem[mem_index]);
-				*reinterpret_cast<float4*>(&dst_smem[j]) = tmp_v4;
-#else
 				cp_async<4 * 4>(&dst_smem[j], &src_dmem[mem_index]);
-#endif
 			}
 		} else {
 			for (unsigned i = 0; i < SMEM_M * SMEM_N; i += BLOCK_SIZE) {
@@ -282,6 +273,7 @@ __global__ void bgemm_kernel(
 #pragma unroll 4
 		for (unsigned bm = blockIdx.y * m / BLOCK_M_PER_MATRIX; bm < (blockIdx.y + 1) * m / BLOCK_M_PER_MATRIX; bm += SMEM_M) {
 			constexpr unsigned bk = 0;
+
 			// Load A from device memory to shared memory
 			const auto real_bm = min(SMEM_M, (blockIdx.y + 1) * m / BLOCK_M_PER_MATRIX - bm);
 			const auto real_bk = min(SMEM_K, k - bk);
@@ -292,6 +284,8 @@ __global__ void bgemm_kernel(
 			float* const a_smem = smem;
 			// Load row major A using a loader for col major
 			dmem2smem<SMEM_K, SMEM_M, BLOCK_SIZE>(a_smem, real_bk, real_bm, a_dmem + a_dmem_offset, lda);
+
+			cp_async_commit();
 
 			// Load B from global memory to shared memory
 			const auto real_bn = min(SMEM_N, (blockIdx.z + 1) * n / BLOCK_N_PER_MATRIX - bn);
@@ -309,25 +303,25 @@ __global__ void bgemm_kernel(
 			float* const c_smem = b_smem + SMEM_K * SMEM_N * num_stages;
 			fill_zero<SMEM_M, SMEM_N, BLOCK_SIZE>(c_smem);
 
-			__syncthreads();
-
 			unsigned stage = 0;
 			for (unsigned bk = SMEM_K; bk < k; bk += SMEM_K) {
-				// MMA
-				cp_async_wait_all();
-				mma_core<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy>(c_smem, a_smem + stage * SMEM_M * SMEM_K, b_smem + stage * SMEM_K * SMEM_N);
-
 				stage = 1 - stage;
 
 				// Load A from device memory to shared memory
 				const auto a_dmem_offset = bm * lda + bk;
 				dmem2smem<SMEM_K, SMEM_M, BLOCK_SIZE>(a_smem + stage * SMEM_M * SMEM_K, real_bk, real_bm, a_dmem + a_dmem_offset, lda);
 
+				cp_async_commit();
+
 				// Load B from global memory to shared memory
 				const auto b_dmem_offset = bn * ldb + bk;
 				dmem2smem<SMEM_K, SMEM_N, BLOCK_SIZE>(b_smem + stage * SMEM_K * SMEM_N, real_bk, real_bn, b_dmem + b_dmem_offset, ldb);
 
-				__syncthreads();
+				cp_async_commit();
+
+				// MMA
+				cp_async_wait_group<2>();
+				mma_core<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy>(c_smem, a_smem + (1 - stage) * SMEM_M * SMEM_K, b_smem + (1 - stage) * SMEM_K * SMEM_N);
 			} // loop bk
 
 			// MMA
