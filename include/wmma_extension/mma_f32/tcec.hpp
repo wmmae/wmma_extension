@@ -25,9 +25,9 @@ template <class Use, int m, int n, int k, class T, class Layout = void,
 struct fragment {
 	using Policy = Policy_;
 	using element_type = float;
-	static const int sub_frag_m = Policy::m;
-	static const int sub_frag_n = Policy::n;
-	static const int sub_frag_k = Policy::k;
+	static constexpr int sub_frag_m = Policy::m;
+	static constexpr int sub_frag_n = Policy::n;
+	static constexpr int sub_frag_k = Policy::k;
 
 	using sub_frag_t = typename mtk::wmma::mma_f32::detail::default_fragment<Use, typename mtk::wmma::mma_f32::detail::sub_frag_t<Use, T>::type, Layout, Policy>::type;
 	static constexpr int num_sub_frag_m = mtk::wmma::mma_f32::detail::select_value<Use, m, k, m>::value / mtk::wmma::mma_f32::detail::select_value<Use, sub_frag_m, sub_frag_k, sub_frag_m>::value;
