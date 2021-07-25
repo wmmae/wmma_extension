@@ -54,11 +54,9 @@ __device__ void fill_fragment(fragment<Use, m, n, k, T, Layout, mtk::wmma::mma_f
 	using Policy = mtk::wmma::mma_f32::Policy<Op, mtk::wmma::mma_f32::with_ec, fm, fn, fk>;
 	using sub_frag_t = typename mtk::wmma::mma_f32::detail::sub_frag_t<Use, T>::type;
 	using storage_t = typename mtk::wmma::detail::common::storage_t<typename mtk::wmma::mma_f32::detail::sub_frag_t<Use, T>::type>::type;
-	for (unsigned bm = 0; bm < frag.num_sub_frag_m; bm++) {
-		for (unsigned bn = 0; bn < frag.num_sub_frag_n; bn++) {
-			mtk::wmma::mma_f32::detail::fill_fragment_wrapper<Use, sub_frag_t, Layout, Policy, storage_t>{}(frag.sub_frag  [bm + frag.num_sub_frag_m * bn], v);
-			mtk::wmma::mma_f32::detail::fill_fragment_wrapper<Use, sub_frag_t, Layout, Policy, storage_t>{}(frag.sub_d_frag[bm + frag.num_sub_frag_m * bn], 0);
-		}
+	for (unsigned i = 0; i < frag.num_sub_frag_m * frag.num_sub_frag_n; i++) {
+		mtk::wmma::mma_f32::detail::fill_fragment_wrapper<Use, sub_frag_t, Layout, Policy, storage_t>{}(frag.sub_frag  [i], v);
+		mtk::wmma::mma_f32::detail::fill_zero_wrapper<Use, sub_frag_t, Layout, Policy>{}(frag.sub_d_frag[i]);
 	}
 }
 
@@ -66,11 +64,9 @@ template <class Use, int m, int n, int k, class T, class Layout, class Op, int f
 __device__ void fill_zero(fragment<Use, m, n, k, T, Layout, mtk::wmma::mma_f32::Policy<Op, mtk::wmma::mma_f32::with_ec, fm, fn, fk>>& frag) {
 	using Policy = mtk::wmma::mma_f32::Policy<Op, mtk::wmma::mma_f32::with_ec, fm, fn, fk>;
 	using sub_frag_t = typename mtk::wmma::mma_f32::detail::sub_frag_t<Use, T>::type;
-	for (unsigned bm = 0; bm < frag.num_sub_frag_m; bm++) {
-		for (unsigned bn = 0; bn < frag.num_sub_frag_n; bn++) {
-			mtk::wmma::mma_f32::detail::fill_zero_wrapper<Use, sub_frag_t, Layout, Policy>{}(frag.sub_frag  [bm + frag.num_sub_frag_m * bn]);
-			mtk::wmma::mma_f32::detail::fill_zero_wrapper<Use, sub_frag_t, Layout, Policy>{}(frag.sub_d_frag[bm + frag.num_sub_frag_m * bn]);
-		}
+	for (unsigned i = 0; i < frag.num_sub_frag_m * frag.num_sub_frag_n; i++) {
+		mtk::wmma::mma_f32::detail::fill_zero_wrapper<Use, sub_frag_t, Layout, Policy>{}(frag.sub_frag  [i]);
+		mtk::wmma::mma_f32::detail::fill_zero_wrapper<Use, sub_frag_t, Layout, Policy>{}(frag.sub_d_frag[i]);
 	}
 }
 
@@ -173,12 +169,7 @@ __device__ void store_matrix_sync(float* const ptr, fragment<nvcuda::wmma::accum
 			for (unsigned frag_index = 0; frag_index < frag.sub_frag[0].num_elements; frag_index++) {
 				frag.sub_frag[bm + frag.num_sub_frag_m * bn].x[frag_index] += detail::correction_scale_1<T>(frag.sub_d_frag[bm + frag.num_sub_frag_m * bn].x[frag_index]);
 			}
-			unsigned mem_offset;
-			if (layout == nvcuda::wmma::mem_col_major) {
-				mem_offset = mtk::wmma::mma_f32::detail::compute_mem_offset<frag_m, frag_n, nvcuda::wmma::col_major>{}(0, ldm, bm * frag_m, bn * frag_n);
-			} else {
-				mem_offset = mtk::wmma::mma_f32::detail::compute_mem_offset<frag_m, frag_n, nvcuda::wmma::row_major>{}(0, ldm, bm * frag_m, bn * frag_n);
-			}
+			unsigned mem_offset = mtk::wmma::mma_f32::detail::compute_mem_offset<frag_m, frag_n, nvcuda::wmma::col_major>{}(0, ldm, bm * frag_m, bn * frag_n);
 			mtk::wmma::mma_f32::detail::store_matrix_sync_wrapper<T, Policy>{}(ptr + mem_offset, frag.sub_frag[bm + frag.num_sub_frag_m * bn], ldm, layout);
 		}
 	}
@@ -198,12 +189,7 @@ __device__ void store_matrix_sync_with_mul(float* const ptr, fragment<nvcuda::wm
 			for (unsigned frag_index = 0; frag_index < frag.sub_frag[0].num_elements; frag_index++) {
 				frag.sub_frag[bm + frag.num_sub_frag_m * bn].x[frag_index] = (frag.sub_frag[bm + frag.num_sub_frag_m * bn].x[frag_index] + detail::correction_scale_1<T>(frag.sub_d_frag[bm + frag.num_sub_frag_m * bn].x[frag_index])) * mul;
 			}
-			unsigned mem_offset;
-			if (layout == nvcuda::wmma::mem_col_major) {
-				mem_offset = mtk::wmma::mma_f32::detail::compute_mem_offset<frag_m, frag_n, nvcuda::wmma::col_major>{}(0, ldm, bm * frag_m, bn * frag_n);
-			} else {
-				mem_offset = mtk::wmma::mma_f32::detail::compute_mem_offset<frag_m, frag_n, nvcuda::wmma::row_major>{}(0, ldm, bm * frag_m, bn * frag_n);
-			}
+			unsigned mem_offset = mtk::wmma::mma_f32::detail::compute_mem_offset<frag_m, frag_n, nvcuda::wmma::col_major>{}(0, ldm, bm * frag_m, bn * frag_n);
 			mtk::wmma::mma_f32::detail::store_matrix_sync_wrapper<T, Policy>{}(ptr + mem_offset, frag.sub_frag[bm + frag.num_sub_frag_m * bn], ldm, layout);
 		}
 	}
