@@ -7,6 +7,48 @@
 namespace {
 constexpr unsigned warp_size = 32;
 
+__device__ uint32_t get_smem_ptr_uint(const void* const ptr) {
+  uint32_t smem_ptr;
+
+  asm(
+  "{ .reg .u64 smem_ptr; cvta.to.shared.u64 smem_ptr, %1; cvt.u32.u64 %0, smem_ptr; }\n"
+    : "=r"(smem_ptr) : "l"(ptr));
+
+  return smem_ptr;
+}
+
+template <unsigned SizeInBytes>
+__device__ inline void cp_async(void* const smem, const void* const gmem) {
+	const unsigned smem_int_ptr = get_smem_ptr_uint(smem);
+	asm volatile(
+          "{\n"
+          "cp.async.ca.shared.global [%0], [%1], %2;\n"
+          "}\n" ::
+          "r"(smem_int_ptr), "l"(gmem), "n"(SizeInBytes));
+}
+
+__device__ inline void cp_async_commit() {
+	asm volatile(
+          "{\n"
+		  "cp.async.commit_group;\n"
+          "}\n");
+}
+
+__device__ inline void cp_async_wait_all() {
+	asm volatile(
+          "{\n"
+		  "cp.async.wait_all;\n"
+          "}\n");
+}
+
+template <int N>
+__device__ inline void cp_async_wait_group() {
+	asm volatile(
+          "{\n"
+		  "cp.async.wait_group %0;\n"
+          "}\n":: "n"(N));
+}
+
 // SMEM_M * SMEM_N must be larger than or equal to BLOCK_SIZE
 template <unsigned SMEM_M, unsigned SMEM_N, unsigned BLOCK_SIZE>
 __device__ void dmem2smem(
@@ -22,9 +64,7 @@ __device__ void dmem2smem(
 				const auto j_n = j / SMEM_M;
 				const auto mem_index = j_m + j_n * ld;
 
-				const auto tmp_v4 = *reinterpret_cast<const float4*>(&src_dmem[mem_index]);
-
-				*reinterpret_cast<float4*>(&dst_smem[j]) = tmp_v4;
+				cp_async<4 * 4>(&dst_smem[j], &src_dmem[mem_index]);
 			}
 		} else {
 			for (unsigned i = 0; i < SMEM_M * SMEM_N; i += BLOCK_SIZE) {
@@ -208,6 +248,8 @@ template <
 	unsigned WARP_N,
 	unsigned WARP_K,
 	unsigned BLOCK_SIZE,
+	unsigned BLOCK_M_PER_MATRIX,
+	unsigned BLOCK_N_PER_MATRIX,
 	class FRAGMENT_T,
 	class TC_Policy>
 __global__ void bgemm_kernel(
@@ -224,11 +266,14 @@ __global__ void bgemm_kernel(
 	// Sharedm memory
 	extern __shared__ float smem[];
 
-	for (unsigned bm = 0; bm < m; bm += SMEM_M) {
-		for (unsigned bn = 0; bn < n; bn += SMEM_N) {
+#pragma unroll 4
+	for (unsigned bn = blockIdx.z * n / BLOCK_N_PER_MATRIX; bn < (blockIdx.z + 1) * n / BLOCK_N_PER_MATRIX; bn += SMEM_N) {
+#pragma unroll 4
+		for (unsigned bm = blockIdx.y * m / BLOCK_M_PER_MATRIX; bm < (blockIdx.y + 1) * m / BLOCK_M_PER_MATRIX; bm += SMEM_M) {
 			constexpr unsigned bk = 0;
+
 			// Load A from device memory to shared memory
-			const auto real_bm = min(SMEM_M, m - bm);
+			const auto real_bm = min(SMEM_M, (blockIdx.y + 1) * m / BLOCK_M_PER_MATRIX - bm);
 			const auto real_bk = min(SMEM_K, k - bk);
 			const auto a_dmem_offset = bm * lda + bk;
 			// Device memory A
@@ -238,8 +283,10 @@ __global__ void bgemm_kernel(
 			// Load row major A using a loader for col major
 			dmem2smem<SMEM_K, SMEM_M, BLOCK_SIZE>(a_smem, real_bk, real_bm, a_dmem + a_dmem_offset, lda);
 
+			cp_async_commit();
+
 			// Load B from global memory to shared memory
-			const auto real_bn = min(SMEM_N, n - bn);
+			const auto real_bn = min(SMEM_N, (blockIdx.z + 1) * n / BLOCK_N_PER_MATRIX - bn);
 			const auto b_dmem_offset = bn * ldb + bk;
 			// Device memory B
 			const float* const b_dmem = b_ptr[blockIdx.x];
@@ -248,34 +295,35 @@ __global__ void bgemm_kernel(
 			// Load col major A using a loader for col major
 			dmem2smem<SMEM_K, SMEM_N, BLOCK_SIZE>(b_smem, real_bk, real_bn, b_dmem + b_dmem_offset, ldb);
 
+			cp_async_commit();
+
 			// Initialize C
 			float* const c_smem = b_smem + SMEM_K * SMEM_N * num_stages;
 			fill_zero<SMEM_M, SMEM_N, BLOCK_SIZE>(c_smem);
 
-			__syncthreads();
-
 			unsigned stage = 0;
 			for (unsigned bk = SMEM_K; bk < k; bk += SMEM_K) {
-				// MMA
-				mma_core<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy>(c_smem, a_smem + stage * SMEM_M * SMEM_K, b_smem + stage * SMEM_K * SMEM_N);
-
 				stage = 1 - stage;
 
 				// Load A from device memory to shared memory
-				const auto real_bm = min(SMEM_M, m - bm);
-				const auto real_bk = min(SMEM_K, k - bk);
 				const auto a_dmem_offset = bm * lda + bk;
 				dmem2smem<SMEM_K, SMEM_M, BLOCK_SIZE>(a_smem + stage * SMEM_M * SMEM_K, real_bk, real_bm, a_dmem + a_dmem_offset, lda);
 
+				cp_async_commit();
+
 				// Load B from global memory to shared memory
-				const auto real_bn = min(SMEM_N, n - bn);
 				const auto b_dmem_offset = bn * ldb + bk;
 				dmem2smem<SMEM_K, SMEM_N, BLOCK_SIZE>(b_smem + stage * SMEM_K * SMEM_N, real_bk, real_bn, b_dmem + b_dmem_offset, ldb);
 
-				__syncthreads();
+				cp_async_commit();
+
+				// MMA
+				cp_async_wait_group<2>();
+				mma_core<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy>(c_smem, a_smem + (1 - stage) * SMEM_M * SMEM_K, b_smem + (1 - stage) * SMEM_K * SMEM_N);
 			} // loop bk
 
 			// MMA
+			cp_async_wait_all();
 			mma_core<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy>(c_smem, a_smem + stage * SMEM_M * SMEM_K, b_smem + stage * SMEM_K * SMEM_N);
 
 			const auto c_dmem_offset = bm + bn * ldc;
@@ -293,6 +341,8 @@ template <
 	unsigned WARP_N,
 	unsigned WARP_K,
 	unsigned BLOCK_SIZE,
+	unsigned BLOCK_M_PER_MATRIX,
+	unsigned BLOCK_N_PER_MATRIX,
 	class FRAGMENT_T,
 	class TC_Policy>
 void bgemm(
@@ -308,10 +358,11 @@ void bgemm(
 		) {
 	// Set shared memory size
 	const auto shared_memory_size = ((SMEM_M * SMEM_K + SMEM_K * SMEM_N) * 2 + SMEM_M * SMEM_N) * sizeof(float);
-	cudaFuncSetAttribute(&(bgemm_kernel<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy>), cudaFuncAttributeMaxDynamicSharedMemorySize, shared_memory_size);
+	cudaFuncSetAttribute(&(bgemm_kernel<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, BLOCK_M_PER_MATRIX, BLOCK_N_PER_MATRIX, FRAGMENT_T, TC_Policy>), cudaFuncAttributeMaxDynamicSharedMemorySize, shared_memory_size);
 
 	// Launch
-	bgemm_kernel<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy><<<batch_size, BLOCK_SIZE, shared_memory_size>>>(
+	const dim3 grid_size(batch_size, BLOCK_M_PER_MATRIX, BLOCK_N_PER_MATRIX);
+	bgemm_kernel<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, BLOCK_M_PER_MATRIX, BLOCK_N_PER_MATRIX, FRAGMENT_T, TC_Policy><<<grid_size, BLOCK_SIZE, shared_memory_size>>>(
 			m, n, k,
 			alpha,
 			a_ptr, lda,
@@ -328,7 +379,10 @@ template <
 	unsigned WARP_M,
 	unsigned WARP_N,
 	unsigned WARP_K,
-	unsigned BLOCK_SIZE>
+	unsigned BLOCK_SIZE,
+	unsigned BLOCK_M_PER_MATRIX,
+	unsigned BLOCK_N_PER_MATRIX
+>
 void test_batched_sgemm(
 		const unsigned m,
 		const unsigned n,
@@ -336,8 +390,11 @@ void test_batched_sgemm(
 		const unsigned batch_size
 		) {
 	std::printf("!-- %s\n", __func__);
-	std::printf("-------\n");
 	std::printf("%15s: (%u, %u, %u)\n", "Size", m, n, k);
+	std::printf("%15s: (%u, %u, %u)\n", "Smem size", SMEM_M, SMEM_N, SMEM_K);
+	std::printf("%15s: (%u, %u, %u)\n", "Warp size", WARP_M, WARP_N, WARP_K);
+	std::printf("%15s: (%u, %u)\n", "Grid YZ", BLOCK_M_PER_MATRIX, BLOCK_N_PER_MATRIX);
+	std::printf("%15s: %u\n", "Block size", BLOCK_SIZE);
 	std::printf("%15s: %u\n", "Batch size", batch_size);
 	std::printf("%15s: %e GiB\n", "Memory", static_cast<double>(1lu * (m * n + n * k + k * m) * batch_size * sizeof(float)) / (1lu << 30));
 	std::printf("%15s: %lu byte\n", "Shared memory", sizeof(float) * (SMEM_M * SMEM_K + SMEM_K * SMEM_N + SMEM_M * SMEM_N));
@@ -377,10 +434,10 @@ void test_batched_sgemm(
 
 		// Initialize matrices
 		// A
-		for (unsigned j = 0; j < m * k; j++) init_matrix[j] = j / static_cast<float>(m * k);
+		for (unsigned j = 0; j < m * k; j++) init_matrix[j] = j / static_cast<float>(k);
 		cudaMemcpy(d_a_ptr, init_matrix, sizeof(float) * m * k, cudaMemcpyDefault);
 		// B
-		for (unsigned j = 0; j < k * n; j++) init_matrix[j] = j / static_cast<float>(k * n);
+		for (unsigned j = 0; j < k * n; j++) init_matrix[j] = j / static_cast<float>(n);
 		cudaMemcpy(d_b_ptr, init_matrix, sizeof(float) * k * n, cudaMemcpyDefault);
 		// C
 		for (unsigned j = 0; j < m * n; j++) init_matrix[j] = 0.f;
@@ -394,7 +451,7 @@ void test_batched_sgemm(
 	cudaMemcpy(d_c_ptr_array, h_c_ptr_array, sizeof(float*) * batch_size, cudaMemcpyDefault);
 
 	cudaDeviceSynchronize();
-	bgemm<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy>(
+	bgemm<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, BLOCK_M_PER_MATRIX, BLOCK_N_PER_MATRIX, FRAGMENT_T, TC_Policy>(
 			m, n, k,
 			1.f,
 			d_a_ptr_array, k,
@@ -404,7 +461,6 @@ void test_batched_sgemm(
 			batch_size
 			);
 	cudaDeviceSynchronize();
-
 
 	// evaluate the last batch matrix
 	float* last_a_ptr;
@@ -437,14 +493,14 @@ void test_batched_sgemm(
 
 	cudaDeviceSynchronize();
 	// evaluation of computing performance
-	constexpr unsigned test_count = 1lu << 2;
+	constexpr unsigned test_count = 1lu << 4;
 
 	{
 		cudaDeviceSynchronize();
 		// evaluation of computing performance
 		const auto start_clock = std::chrono::system_clock::now();
 		for (unsigned c = 0; c < test_count; c++) {
-			bgemm<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy>(
+		bgemm<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, BLOCK_M_PER_MATRIX, BLOCK_N_PER_MATRIX, FRAGMENT_T, TC_Policy>(
 					m, n, k,
 					1.f,
 					d_a_ptr_array, k,
@@ -512,5 +568,9 @@ void test_batched_sgemm(
 } // noname napespace
 
 int main() {
-	test_batched_sgemm<128, 128, 16, 64, 32, 16, 256>(1024, 1024, 8192, 128);
+	constexpr unsigned m = 1024;
+	constexpr unsigned n = 1024;
+	constexpr unsigned k = 1024;
+	constexpr unsigned batch_size = 256;
+	test_batched_sgemm<128, 128, 16, 64, 64, 16, 128, 8, 8>(m, n, k, batch_size);
 }

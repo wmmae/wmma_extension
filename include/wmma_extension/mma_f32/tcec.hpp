@@ -25,9 +25,9 @@ template <class Use, int m, int n, int k, class T, class Layout = void,
 struct fragment {
 	using Policy = Policy_;
 	using element_type = float;
-	static const int sub_frag_m = Policy::m;
-	static const int sub_frag_n = Policy::n;
-	static const int sub_frag_k = Policy::k;
+	static constexpr int sub_frag_m = Policy::m;
+	static constexpr int sub_frag_n = Policy::n;
+	static constexpr int sub_frag_k = Policy::k;
 
 	using sub_frag_t = typename mtk::wmma::mma_f32::detail::default_fragment<Use, typename mtk::wmma::mma_f32::detail::sub_frag_t<Use, T>::type, Layout, Policy>::type;
 	static constexpr int num_sub_frag_m = mtk::wmma::mma_f32::detail::select_value<Use, m, k, m>::value / mtk::wmma::mma_f32::detail::select_value<Use, sub_frag_m, sub_frag_k, sub_frag_m>::value;
@@ -368,10 +368,10 @@ __device__ void mma_sync(
 	mtk::wmma::mma_f32::detail::mma_sync_wrapper<T, A_Layout, B_Layout, float, Policy> mma_op;
 	mtk::wmma::mma_f32::detail::fill_zero_wrapper<nvcuda::wmma::accumulator, float, void, Policy> zero_op;
 
+	typename fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::mma_f32::Policy<Op, mtk::wmma::mma_f32::with_ec, fm, fn, fk>>::sub_frag_t tmp;
+	zero_op(tmp);
 	for (unsigned bm = 0; bm < num_m_block; bm++) {
 		for (unsigned bn = 0; bn < num_n_block; bn++) {
-			typename fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::mma_f32::Policy<Op, mtk::wmma::mma_f32::with_ec, fm, fn, fk>>::sub_frag_t tmp;
-			zero_op(tmp);
 			mma_op(
 					tmp,
 					frag_a.sub_frag[bm + 0  * num_m_block],
@@ -380,6 +380,7 @@ __device__ void mma_sync(
 					);
 			for (unsigned i = 0; i < tmp.num_elements; i++) {
 				frag_d.sub_frag[bm + bn * num_m_block].x[i] = frag_c.sub_frag[bm + bn * num_m_block].x[i] + tmp.x[i];
+				tmp.x[i] = 0.f;
 			}
 			mma_op(
 					frag_d.sub_d_frag[bm + bn * num_m_block],
@@ -394,7 +395,6 @@ __device__ void mma_sync(
 					frag_d.sub_d_frag[bm + bn * num_m_block]
 					);
 			for (unsigned bk = 1; bk < num_k_block; bk++) {
-				zero_op(tmp);
 				mma_op(
 						tmp,
 						frag_a.sub_frag[bm + bk * num_m_block],
@@ -403,6 +403,7 @@ __device__ void mma_sync(
 						);
 				for (unsigned i = 0; i < tmp.num_elements; i++) {
 					frag_d.sub_frag[bm + bn * num_m_block].x[i] += tmp.x[i];
+					tmp.x[i] = 0.f;
 				}
 				mma_op(
 						frag_d.sub_d_frag[bm + bn * num_m_block],
