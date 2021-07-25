@@ -396,6 +396,7 @@ void test_batched_sgemm(
 	std::printf("%15s: (%u, %u, %u)\n", "Smem size", SMEM_M, SMEM_N, SMEM_K);
 	std::printf("%15s: (%u, %u, %u)\n", "Warp size", WARP_M, WARP_N, WARP_K);
 	std::printf("%15s: (%u, %u)\n", "Grid YZ", BLOCK_M_PER_MATRIX, BLOCK_N_PER_MATRIX);
+	std::printf("%15s: %u\n", "Block size", BLOCK_SIZE);
 	std::printf("%15s: %u\n", "Batch size", batch_size);
 	std::printf("%15s: %e GiB\n", "Memory", static_cast<double>(1lu * (m * n + n * k + k * m) * batch_size * sizeof(float)) / (1lu << 30));
 	std::printf("%15s: %lu byte\n", "Shared memory", sizeof(float) * (SMEM_M * SMEM_K + SMEM_K * SMEM_N + SMEM_M * SMEM_N));
