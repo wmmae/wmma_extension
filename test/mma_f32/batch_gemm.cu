@@ -266,8 +266,6 @@ __global__ void bgemm_kernel(
 	// Sharedm memory
 	extern __shared__ float smem[];
 
-	//for (unsigned bm = blockIdx.y * m / BLOCK_M_PER_MATRIX; bm < (blockIdx.y + 1) * m / BLOCK_M_PER_MATRIX; bm += SMEM_M) {
-	//	for (unsigned bn = blockIdx.z * n / BLOCK_N_PER_MATRIX; bn < (blockIdx.z + 1) * n / BLOCK_N_PER_MATRIX; bn += SMEM_N) {
 #pragma unroll 4
 	for (unsigned bn = blockIdx.z * n / BLOCK_N_PER_MATRIX; bn < (blockIdx.z + 1) * n / BLOCK_N_PER_MATRIX; bn += SMEM_N) {
 #pragma unroll 4
