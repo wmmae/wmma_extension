@@ -435,10 +435,10 @@ void test_batched_sgemm(
 
 		// Initialize matrices
 		// A
-		for (unsigned j = 0; j < m * k; j++) init_matrix[j] = j / static_cast<float>(m * k);
+		for (unsigned j = 0; j < m * k; j++) init_matrix[j] = j / static_cast<float>(k);
 		cudaMemcpy(d_a_ptr, init_matrix, sizeof(float) * m * k, cudaMemcpyDefault);
 		// B
-		for (unsigned j = 0; j < k * n; j++) init_matrix[j] = j / static_cast<float>(k * n);
+		for (unsigned j = 0; j < k * n; j++) init_matrix[j] = j / static_cast<float>(n);
 		cudaMemcpy(d_b_ptr, init_matrix, sizeof(float) * k * n, cudaMemcpyDefault);
 		// C
 		for (unsigned j = 0; j < m * n; j++) init_matrix[j] = 0.f;
@@ -494,7 +494,7 @@ void test_batched_sgemm(
 
 	cudaDeviceSynchronize();
 	// evaluation of computing performance
-	constexpr unsigned test_count = 1lu << 2;
+	constexpr unsigned test_count = 1lu << 4;
 
 	{
 		cudaDeviceSynchronize();
@@ -569,5 +569,9 @@ void test_batched_sgemm(
 } // noname napespace
 
 int main() {
-	test_batched_sgemm<128, 128, 16, 64, 32, 16, 256, 8, 8>(1024, 1024, 1024, 128);
+	constexpr unsigned m = 1024;
+	constexpr unsigned n = 1024;
+	constexpr unsigned k = 1024;
+	constexpr unsigned batch_size = 256;
+	test_batched_sgemm<128, 128, 16, 64, 64, 16, 128, 8, 8>(m, n, k, batch_size);
 }
