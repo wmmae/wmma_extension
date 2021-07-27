@@ -3,6 +3,7 @@
 #include "wmma_extension.hpp"
 #include "detail/m16n8k16.hpp"
 #include "detail/m16n8k8.hpp"
+#include "detail/m16n8k8_tf32.hpp"
 #include "detail/m8n8k4.hpp"
 
 namespace mtk {
