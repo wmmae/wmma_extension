@@ -27,11 +27,10 @@ __device__ inline void foreach(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_a, 
 template <class Func>
 __device__ inline void foreach(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_b, 16, 8, 8, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major>& frag, Func func) {
 	const unsigned col = mtk::wmma::detail::common::get_lane_id() / 4;
-	const unsigned row_block_id = mtk::wmma::detail::common::get_lane_id() % 4;
+	const unsigned row_start = mtk::wmma::detail::common::get_lane_id() % 4;
 
-	const auto row = row_block_id * 2;
-	{const unsigned frag_index_list[1] = {0};func(frag_index_list, 1, (row + 0) + col * 8);}
-	{const unsigned frag_index_list[1] = {1};func(frag_index_list, 1, (row + 1) + col * 8);}
+	{const unsigned frag_index_list[1] = {0};func(frag_index_list, 1, (row_start + 0) + col * 8);}
+	{const unsigned frag_index_list[1] = {1};func(frag_index_list, 1, (row_start + 4) + col * 8);}
 }
 
 // foreach_ij
@@ -49,11 +48,10 @@ __device__ inline void foreach_ij(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_
 template <class Func>
 __device__ inline void foreach_ij(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_b, 16, 8, 8, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major>& frag, Func func) {
 	const unsigned col = mtk::wmma::detail::common::get_lane_id() / 4;
-	const unsigned row_block_id = mtk::wmma::detail::common::get_lane_id() % 4;
+	const unsigned row_start = mtk::wmma::detail::common::get_lane_id() % 4;
 
-	const auto row = row_block_id * 2;
-	{const unsigned frag_index_list[1] = {0};func(frag_index_list, 1, row + 0, col);}
-	{const unsigned frag_index_list[1] = {1};func(frag_index_list, 1, row + 1, col);}
+	{const unsigned frag_index_list[1] = {0};func(frag_index_list, 1, (row_start + 0), col);}
+	{const unsigned frag_index_list[1] = {1};func(frag_index_list, 1, (row_start + 4), col);}
 }
 
 // foreach_v
@@ -71,8 +69,8 @@ __device__ inline void foreach_v(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_b
 	if (mtk::wmma::detail::common::get_lane_id() >= 4)
 		return;
 
-	{const unsigned frag_index_list[1] = {0};func(frag_index_list, 1, mtk::wmma::detail::common::get_lane_id() * 2 + 0);}
-	{const unsigned frag_index_list[1] = {1};func(frag_index_list, 1, mtk::wmma::detail::common::get_lane_id() * 2 + 1);}
+	{const unsigned frag_index_list[1] = {0};func(frag_index_list, 1, mtk::wmma::detail::common::get_lane_id() + 0);}
+	{const unsigned frag_index_list[1] = {1};func(frag_index_list, 1, mtk::wmma::detail::common::get_lane_id() + 4);}
 }
 
 // Mma
