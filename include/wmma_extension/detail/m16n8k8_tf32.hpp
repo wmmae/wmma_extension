@@ -60,8 +60,8 @@ __device__ inline void foreach_v(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_a
 	if (mtk::wmma::detail::common::get_lane_id() >= 4)
 		return;
 
-	{const unsigned frag_index_list[1] = {0};func(frag_index_list, 1, 0, (mtk::wmma::detail::common::get_lane_id() + 0));}
-	{const unsigned frag_index_list[1] = {2};func(frag_index_list, 1, 0, (mtk::wmma::detail::common::get_lane_id() + 4));}
+	{const unsigned frag_index_list[1] = {0};func(frag_index_list, 1, (mtk::wmma::detail::common::get_lane_id() + 0));}
+	{const unsigned frag_index_list[1] = {2};func(frag_index_list, 1, (mtk::wmma::detail::common::get_lane_id() + 4));}
 }
 
 template <class Func>
