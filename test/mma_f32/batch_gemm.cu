@@ -214,7 +214,7 @@ __device__ void mma_core(
 		// Load C
 		mtk::wmma::mma_f32::fragment<nvcuda::wmma::accumulator, WARP_M, WARP_N, WARP_K, FRAGMENT_T, void, TC_Policy> frag_c;
 		const auto c_smem_offset = wi_m + wi_n * SMEM_M;
-		mtk::wmma::mma_f32::load_matrix_sync(frag_c, c_smem + c_smem_offset, SMEM_M, nvcuda::wmma::mem_col_major);
+		mtk::wmma::mma_f32::load_matrix_sync<nvcuda::wmma::col_major>(frag_c, c_smem + c_smem_offset, SMEM_M);
 
 		unsigned stage = 0;
 #pragma unroll
@@ -234,7 +234,7 @@ __device__ void mma_core(
 		}
 		// mma
 		mtk::wmma::mma_f32::mma_sync(frag_c, frag_a[stage], frag_b[stage], frag_c);
-		mtk::wmma::mma_f32::store_matrix_sync(c_smem + c_smem_offset, frag_c, SMEM_M, nvcuda::wmma::mem_col_major, false);
+		mtk::wmma::mma_f32::store_matrix_sync<nvcuda::wmma::col_major>(c_smem + c_smem_offset, frag_c, SMEM_M, false);
 	}
 }
 
