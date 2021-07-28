@@ -92,6 +92,12 @@ __device__ inline void fill_fragment(__frag_base<half, 2>& f, const T v) {
 		f.x[i] = v;
 }
 template <class T>
+__device__ inline void fill_fragment(__frag_base<float, 2>& f, const T v) {
+#pragma unroll
+	for (unsigned i = 0; i < f.num_elements; i++)
+		f.x[i] = v;
+}
+template <class T>
 __device__ inline void fill_fragment(__frag_base<float, 4>& f, const T v) {
 #pragma unroll
 	for (unsigned i = 0; i < f.num_elements; i++)
