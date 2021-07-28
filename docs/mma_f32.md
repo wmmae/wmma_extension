@@ -86,7 +86,8 @@ using policy = mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f
 | fm | fn | fk | LayoutA | LayoutB | Type  | Operation      | Supported arch |
 | -- | -- | -- | ------- | ------- | ----- | -------------- | ---------------|
 | 16 | 16 | 16 | col/row | col/row | half  | Arch dependent | sm_70 or later |
-| 16 | 16 | 16 | col/row | col/row | tf32  | mma            | sm_80 or later |
+| 16 | 16 | 16 | col/row | col/row | tf32  | wmma           | sm_80 or later |
+| 16 | 8  | 8  | row     | col     | tf32  | mma            | sm_80 or later |
 | 16 | 8  | 8  | row     | col     | half  | mma            | sm_75 or later |
 | 16 | 8  | 16 | row     | col     | half  | mma            | sm_80 or later |
 
