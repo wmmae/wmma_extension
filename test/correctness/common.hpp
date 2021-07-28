@@ -8,9 +8,7 @@ template <class T>
 std::string get_string();
 template <> std::string get_string<float>() {return "float";}
 template <> std::string get_string<half >() {return "half";}
-#ifdef TEST_TF32
 template <> std::string get_string<nvcuda::wmma::precision::tf32>() {return "tf32";}
-#endif
 template <> std::string get_string<nvcuda::wmma::col_major>() {return "col_major";}
 template <> std::string get_string<nvcuda::wmma::row_major>() {return "row_major";}
 template <> std::string get_string<void>() {return "row_major";}
