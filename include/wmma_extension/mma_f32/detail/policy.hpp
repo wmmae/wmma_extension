@@ -40,6 +40,8 @@ template <class ErrorCorrection>
 struct default_policy<nvcuda::wmma::precision::tf32, ErrorCorrection, mtk::wmma::mma_f32::op_wmma> {using type = mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_wmma, ErrorCorrection, 16, 16, 8 >;};
 template <class ErrorCorrection>
 struct default_policy<half                         , ErrorCorrection, mtk::wmma::mma_f32::op_mma > {using type = mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_mma , ErrorCorrection, 16, 8 , 16>;};
+template <class ErrorCorrection>
+struct default_policy<nvcuda::wmma::precision::tf32, ErrorCorrection, mtk::wmma::mma_f32::op_mma > {using type = mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_mma , ErrorCorrection, 16, 8 , 8 >;};
 
 
 // ===================================
