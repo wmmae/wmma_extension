@@ -25,6 +25,13 @@ __device__ inline void foreach(const nvcuda::wmma::layout_t layout, Func func) {
 	mtk::wmma::mma::foreach(frag, layout, func);
 }
 
+template <class Layout, class Frag_T, class Func>
+__device__ inline void foreach(const nvcuda::wmma::layout_t layout, Func func) {
+	typename std::remove_const<typename std::remove_reference<Frag_T>::type>::type frag;
+	mtk::wmma::mma::foreach<Layout>(frag, func);
+}
+
+// foreach_ij
 template <class Frag_T, class Func>
 __device__ inline void foreach_ij(Func func) {
 	typename std::remove_const<typename std::remove_reference<Frag_T>::type>::type frag;
@@ -36,6 +43,14 @@ __device__ inline void foreach_ij(const nvcuda::wmma::layout_t layout, Func func
 	typename std::remove_const<typename std::remove_reference<Frag_T>::type>::type frag;
 	mtk::wmma::mma::foreach_ij(frag, layout, func);
 }
+
+template <class Layout, class Frag_T, class Func>
+__device__ inline void foreach_ij(const nvcuda::wmma::layout_t layout, Func func) {
+	typename std::remove_const<typename std::remove_reference<Frag_T>::type>::type frag;
+	mtk::wmma::mma::foreach_ij<Layout>(frag, func);
+}
+
+// foreach_v
 template <class Frag_T, class Func>
 __device__ inline void foreach_v(Func func) {
 	typename std::remove_reference<Frag_T>::type frag;
@@ -46,6 +61,12 @@ template <class Frag_T, class Func>
 __device__ inline void foreach_v(const nvcuda::wmma::layout_t layout, Func func) {
 	typename std::remove_reference<Frag_T>::type frag;
 	mtk::wmma::mma::foreach_v(frag, layout, func);
+}
+
+template <class Layout, class Frag_T, class Func>
+__device__ inline void foreach_v(Func func) {
+	typename std::remove_reference<Frag_T>::type frag;
+	mtk::wmma::mma::foreach_v<Layout>(frag, func);
 }
 
 // ------------------------------
