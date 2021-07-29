@@ -40,14 +40,14 @@ __device__ inline void foreach(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_b, 
 	}
 }
 
-template <class Layout, class Func, class T>
-__device__ inline void foreach(mtk::wmma::mma::fragment<nvcuda::wmma::accumulator, 16, 8, 16, T>& frag, Func func) {
+template <class Func, class T>
+__device__ inline void foreach(mtk::wmma::mma::fragment<nvcuda::wmma::accumulator, 16, 8, 16, T>& frag, const nvcuda::wmma::layout_t layout, Func func) {
 	const unsigned col = (mtk::wmma::detail::common::get_lane_id() % 4) * 2;
 	const unsigned row_block_id = mtk::wmma::detail::common::get_lane_id() / 4;
 
 	for (unsigned i = 0; i < 2; i++) {
 		const auto row = row_block_id + i * 8;
-		if (std::is_same<Layout, nvcuda::wmma::col_major>::value) {
+		if (layout == nvcuda::wmma::mem_col_major) {
 			{const unsigned frag_index_list[1] = {(i * 2 + 0)};func(frag_index_list, 1, row + (col + 0) * 16);}
 			{const unsigned frag_index_list[1] = {(i * 2 + 1)};func(frag_index_list, 1, row + (col + 1) * 16);}
 		} else {
@@ -55,11 +55,6 @@ __device__ inline void foreach(mtk::wmma::mma::fragment<nvcuda::wmma::accumulato
 			{const unsigned frag_index_list[1] = {(i * 2 + 1)};func(frag_index_list, 1, row * 8 + (col + 1));}
 		}
 	}
-}
-
-template <class Func, class T>
-__device__ inline void foreach(mtk::wmma::mma::fragment<nvcuda::wmma::accumulator, 16, 8, 16, T>& frag, const nvcuda::wmma::layout_t layout, Func func) {
-	foreach<void>(frag, func);
 }
 
 // foreach_ij
@@ -90,21 +85,21 @@ __device__ inline void foreach_ij(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_
 	}
 }
 
-template <class Layout, class Func, class T>
-__device__ inline void foreach_ij(mtk::wmma::mma::fragment<nvcuda::wmma::accumulator, 16, 8, 16, T>& frag, Func func) {
+template <class Func, class T>
+__device__ inline void foreach_ij(mtk::wmma::mma::fragment<nvcuda::wmma::accumulator, 16, 8, 16, T>& frag, const nvcuda::wmma::layout_t layout, Func func) {
 	const unsigned col = (mtk::wmma::detail::common::get_lane_id() % 4) * 2;
 	const unsigned row_block_id = mtk::wmma::detail::common::get_lane_id() / 4;
 
 	for (unsigned i = 0; i < 2; i++) {
 		const auto row = row_block_id + i * 8;
-		{const unsigned frag_index_list[1] = {(i * 2 + 0)};func(frag_index_list, 1, row, col + 0);}
-		{const unsigned frag_index_list[1] = {(i * 2 + 1)};func(frag_index_list, 1, row, col + 1);}
+		if (layout == nvcuda::wmma::mem_col_major) {
+			{const unsigned frag_index_list[1] = {(i * 2 + 0)};func(frag_index_list, 1, row, col + 0);}
+			{const unsigned frag_index_list[1] = {(i * 2 + 1)};func(frag_index_list, 1, row, col + 1);}
+		} else {
+			{const unsigned frag_index_list[1] = {(i * 2 + 0)};func(frag_index_list, 1, row, col + 0);}
+			{const unsigned frag_index_list[1] = {(i * 2 + 1)};func(frag_index_list, 1, row, col + 1);}
+		}
 	}
-}
-
-template <class Func, class T>
-__device__ inline void foreach_ij(mtk::wmma::mma::fragment<nvcuda::wmma::accumulator, 16, 8, 16, T>& frag, const nvcuda::wmma::layout_t layout, Func func) {
-	foreach_ij<void>(frag, func);
 }
 
 // foreach_v
@@ -130,9 +125,9 @@ __device__ inline void foreach_v(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_b
 	{const unsigned frag_index_list[1] = {3};func(frag_index_list, 1, mtk::wmma::detail::common::get_lane_id() * 2 + 9);}
 }
 
-template <class Layout, class Func, class T>
-__device__ inline void foreach_v(mtk::wmma::mma::fragment<nvcuda::wmma::accumulator, 16, 8, 16, T>& frag, Func func) {
-	if (std::is_same<Layout, nvcuda::wmma::col_major>::value) {
+template <class Func, class T>
+__device__ inline void foreach_v(mtk::wmma::mma::fragment<nvcuda::wmma::accumulator, 16, 8, 16, T>& frag, const nvcuda::wmma::layout_t layout, Func func) {
+	if (layout == nvcuda::wmma::mem_col_major) {
 		if (mtk::wmma::detail::common::get_lane_id() & 0b11)
 			return;
 		{const unsigned frag_index_list[1] = {0};func(frag_index_list, 1, mtk::wmma::detail::common::get_lane_id() / 4 + 0);}
@@ -142,15 +137,6 @@ __device__ inline void foreach_v(mtk::wmma::mma::fragment<nvcuda::wmma::accumula
 			return;
 		{const unsigned frag_index_list[1] = {0};func(frag_index_list, 1, mtk::wmma::detail::common::get_lane_id() * 2 + 0);}
 		{const unsigned frag_index_list[1] = {1};func(frag_index_list, 1, mtk::wmma::detail::common::get_lane_id() * 2 + 1);}
-	}
-}
-
-template <class Func, class T>
-__device__ inline void foreach_v(mtk::wmma::mma::fragment<nvcuda::wmma::accumulator, 16, 8, 16, T>& frag, const nvcuda::wmma::layout_t layout, Func func) {
-	if (layout == nvcuda::wmma::mem_col_major) {
-		foreach_v<nvcuda::wmma::col_major>(frag, func);
-	} else {
-		foreach_v<nvcuda::wmma::row_major>(frag, func);
 	}
 }
 
