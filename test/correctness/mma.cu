@@ -126,14 +126,21 @@ void test() {
 	cudaDeviceSynchronize();
 	test_kernel<M, N, K, AB_T, C_T, D_T, a_layout, b_layout, c_layout, d_layout><<<1, 32>>>(d_ptr, a_ptr, b_ptr, c_ptr);
 	cudaDeviceSynchronize();
-	std::printf("[TEST] M=%2d, N=%2d, K=%2d, a_%5s_%s, b_%5s_%s, c_%5s_%s, d_%5s_%s : res = %e\n",
+	const auto residual = get_residual<M, N, K, AB_T, C_T, D_T, a_layout, b_layout, c_layout, d_layout>(a_ptr, b_ptr, c_ptr, d_ptr);
+	std::printf("[TEST] M=%2d, N=%2d, K=%2d, a_%5s_%s, b_%5s_%s, c_%5s_%s, d_%5s_%s : res = %e [",
 			M, N, K,
 			mtk::test_utils::get_string<AB_T>().c_str(), mtk::test_utils::get_string<a_layout>().c_str(),
 			mtk::test_utils::get_string<AB_T>().c_str(), mtk::test_utils::get_string<b_layout>().c_str(),
 			mtk::test_utils::get_string<C_T >().c_str(), get_layout_name(c_layout).c_str(),
 			mtk::test_utils::get_string<D_T >().c_str(), get_layout_name(d_layout).c_str(),
-			get_residual<M, N, K, AB_T, C_T, D_T, a_layout, b_layout, c_layout, d_layout>(a_ptr, b_ptr, c_ptr, d_ptr)
+			residual
 			);
+	if (residual < 1e-3) {
+		std::printf("PASSED");
+	} else {
+		std::printf("FAILED");
+	}
+	std::printf("]\n");
 }
 
 int main() {
