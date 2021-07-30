@@ -87,10 +87,10 @@ __device__ inline void foreach(nvcuda::wmma::fragment<nvcuda::wmma::accumulator,
 			func(frag_index_list, 1, start_index + (x & 0b1) * 16 + ((x >> 1) & 0b1) * 2 + (x >> 2) * 64);
 		}
 	} else {
-		const unsigned start_index = (lane_id & 0b1) * 16 + ((lane_id >> 1) & 0b1) * 2 + ((lane_id >> 2) & 0b1) * 128 + ((lane_id >> 3) & 0b1) * 8 + ((lane_id >> 4) & 0b1) * 64;
+		const unsigned start_index = (lane_id & 0b1) + (lane_id & 0b10) * 16 + (lane_id & 0b100) * 2 + (lane_id & 0b1000) * 16 + ((lane_id & 0b10000) >> 2);
 		for (unsigned x = 0; x < frag.num_elements; x++) {
 			const unsigned frag_index_list[1] = {x};
-			func(frag_index_list, 1, start_index + (x & 0b1) + ((x >> 1) & 0b1) * 32 + ((x >> 2) & 0b1) * 4);
+			func(frag_index_list, 1, start_index + (x & 0b1) * 16 + (x & 0b10) + (x & 0b100) * 16);
 		}
 	}
 }
