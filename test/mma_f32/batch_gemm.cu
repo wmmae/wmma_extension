@@ -1,5 +1,6 @@
 #include <iostream>
 #include <chrono>
+#include <cassert>
 #include <cublas.h>
 #include <cublas_v2.h>
 #include "utils.hpp"
@@ -389,6 +390,9 @@ void test_batched_sgemm(
 		const unsigned k,
 		const unsigned batch_size
 		) {
+	static_assert(SMEM_M * SMEM_N >= BLOCK_SIZE);
+	static_assert(SMEM_M * SMEM_K >= BLOCK_SIZE);
+	static_assert(SMEM_K * SMEM_N >= BLOCK_SIZE);
 	std::printf("!-- %s\n", __func__);
 	std::printf("%15s: (%u, %u, %u)\n", "Size", m, n, k);
 	std::printf("%15s: (%u, %u, %u)\n", "Smem size", SMEM_M, SMEM_N, SMEM_K);
