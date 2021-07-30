@@ -26,7 +26,15 @@ __global__ void matmul16x16_kernel(float* const c_ptr, const float* const a_ptr,
 	nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, M, N, K, ab_type, nvcuda::wmma::col_major> frag_b, frag_db;
 	nvcuda::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, float> frag_c;
 
-	mtk::wmma::fill_zero(frag_c);
+	mtk::wmma::foreach<decltype(frag_c)>(
+			nvcuda::wmma::mem_col_major,
+			[&](const unsigned frag_index_list[], const unsigned frag_index_count, const unsigned mem_index) {
+				const auto c = c_ptr[mem_index];
+				for (unsigned i = 0; i < frag_index_count; i++) {
+					const unsigned frag_index = frag_index_list[i];
+					frag_c.x[frag_index] = c;
+				}
+			});
 
 	mtk::wmma::foreach<decltype(frag_a)>(
 			[&](const unsigned frag_index_list[], const unsigned frag_index_count, const unsigned mem_index) {
@@ -63,17 +71,18 @@ void test() {
 	std::printf("-- test (%s) --\n", __FILE__);
 	std::printf("arch    : %d\n", TEST_ARCH);
 
-	float *a, *b, *c;
+	float *a, *b, *c, *d;
 	cudaMallocHost(&a, sizeof(float) * N * N);
 	cudaMallocHost(&b, sizeof(float) * N * N);
 	cudaMallocHost(&c, sizeof(float) * N * N);
+	cudaMallocHost(&d, sizeof(float) * N * N);
 
 	std::mt19937 mt(std::random_device{}());
 	std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
 	for (unsigned i = 0; i < N * N; i++) {
 		a[i] = dist(mt);
 		b[i] = dist(mt);
-		c[i] = static_cast<float>(0);
+		d[i] = c[i] = dist(mt);
 	}
 
 	cudaDeviceSynchronize();
@@ -81,19 +90,29 @@ void test() {
 	cudaDeviceSynchronize();
 
 	double max_error = 0.0;
+	double max_element = 0.0;
 	for (unsigned i = 0; i < M; i++) {
 		for (unsigned j = 0; j < N; j++) {
-			double sum = 0.0;
+			double sum = d[i + j * M];
 			for (unsigned k = 0; k < K; k++) {
 				sum += static_cast<double>(a[i + M * k]) * static_cast<double>(b[k + j * K]);
 			}
 			const auto error = std::abs(sum - c[i + j * M]);
-			std::printf("%e ", error);
+			const auto element = std::abs(sum);
 			max_error = std::max(max_error, error);
+			max_element = std::max(max_element, element);
 		}
-		std::printf("\n");
 	}
-	std::printf("error   : %e\n", max_error);
+	const auto e = max_error / max_element;
+	std::printf("{%s} error=%e [",
+			__FILE__,
+			e);
+	if (e < 1e-6) {
+		std::printf("PASSED");
+	} else {
+		std::printf("FAILED");
+	}
+	std::printf("]\n");
 }
 
 int main() {

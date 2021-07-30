@@ -21,7 +21,7 @@ Please specify an appropriate virtual architecture for real GPU when you use thi
 For instance, a program which is compiled with `-arch=sm_70` does not work correctly on Ampere GPUs.
 
 ## Requirements
-- CUDA (9.2 or later)
+- CUDA (10.2 or later)
 - C++ (17 or later)
 
 ## Supported fragment

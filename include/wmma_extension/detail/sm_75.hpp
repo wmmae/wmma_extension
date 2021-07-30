@@ -62,6 +62,26 @@ __device__ inline void foreach(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16
 	}
 }
 
+template <class T, class Func>
+__device__ inline void foreach(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T, void>& frag, const nvcuda::wmma::layout_t layout, Func func) {
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+	if (layout == nvcuda::wmma::mem_col_major) {
+		const unsigned start_index = (lane_id & 0b11) * 32 + (lane_id >> 2);
+		for (unsigned i = 0; i < frag.num_elements; i++) {
+			const unsigned index = start_index + (i & 0b1) * 16 + ((i >> 1) & 0b1) * 8 + ((i >> 2) & 0b1) * 128;
+			const unsigned frag_index_list[1] = {i};
+			func(frag_index_list, 1, index);
+		}
+	} else {
+		const unsigned start_index = (lane_id & 0b11) * 2 + ((lane_id >> 2) & 1) * 16 + ((lane_id >> 3) & 0b1) * 32 + ((lane_id >> 4) & 0b1) * 64;
+		for (unsigned i = 0; i < frag.num_elements; i++) {
+			const unsigned index = start_index + (i & 0b1) + ((i >> 1) & 0b1) * 128 + ((i >> 2) & 0b1) * 8;
+			const unsigned frag_index_list[1] = {i};
+			func(frag_index_list, 1, index);
+		}
+	}
+}
+
 // ----------------------------------
 // foreach_ij
 // ----------------------------------
@@ -114,6 +134,18 @@ __device__ inline void foreach_ij(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b,
 		const unsigned j = j_offset + (x & 0b100) * 2;
 		const unsigned frag_index_list[2] = {x, x + 8};
 		func(frag_index_list, 2, i, j);
+	}
+}
+
+template <class T, class Func>
+__device__ inline void foreach_ij(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T, void>& frag, const nvcuda::wmma::layout_t layout, Func func) {
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+	const unsigned row_start = lane_id >> 2;
+	for (unsigned x = 0; x < frag.num_elements; x++) {
+		const unsigned col = (lane_id & 0b11) * 2 + (x & 0b1) + (x >> 2) * 8;
+		const unsigned row = row_start + (x & 0b10) * 4;
+		const unsigned frag_index_list[1] = {x};
+		func(frag_index_list, 1, row, col);
 	}
 }
 
