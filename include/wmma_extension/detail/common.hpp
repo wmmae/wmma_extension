@@ -114,6 +114,12 @@ __device__ inline void fill_zero(mtk::wmma::mma::fragment<Use, M, N, K, float, L
 }
 
 template <class Use, int M, int N, int K, class Layout>
+__device__ inline void fill_zero(mtk::wmma::mma::fragment<Use, M, N, K, nvcuda::wmma::precision::tf32, Layout>& frag) {
+	constexpr unsigned size = 4 * mtk::wmma::mma::fragment<Use, M, N, K, nvcuda::wmma::precision::tf32, Layout>::num_elements;
+	detail::fill_zero_core<size, float>{}(reinterpret_cast<float*>(frag.x));
+}
+
+template <class Use, int M, int N, int K, class Layout>
 __device__ inline void fill_zero(mtk::wmma::mma::fragment<Use, M, N, K, half, Layout>& frag) {
 	constexpr unsigned size = 2 * mtk::wmma::mma::fragment<Use, M, N, K, half, Layout>::num_elements;
 	detail::fill_zero_core<size, half>{}(reinterpret_cast<half*>(frag.x));

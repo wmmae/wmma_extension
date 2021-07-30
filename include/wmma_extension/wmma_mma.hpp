@@ -40,12 +40,14 @@ template <class Frag_T, class Func>
 __device__ inline void foreach_v(Func func) {
 	typename std::remove_reference<Frag_T>::type frag;
 	mtk::wmma::mma::foreach_v(frag, func);
+	__syncwarp();
 }
 
 template <class Frag_T, class Func>
 __device__ inline void foreach_v(const nvcuda::wmma::layout_t layout, Func func) {
 	typename std::remove_reference<Frag_T>::type frag;
 	mtk::wmma::mma::foreach_v(frag, layout, func);
+	__syncwarp();
 }
 
 // ------------------------------

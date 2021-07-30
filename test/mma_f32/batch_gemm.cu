@@ -1,5 +1,6 @@
 #include <iostream>
 #include <chrono>
+#include <cassert>
 #include <cublas.h>
 #include <cublas_v2.h>
 #include "utils.hpp"
@@ -214,7 +215,7 @@ __device__ void mma_core(
 		// Load C
 		mtk::wmma::mma_f32::fragment<nvcuda::wmma::accumulator, WARP_M, WARP_N, WARP_K, FRAGMENT_T, void, TC_Policy> frag_c;
 		const auto c_smem_offset = wi_m + wi_n * SMEM_M;
-		mtk::wmma::mma_f32::load_matrix_sync(frag_c, c_smem + c_smem_offset, SMEM_M, nvcuda::wmma::mem_col_major);
+		mtk::wmma::mma_f32::load_matrix_sync<nvcuda::wmma::col_major>(frag_c, c_smem + c_smem_offset, SMEM_M);
 
 		unsigned stage = 0;
 #pragma unroll
@@ -234,7 +235,7 @@ __device__ void mma_core(
 		}
 		// mma
 		mtk::wmma::mma_f32::mma_sync(frag_c, frag_a[stage], frag_b[stage], frag_c);
-		mtk::wmma::mma_f32::store_matrix_sync(c_smem + c_smem_offset, frag_c, SMEM_M, nvcuda::wmma::mem_col_major, false);
+		mtk::wmma::mma_f32::store_matrix_sync<nvcuda::wmma::col_major>(c_smem + c_smem_offset, frag_c, SMEM_M, false);
 	}
 }
 
@@ -325,6 +326,7 @@ __global__ void bgemm_kernel(
 			// MMA
 			cp_async_wait_all();
 			mma_core<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy>(c_smem, a_smem + stage * SMEM_M * SMEM_K, b_smem + stage * SMEM_K * SMEM_N);
+			__syncthreads();
 
 			const auto c_dmem_offset = bm + bn * ldc;
 			float* const c_dmem = c_ptr[blockIdx.x];
@@ -389,6 +391,9 @@ void test_batched_sgemm(
 		const unsigned k,
 		const unsigned batch_size
 		) {
+	static_assert(SMEM_M * SMEM_N >= BLOCK_SIZE);
+	static_assert(SMEM_M * SMEM_K >= BLOCK_SIZE);
+	static_assert(SMEM_K * SMEM_N >= BLOCK_SIZE);
 	std::printf("!-- %s\n", __func__);
 	std::printf("%15s: (%u, %u, %u)\n", "Size", m, n, k);
 	std::printf("%15s: (%u, %u, %u)\n", "Smem size", SMEM_M, SMEM_N, SMEM_K);
@@ -572,5 +577,5 @@ int main() {
 	constexpr unsigned n = 1024;
 	constexpr unsigned k = 1024;
 	constexpr unsigned batch_size = 256;
-	test_batched_sgemm<128, 128, 16, 64, 64, 16, 128, 8, 8>(m, n, k, batch_size);
+	test_batched_sgemm<64, 64, 128, 32, 32, 32, 128, 16, 16>(m, n, k, batch_size);
 }
