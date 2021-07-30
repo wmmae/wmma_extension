@@ -326,6 +326,7 @@ __global__ void bgemm_kernel(
 			// MMA
 			cp_async_wait_all();
 			mma_core<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy>(c_smem, a_smem + stage * SMEM_M * SMEM_K, b_smem + stage * SMEM_K * SMEM_N);
+			__syncthreads();
 
 			const auto c_dmem_offset = bm + bn * ldc;
 			float* const c_dmem = c_ptr[blockIdx.x];
