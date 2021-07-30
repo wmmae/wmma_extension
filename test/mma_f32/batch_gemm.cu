@@ -577,5 +577,5 @@ int main() {
 	constexpr unsigned n = 1024;
 	constexpr unsigned k = 1024;
 	constexpr unsigned batch_size = 256;
-	test_batched_sgemm<128, 128, 16, 64, 64, 16, 128, 8, 8>(m, n, k, batch_size);
+	test_batched_sgemm<64, 64, 128, 32, 32, 32, 128, 16, 16>(m, n, k, batch_size);
 }
