@@ -171,7 +171,7 @@ __device__ void store_matrix_sync(float* const ptr, fragment<nvcuda::wmma::accum
 	constexpr auto frag_n = mtk::wmma::mma_f32::detail::select_value<nvcuda::wmma::accumulator, Policy::k, Policy::n, Policy::n>::value;
 
 	if (std::is_same<Layout, nvcuda::wmma::col_major>::value) {
-		mtk::wmma::mma_f32::detail::foreach_ij_wrapper<nvcuda::wmma::accumulator, T, void, Policy>{}(nvcuda::wmma::mem_col_major,
+		mtk::wmma::mma_f32::detail::foreach_ij_wrapper<nvcuda::wmma::accumulator, float, void, Policy>{}(nvcuda::wmma::mem_col_major,
 				[&](const unsigned frag_index_list[], const unsigned frag_index_count, const unsigned i, const unsigned j) {
 					for (unsigned bm = 0; bm < frag.num_sub_frag_m; bm++) {
 						for (unsigned bn = 0; bn < frag.num_sub_frag_n; bn++) {
@@ -182,7 +182,7 @@ __device__ void store_matrix_sync(float* const ptr, fragment<nvcuda::wmma::accum
 					}
 				});
 	} else {
-		mtk::wmma::mma_f32::detail::foreach_ij_wrapper<nvcuda::wmma::accumulator, T, void, Policy>{}(nvcuda::wmma::mem_row_major,
+		mtk::wmma::mma_f32::detail::foreach_ij_wrapper<nvcuda::wmma::accumulator, float, void, Policy>{}(nvcuda::wmma::mem_row_major,
 				[&](const unsigned frag_index_list[], const unsigned frag_index_count, const unsigned i, const unsigned j) {
 					for (unsigned bm = 0; bm < frag.num_sub_frag_m; bm++) {
 						for (unsigned bn = 0; bn < frag.num_sub_frag_n; bn++) {
@@ -205,7 +205,7 @@ __device__ void store_matrix_sync_with_mul(float* const ptr, fragment<nvcuda::wm
 	constexpr auto frag_n = mtk::wmma::mma_f32::detail::select_value<nvcuda::wmma::accumulator, Policy::k, Policy::n, Policy::n>::value;
 
 	if (std::is_same<Layout, nvcuda::wmma::col_major>::value) {
-		mtk::wmma::mma_f32::detail::foreach_ij_wrapper<nvcuda::wmma::accumulator, T, void, Policy>{}(nvcuda::wmma::mem_col_major,
+		mtk::wmma::mma_f32::detail::foreach_ij_wrapper<nvcuda::wmma::accumulator, float, void, Policy>{}(nvcuda::wmma::mem_col_major,
 				[&](const unsigned frag_index_list[], const unsigned frag_index_count, const unsigned i, const unsigned j) {
 					for (unsigned bm = 0; bm < frag.num_sub_frag_m; bm++) {
 						for (unsigned bn = 0; bn < frag.num_sub_frag_n; bn++) {
@@ -216,7 +216,7 @@ __device__ void store_matrix_sync_with_mul(float* const ptr, fragment<nvcuda::wm
 					}
 				});
 	} else {
-		mtk::wmma::mma_f32::detail::foreach_ij_wrapper<nvcuda::wmma::accumulator, T, void, Policy>{}(nvcuda::wmma::mem_row_major,
+		mtk::wmma::mma_f32::detail::foreach_ij_wrapper<nvcuda::wmma::accumulator, float, void, Policy>{}(nvcuda::wmma::mem_row_major,
 				[&](const unsigned frag_index_list[], const unsigned frag_index_count, const unsigned i, const unsigned j) {
 					for (unsigned bm = 0; bm < frag.num_sub_frag_m; bm++) {
 						for (unsigned bn = 0; bn < frag.num_sub_frag_n; bn++) {
