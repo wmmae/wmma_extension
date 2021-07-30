@@ -62,6 +62,26 @@ __device__ inline void foreach(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16
 	}
 }
 
+template <class Func, class T>
+__device__ inline void foreach(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T, void>& frag, const nvcuda::wmma::layout_t layout, Func func) {
+	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
+	if (layout == nvcuda::wmma::mem_col_major) {
+		const unsigned start_index = (lane_id & 0b11) * 32 + (lane_id >> 2);
+		for (unsigned i = 0; i < frag.num_elements; i++) {
+			const unsigned index = start_index + (i & 0b1) * 16 + ((i >> 1) & 0b1) * 8 + ((i >> 2) & 0b1) * 128;
+			const unsigned frag_index_list[1] = {i};
+			func(frag_index_list, 1, index);
+		}
+	} else {
+		const unsigned start_index = (lane_id & 0b11) * 2 + ((lane_id >> 2) & 1) * 16 + ((lane_id >> 3) & 0b1) * 32 + ((lane_id >> 4) & 0b1) * 64;
+		for (unsigned i = 0; i < frag.num_elements; i++) {
+			const unsigned index = start_index + (i & 0b1) + ((i >> 1) & 0b1) * 128 + ((i >> 2) & 0b1) * 8;
+			const unsigned frag_index_list[1] = {i};
+			func(frag_index_list, 1, index);
+		}
+	}
+}
+
 // ----------------------------------
 // foreach_ij
 // ----------------------------------
