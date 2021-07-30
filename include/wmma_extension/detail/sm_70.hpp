@@ -59,7 +59,7 @@ __device__ inline void foreach(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16
 	}
 }
 
-template <class Func>
+template <class T, class Func>
 __device__ inline void foreach(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, half, void>& frag, const nvcuda::wmma::layout_t layout, Func func) {
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	if (layout == nvcuda::wmma::mem_row_major) {
@@ -77,7 +77,7 @@ __device__ inline void foreach(nvcuda::wmma::fragment<nvcuda::wmma::accumulator,
 	}
 }
 
-template <class Func>
+template <class T, class Func>
 __device__ inline void foreach(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, float, void>& frag, const nvcuda::wmma::layout_t layout, Func func) {
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	if (layout == nvcuda::wmma::mem_row_major) {
@@ -151,7 +151,7 @@ __device__ inline void foreach_ij(nvcuda::wmma::fragment<nvcuda::wmma::matrix_b,
 	}
 }
 
-template <class Func>
+template <class T, class Func>
 __device__ inline void foreach_ij(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, half, void>& frag, const nvcuda::wmma::layout_t layout, Func func) {
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	const unsigned row = (lane_id & 0b11) + ((lane_id >> 2) & 0b1) * 8 + ((lane_id >> 4) & 0b1) * 4;
@@ -162,7 +162,7 @@ __device__ inline void foreach_ij(nvcuda::wmma::fragment<nvcuda::wmma::accumulat
 	}
 }
 
-template <class Func>
+template <class T, class Func>
 __device__ inline void foreach_ij(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, float, void>& frag, const nvcuda::wmma::layout_t layout, Func func) {
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
 	const unsigned row_start = (lane_id & 0b1) + ((lane_id >> 2) & 0b1) * 8 + ((lane_id >> 4) & 0b1) * 4;
