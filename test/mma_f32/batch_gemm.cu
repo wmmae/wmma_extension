@@ -320,11 +320,13 @@ __global__ void bgemm_kernel(
 
 				// MMA
 				cp_async_wait_group<2>();
+				__syncthreads();
 				mma_core<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy>(c_smem, a_smem + (1 - stage) * SMEM_M * SMEM_K, b_smem + (1 - stage) * SMEM_K * SMEM_N);
 			} // loop bk
 
 			// MMA
 			cp_async_wait_all();
+			__syncthreads();
 			mma_core<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy>(c_smem, a_smem + stage * SMEM_M * SMEM_K, b_smem + stage * SMEM_K * SMEM_N);
 			__syncthreads();
 
@@ -576,6 +578,6 @@ int main() {
 	constexpr unsigned m = 1024;
 	constexpr unsigned n = 1024;
 	constexpr unsigned k = 1024;
-	constexpr unsigned batch_size = 256;
-	test_batched_sgemm<64, 64, 128, 32, 32, 32, 128, 16, 16>(m, n, k, batch_size);
+	constexpr unsigned batch_size = 1024;
+	test_batched_sgemm<64, 64, 64, 32, 32, 32, 128, 8, 8>(m, n, k, batch_size);
 }
