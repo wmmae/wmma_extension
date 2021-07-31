@@ -476,12 +476,12 @@ __device__ void mma_sync(
 	for (unsigned bm = 0; bm < num_m_block; bm++) {
 		for (unsigned bn = 0; bn < num_n_block; bn++) {
 			typename fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::mma_f32::Policy<Op, mtk::wmma::mma_f32::with_ec, fm, fn, fk>>::sub_frag_t tmp;
-			zero_op(tmp);
+			zero_op(frag_d.sub_frag[bm + bn * num_m_block]);
 			mma_op(
-					tmp,
+					frag_d.sub_frag[bm + bn * num_m_block],
 					frag_a.sub_frag[bm + 0  * num_m_block],
 					frag_b.sub_frag[0  + bn * num_k_block],
-					tmp
+					frag_d.sub_frag[bm + bn * num_m_block]
 					);
 			zero_op(frag_d.sub_d_frag[bm + bn * num_m_block]);
 			mma_op(
