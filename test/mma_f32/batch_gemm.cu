@@ -492,13 +492,13 @@ void test_batched_sgemm(
 			diff_norm += diff * diff;
 		}
 	}
-	WMMAE_CUDA_CHECK_ERROR(cudaFree(last_a_ptr));
-	WMMAE_CUDA_CHECK_ERROR(cudaFree(last_b_ptr));
-	WMMAE_CUDA_CHECK_ERROR(cudaFree(last_c_ptr));
+	WMMAE_CUDA_CHECK_ERROR(cudaFreeHost(last_a_ptr));
+	WMMAE_CUDA_CHECK_ERROR(cudaFreeHost(last_b_ptr));
+	WMMAE_CUDA_CHECK_ERROR(cudaFreeHost(last_c_ptr));
 
 	WMMAE_CUDA_CHECK_ERROR(cudaDeviceSynchronize());
 	// evaluation of computing performance
-	constexpr unsigned test_count = 1lu << 4;
+	constexpr unsigned test_count = 1lu << 8;
 
 	{
 		WMMAE_CUDA_CHECK_ERROR(cudaDeviceSynchronize());
