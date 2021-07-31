@@ -170,29 +170,16 @@ __device__ void store_matrix_sync(float* const ptr, fragment<nvcuda::wmma::accum
 	constexpr auto frag_m = mtk::wmma::mma_f32::detail::select_value<nvcuda::wmma::accumulator, Policy::m, Policy::k, Policy::m>::value;
 	constexpr auto frag_n = mtk::wmma::mma_f32::detail::select_value<nvcuda::wmma::accumulator, Policy::k, Policy::n, Policy::n>::value;
 
-	if (std::is_same<Layout, nvcuda::wmma::col_major>::value) {
-		mtk::wmma::mma_f32::detail::foreach_ij_wrapper<nvcuda::wmma::accumulator, float, void, Policy>{}(nvcuda::wmma::mem_col_major,
-				[&](const unsigned frag_index_list[], const unsigned frag_index_count, const unsigned i, const unsigned j) {
-					for (unsigned bm = 0; bm < frag.num_sub_frag_m; bm++) {
-						for (unsigned bn = 0; bn < frag.num_sub_frag_n; bn++) {
-							const auto mem_offset = mtk::wmma::mma_f32::detail::compute_mem_offset<frag_m, frag_n, nvcuda::wmma::col_major>{}(i, j, ldm, bm * frag_m, bn * frag_n);
-							const auto frag_index = frag_index_list[0];
-							ptr[mem_offset] = (frag.sub_frag[bm + frag.num_sub_frag_m * bn].x[frag_index] + detail::correction_scale_1<T>(frag.sub_d_frag[bm + frag.num_sub_frag_m * bn].x[frag_index]));
-						}
+	mtk::wmma::mma_f32::detail::foreach_ij_wrapper<nvcuda::wmma::accumulator, float, void, Policy>{}(std::is_same<Layout, nvcuda::wmma::col_major>::value ? nvcuda::wmma::mem_col_major : nvcuda::wmma::mem_row_major,
+			[&](const unsigned frag_index_list[], const unsigned frag_index_count, const unsigned i, const unsigned j) {
+				for (unsigned bm = 0; bm < frag.num_sub_frag_m; bm++) {
+					for (unsigned bn = 0; bn < frag.num_sub_frag_n; bn++) {
+						const auto mem_offset = mtk::wmma::mma_f32::detail::compute_mem_offset<frag_m, frag_n, Layout>{}(i, j, ldm, bm * frag_m, bn * frag_n);
+						const auto frag_index = frag_index_list[0];
+						ptr[mem_offset] = (frag.sub_frag[bm + frag.num_sub_frag_m * bn].x[frag_index] + detail::correction_scale_1<T>(frag.sub_d_frag[bm + frag.num_sub_frag_m * bn].x[frag_index]));
 					}
-				});
-	} else {
-		mtk::wmma::mma_f32::detail::foreach_ij_wrapper<nvcuda::wmma::accumulator, float, void, Policy>{}(nvcuda::wmma::mem_row_major,
-				[&](const unsigned frag_index_list[], const unsigned frag_index_count, const unsigned i, const unsigned j) {
-					for (unsigned bm = 0; bm < frag.num_sub_frag_m; bm++) {
-						for (unsigned bn = 0; bn < frag.num_sub_frag_n; bn++) {
-							const auto mem_offset = mtk::wmma::mma_f32::detail::compute_mem_offset<frag_m, frag_n, nvcuda::wmma::row_major>{}(i, j, ldm, bm * frag_m, bn * frag_n);
-							const auto frag_index = frag_index_list[0];
-							ptr[mem_offset] = (frag.sub_frag[bm + frag.num_sub_frag_m * bn].x[frag_index] + detail::correction_scale_1<T>(frag.sub_d_frag[bm + frag.num_sub_frag_m * bn].x[frag_index]));
-						}
-					}
-				});
-	}
+				}
+			});
 	if (sync) {
 		__syncthreads();
 	}
@@ -204,29 +191,16 @@ __device__ void store_matrix_sync_with_mul(float* const ptr, fragment<nvcuda::wm
 	constexpr auto frag_m = mtk::wmma::mma_f32::detail::select_value<nvcuda::wmma::accumulator, Policy::m, Policy::k, Policy::m>::value;
 	constexpr auto frag_n = mtk::wmma::mma_f32::detail::select_value<nvcuda::wmma::accumulator, Policy::k, Policy::n, Policy::n>::value;
 
-	if (std::is_same<Layout, nvcuda::wmma::col_major>::value) {
-		mtk::wmma::mma_f32::detail::foreach_ij_wrapper<nvcuda::wmma::accumulator, float, void, Policy>{}(nvcuda::wmma::mem_col_major,
-				[&](const unsigned frag_index_list[], const unsigned frag_index_count, const unsigned i, const unsigned j) {
-					for (unsigned bm = 0; bm < frag.num_sub_frag_m; bm++) {
-						for (unsigned bn = 0; bn < frag.num_sub_frag_n; bn++) {
-							const auto mem_offset = mtk::wmma::mma_f32::detail::compute_mem_offset<frag_m, frag_n, nvcuda::wmma::col_major>{}(i, j, ldm, bm * frag_m, bn * frag_n);
-							const auto frag_index = frag_index_list[0];
-							ptr[mem_offset] = (frag.sub_frag[bm + frag.num_sub_frag_m * bn].x[frag_index] + detail::correction_scale_1<T>(frag.sub_d_frag[bm + frag.num_sub_frag_m * bn].x[frag_index])) * mul;
-						}
+	mtk::wmma::mma_f32::detail::foreach_ij_wrapper<nvcuda::wmma::accumulator, float, void, Policy>{}(std::is_same<Layout, nvcuda::wmma::col_major>::value ? nvcuda::wmma::mem_col_major : nvcuda::wmma::mem_row_major,
+			[&](const unsigned frag_index_list[], const unsigned frag_index_count, const unsigned i, const unsigned j) {
+				for (unsigned bm = 0; bm < frag.num_sub_frag_m; bm++) {
+					for (unsigned bn = 0; bn < frag.num_sub_frag_n; bn++) {
+						const auto mem_offset = mtk::wmma::mma_f32::detail::compute_mem_offset<frag_m, frag_n, Layout>{}(i, j, ldm, bm * frag_m, bn * frag_n);
+						const auto frag_index = frag_index_list[0];
+						ptr[mem_offset] = (frag.sub_frag[bm + frag.num_sub_frag_m * bn].x[frag_index] + detail::correction_scale_1<T>(frag.sub_d_frag[bm + frag.num_sub_frag_m * bn].x[frag_index])) * mul;
 					}
-				});
-	} else {
-		mtk::wmma::mma_f32::detail::foreach_ij_wrapper<nvcuda::wmma::accumulator, float, void, Policy>{}(nvcuda::wmma::mem_row_major,
-				[&](const unsigned frag_index_list[], const unsigned frag_index_count, const unsigned i, const unsigned j) {
-					for (unsigned bm = 0; bm < frag.num_sub_frag_m; bm++) {
-						for (unsigned bn = 0; bn < frag.num_sub_frag_n; bn++) {
-							const auto mem_offset = mtk::wmma::mma_f32::detail::compute_mem_offset<frag_m, frag_n, nvcuda::wmma::row_major>{}(i, j, ldm, bm * frag_m, bn * frag_n);
-							const auto frag_index = frag_index_list[0];
-							ptr[mem_offset] = (frag.sub_frag[bm + frag.num_sub_frag_m * bn].x[frag_index] + detail::correction_scale_1<T>(frag.sub_d_frag[bm + frag.num_sub_frag_m * bn].x[frag_index])) * mul;
-						}
-					}
-				});
-	}
+				}
+			});
 	if (sync) {
 		__syncthreads();
 	}
