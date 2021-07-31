@@ -173,9 +173,9 @@ template <unsigned SMEM_M, unsigned SMEM_N, unsigned BLOCK_SIZE>
 __device__ void fill_zero(
 		float* const dst_smem
 		) {
-	for (unsigned i = 0; i < SMEM_M * SMEM_N; i += BLOCK_SIZE) {
-		const auto j = i + threadIdx.x;
-		dst_smem[j] = 0.f;
+	for (unsigned i = 0; i < SMEM_M * SMEM_N; i += BLOCK_SIZE * 4) {
+		const auto j = i + threadIdx.x * 4;
+		*reinterpret_cast<float4*>(dst_smem + j) = make_float4(0, 0, 0, 0);
 	}
 }
 
