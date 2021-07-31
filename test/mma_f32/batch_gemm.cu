@@ -411,28 +411,28 @@ void test_batched_sgemm(
 	float **d_a_ptr_array;
 	float **d_b_ptr_array;
 	float **d_c_ptr_array;
-	cudaMalloc(&d_a_ptr_array, sizeof(float*) * batch_size);
-	cudaMalloc(&d_b_ptr_array, sizeof(float*) * batch_size);
-	cudaMalloc(&d_c_ptr_array, sizeof(float*) * batch_size);
+	WMMAE_CUDA_CHECK_ERROR(cudaMalloc(&d_a_ptr_array, sizeof(float*) * batch_size));
+	WMMAE_CUDA_CHECK_ERROR(cudaMalloc(&d_b_ptr_array, sizeof(float*) * batch_size));
+	WMMAE_CUDA_CHECK_ERROR(cudaMalloc(&d_c_ptr_array, sizeof(float*) * batch_size));
 
 	float **h_a_ptr_array;
 	float **h_b_ptr_array;
 	float **h_c_ptr_array;
-	cudaMallocHost(&h_a_ptr_array, sizeof(float*) * batch_size);
-	cudaMallocHost(&h_b_ptr_array, sizeof(float*) * batch_size);
-	cudaMallocHost(&h_c_ptr_array, sizeof(float*) * batch_size);
+	WMMAE_CUDA_CHECK_ERROR(cudaMallocHost(&h_a_ptr_array, sizeof(float*) * batch_size));
+	WMMAE_CUDA_CHECK_ERROR(cudaMallocHost(&h_b_ptr_array, sizeof(float*) * batch_size));
+	WMMAE_CUDA_CHECK_ERROR(cudaMallocHost(&h_c_ptr_array, sizeof(float*) * batch_size));
 
 	// Host memory for initializing
 	float* init_matrix;
-	cudaMallocHost(&init_matrix, sizeof(float) * m * n * k / (std::min(m, std::min(n, k))));
+	WMMAE_CUDA_CHECK_ERROR(cudaMallocHost(&init_matrix, sizeof(float) * m * n * k / (std::min(m, std::min(n, k)))));
 	for (unsigned i = 0; i < batch_size; i++) {
 		// Allocate device memory and set
 		float *d_a_ptr;
 		float *d_b_ptr;
 		float *d_c_ptr;
-		cudaMalloc(&d_a_ptr, sizeof(float) * m * k);
-		cudaMalloc(&d_b_ptr, sizeof(float) * k * n);
-		cudaMalloc(&d_c_ptr, sizeof(float) * m * n);
+		WMMAE_CUDA_CHECK_ERROR(cudaMalloc(&d_a_ptr, sizeof(float) * m * k));
+		WMMAE_CUDA_CHECK_ERROR(cudaMalloc(&d_b_ptr, sizeof(float) * k * n));
+		WMMAE_CUDA_CHECK_ERROR(cudaMalloc(&d_c_ptr, sizeof(float) * m * n));
 		h_a_ptr_array[i] = d_a_ptr;
 		h_b_ptr_array[i] = d_b_ptr;
 		h_c_ptr_array[i] = d_c_ptr;
@@ -440,22 +440,22 @@ void test_batched_sgemm(
 		// Initialize matrices
 		// A
 		for (unsigned j = 0; j < m * k; j++) init_matrix[j] = j / static_cast<float>(k);
-		cudaMemcpy(d_a_ptr, init_matrix, sizeof(float) * m * k, cudaMemcpyDefault);
+		WMMAE_CUDA_CHECK_ERROR(cudaMemcpy(d_a_ptr, init_matrix, sizeof(float) * m * k, cudaMemcpyDefault));
 		// B
 		for (unsigned j = 0; j < k * n; j++) init_matrix[j] = j / static_cast<float>(n);
-		cudaMemcpy(d_b_ptr, init_matrix, sizeof(float) * k * n, cudaMemcpyDefault);
+		WMMAE_CUDA_CHECK_ERROR(cudaMemcpy(d_b_ptr, init_matrix, sizeof(float) * k * n, cudaMemcpyDefault));
 		// C
 		for (unsigned j = 0; j < m * n; j++) init_matrix[j] = 0.f;
-		cudaMemcpy(d_c_ptr, init_matrix, sizeof(float) * m * n, cudaMemcpyDefault);
+		WMMAE_CUDA_CHECK_ERROR(cudaMemcpy(d_c_ptr, init_matrix, sizeof(float) * m * n, cudaMemcpyDefault));
 	}
-	cudaFreeHost(init_matrix);
+	WMMAE_CUDA_CHECK_ERROR(cudaFreeHost(init_matrix));
 
 	// Copy the pointer array to the device
-	cudaMemcpy(d_a_ptr_array, h_a_ptr_array, sizeof(float*) * batch_size, cudaMemcpyDefault);
-	cudaMemcpy(d_b_ptr_array, h_b_ptr_array, sizeof(float*) * batch_size, cudaMemcpyDefault);
-	cudaMemcpy(d_c_ptr_array, h_c_ptr_array, sizeof(float*) * batch_size, cudaMemcpyDefault);
+	WMMAE_CUDA_CHECK_ERROR(cudaMemcpy(d_a_ptr_array, h_a_ptr_array, sizeof(float*) * batch_size, cudaMemcpyDefault));
+	WMMAE_CUDA_CHECK_ERROR(cudaMemcpy(d_b_ptr_array, h_b_ptr_array, sizeof(float*) * batch_size, cudaMemcpyDefault));
+	WMMAE_CUDA_CHECK_ERROR(cudaMemcpy(d_c_ptr_array, h_c_ptr_array, sizeof(float*) * batch_size, cudaMemcpyDefault));
 
-	cudaDeviceSynchronize();
+	WMMAE_CUDA_CHECK_ERROR(cudaDeviceSynchronize());
 	bgemm<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, BLOCK_M_PER_MATRIX, BLOCK_N_PER_MATRIX, FRAGMENT_T, TC_Policy>(
 			m, n, k,
 			1.f,
@@ -465,18 +465,18 @@ void test_batched_sgemm(
 			d_c_ptr_array, m,
 			batch_size
 			);
-	cudaDeviceSynchronize();
+	WMMAE_CUDA_CHECK_ERROR(cudaDeviceSynchronize());
 
 	// evaluate the last batch matrix
 	float* last_a_ptr;
 	float* last_b_ptr;
 	float* last_c_ptr;
-	cudaMallocHost(&last_a_ptr, sizeof(float) * m * k);
-	cudaMallocHost(&last_b_ptr, sizeof(float) * k * n);
-	cudaMallocHost(&last_c_ptr, sizeof(float) * m * n);
-	cudaMemcpy(last_a_ptr, h_a_ptr_array[batch_size - 1], sizeof(float) * m * k, cudaMemcpyDefault);
-	cudaMemcpy(last_b_ptr, h_b_ptr_array[batch_size - 1], sizeof(float) * k * n, cudaMemcpyDefault);
-	cudaMemcpy(last_c_ptr, h_c_ptr_array[batch_size - 1], sizeof(float) * m * n, cudaMemcpyDefault);
+	WMMAE_CUDA_CHECK_ERROR(cudaMallocHost(&last_a_ptr, sizeof(float) * m * k));
+	WMMAE_CUDA_CHECK_ERROR(cudaMallocHost(&last_b_ptr, sizeof(float) * k * n));
+	WMMAE_CUDA_CHECK_ERROR(cudaMallocHost(&last_c_ptr, sizeof(float) * m * n));
+	WMMAE_CUDA_CHECK_ERROR(cudaMemcpy(last_a_ptr, h_a_ptr_array[batch_size - 1], sizeof(float) * m * k, cudaMemcpyDefault));
+	WMMAE_CUDA_CHECK_ERROR(cudaMemcpy(last_b_ptr, h_b_ptr_array[batch_size - 1], sizeof(float) * k * n, cudaMemcpyDefault));
+	WMMAE_CUDA_CHECK_ERROR(cudaMemcpy(last_c_ptr, h_c_ptr_array[batch_size - 1], sizeof(float) * m * n, cudaMemcpyDefault));
 	double base_norm = 0.;
 	double diff_norm = 0.;
 #pragma omp parallel for collapse(2) reduction(+: base_norm) reduction(+: diff_norm)
@@ -492,16 +492,16 @@ void test_batched_sgemm(
 			diff_norm += diff * diff;
 		}
 	}
-	cudaFree(last_a_ptr);
-	cudaFree(last_b_ptr);
-	cudaFree(last_c_ptr);
+	WMMAE_CUDA_CHECK_ERROR(cudaFree(last_a_ptr));
+	WMMAE_CUDA_CHECK_ERROR(cudaFree(last_b_ptr));
+	WMMAE_CUDA_CHECK_ERROR(cudaFree(last_c_ptr));
 
-	cudaDeviceSynchronize();
+	WMMAE_CUDA_CHECK_ERROR(cudaDeviceSynchronize());
 	// evaluation of computing performance
 	constexpr unsigned test_count = 1lu << 4;
 
 	{
-		cudaDeviceSynchronize();
+		WMMAE_CUDA_CHECK_ERROR(cudaDeviceSynchronize());
 		// evaluation of computing performance
 		const auto start_clock = std::chrono::system_clock::now();
 		for (unsigned c = 0; c < test_count; c++) {
@@ -515,7 +515,7 @@ void test_batched_sgemm(
 					batch_size
 					);
 		}
-		cudaDeviceSynchronize();
+		WMMAE_CUDA_CHECK_ERROR(cudaDeviceSynchronize());
 		const auto end_clock = std::chrono::system_clock::now();
 		const auto elapsed_time = std::chrono::duration_cast<std::chrono::microseconds>(end_clock - start_clock).count() * 1e-6 / test_count;
 		const auto complexity = 2lu * static_cast<std::size_t>(m) * static_cast<std::size_t>(n) * static_cast<std::size_t>(k) * static_cast<std::size_t>(batch_size);
@@ -559,16 +559,16 @@ void test_batched_sgemm(
 
 	// Free
 	for (unsigned i = 0; i < batch_size; i++) {
-		cudaFree(h_a_ptr_array[i]);
-		cudaFree(h_b_ptr_array[i]);
-		cudaFree(h_c_ptr_array[i]);
+		WMMAE_CUDA_CHECK_ERROR(cudaFree(h_a_ptr_array[i]));
+		WMMAE_CUDA_CHECK_ERROR(cudaFree(h_b_ptr_array[i]));
+		WMMAE_CUDA_CHECK_ERROR(cudaFree(h_c_ptr_array[i]));
 	}
-	cudaFree(d_a_ptr_array);
-	cudaFree(d_b_ptr_array);
-	cudaFree(d_c_ptr_array);
-	cudaFreeHost(h_a_ptr_array);
-	cudaFreeHost(h_b_ptr_array);
-	cudaFreeHost(h_c_ptr_array);
+	WMMAE_CUDA_CHECK_ERROR(cudaFree(d_a_ptr_array));
+	WMMAE_CUDA_CHECK_ERROR(cudaFree(d_b_ptr_array));
+	WMMAE_CUDA_CHECK_ERROR(cudaFree(d_c_ptr_array));
+	WMMAE_CUDA_CHECK_ERROR(cudaFreeHost(h_a_ptr_array));
+	WMMAE_CUDA_CHECK_ERROR(cudaFreeHost(h_b_ptr_array));
+	WMMAE_CUDA_CHECK_ERROR(cudaFreeHost(h_c_ptr_array));
 }
 } // noname napespace
 
