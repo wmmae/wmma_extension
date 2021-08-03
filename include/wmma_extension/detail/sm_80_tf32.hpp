@@ -234,9 +234,9 @@ __device__ inline void foreach_v(nvcuda::wmma::fragment<nvcuda::wmma::accumulato
 
 // map
 __device__ inline void map(
-		nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 8, 8, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major>& frag,
-		unsigned const tid_list[2],
-		unsigned const fid_list[2],
+		nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 8, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major>& frag,
+		unsigned tid_list[2],
+		unsigned fid_list[2],
 		unsigned& list_size,
 		const unsigned i,
 		const unsigned j
@@ -250,9 +250,9 @@ __device__ inline void map(
 }
 
 __device__ inline void map(
-		nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 8, 8, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major>& frag,
-		unsigned const tid_list[2],
-		unsigned const fid_list[2],
+		nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 8, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major>& frag,
+		unsigned tid_list[2],
+		unsigned fid_list[2],
 		unsigned& list_size,
 		const unsigned i,
 		const unsigned j
@@ -266,9 +266,9 @@ __device__ inline void map(
 }
 
 __device__ inline void map(
-		nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 8, 8, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major>& frag,
-		unsigned const tid_list[2],
-		unsigned const fid_list[2],
+		nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 8, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major>& frag,
+		unsigned tid_list[2],
+		unsigned fid_list[2],
 		unsigned& list_size,
 		const unsigned i,
 		const unsigned j
@@ -282,9 +282,9 @@ __device__ inline void map(
 }
 
 __device__ inline void map(
-		nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 8, 8, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major>& frag,
-		unsigned const tid_list[2],
-		unsigned const fid_list[2],
+		nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 8, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major>& frag,
+		unsigned tid_list[2],
+		unsigned fid_list[2],
 		unsigned& list_size,
 		const unsigned i,
 		const unsigned j
@@ -298,9 +298,9 @@ __device__ inline void map(
 }
 
 __device__ inline void map(
-		nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 8, 8, float, void>& frag,
-		unsigned const tid_list[2],
-		unsigned const fid_list[2],
+		nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 8, float, void>& frag,
+		unsigned tid_list[2],
+		unsigned fid_list[2],
 		unsigned& list_size,
 		const unsigned i,
 		const unsigned j
