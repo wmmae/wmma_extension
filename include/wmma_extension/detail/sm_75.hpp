@@ -257,6 +257,112 @@ __device__ inline void foreach_v(nvcuda::wmma::fragment<nvcuda::wmma::accumulato
 	}
 }
 
+// map function
+__device__ inline void map(
+		nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::col_major>& frag,
+		unsigned const tid_list[2],
+		unsigned const fid_list[2],
+		unsigned& list_size,
+		const unsigned i,
+		const unsigned j
+		) {
+	const auto tid_head = (i & 0b111) * 4 + (j & 0b111) / 2;
+	const auto fid_head = (i & 0b1000) / 4 + (j & 0b1) + (j & 0b1000) / 2;
+
+	list_size = 2;
+	tid_list[0] = tid_head;
+	fid_list[0] = fid_head;
+	tid_list[1] = tid_head;
+	fid_list[1] = fid_head + 8;
+}
+
+__device__ inline void map(
+		nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major>& frag,
+		unsigned const tid_list[2],
+		unsigned const fid_list[2],
+		unsigned& list_size,
+		const unsigned i,
+		const unsigned j
+		) {
+	const auto tid_head = (i & 0b111) / 2 + (j & 0b111) * 4;
+	const auto fid_head = (i & 0b1) + (i & 0b1000) / 4 + (j & 0b1000) / 2;
+
+	list_size = 2;
+	tid_list[0] = tid_head;
+	fid_list[0] = fid_head;
+	tid_list[1] = tid_head;
+	fid_list[1] = fid_head + 8;
+}
+
+__device__ inline void map(
+		nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::row_major>& frag,
+		unsigned const tid_list[2],
+		unsigned const fid_list[2],
+		unsigned& list_size,
+		const unsigned i,
+		const unsigned j
+		) {
+	const auto tid_head = (i & 0b111) * 4 + (j & 0b111) / 2;
+	const auto fid_head = (i & 0b1000) / 4 + (j & 0b1) + (j & 0b1000) / 2;
+
+	list_size = 2;
+	tid_list[0] = tid_head;
+	fid_list[0] = fid_head;
+	tid_list[1] = tid_head;
+	fid_list[1] = fid_head + 8;
+}
+
+__device__ inline void map(
+		nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>& frag,
+		unsigned const tid_list[2],
+		unsigned const fid_list[2],
+		unsigned& list_size,
+		const unsigned i,
+		const unsigned j
+		) {
+	const auto tid_head = (i & 0b111) / 2 + (j & 0b111) * 4;
+	const auto fid_head = (i & 0b1) + (i & 0b1000) / 4 + (j & 0b1000) / 2;
+
+	list_size = 2;
+	tid_list[0] = tid_head;
+	fid_list[0] = fid_head;
+	tid_list[1] = tid_head;
+	fid_list[1] = fid_head + 8;
+}
+
+__device__ inline void map(
+		nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, half, void>& frag,
+		unsigned const tid_list[2],
+		unsigned const fid_list[2],
+		unsigned& list_size,
+		const unsigned i,
+		const unsigned j
+		) {
+	const auto tid_head = (i & 0b111) * 4 + (j & 0b111) / 2;
+	const auto fid_head = (i & 0b1000) / 4 + (j & 0b1) + (j & 0b1000) / 2;
+
+	list_size = 1;
+	tid_list[0] = tid_head;
+	fid_list[0] = fid_head;
+}
+
+__device__ inline void map(
+		nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, float, void>& frag,
+		unsigned const tid_list[2],
+		unsigned const fid_list[2],
+		unsigned& list_size,
+		const unsigned i,
+		const unsigned j
+		) {
+	const auto tid_head = (i & 0b111) * 4 + (j & 0b111) / 2;
+	const auto fid_head = (i & 0b1000) / 4 + (j & 0b1) + (j & 0b1000) / 2;
+
+	list_size = 1;
+	tid_list[0] = tid_head;
+	fid_list[0] = fid_head;
+}
+
+
 template <class T>
 __device__ inline void make_identity_matrix(nvcuda::wmma::fragment<nvcuda::wmma::accumulator, 16, 16, 16, T>& frag) {
 	const unsigned lane_id = mtk::wmma::detail::common::get_lane_id();
