@@ -18,6 +18,7 @@ TARGET+=print_fragment.test
 TARGET+=fill.test
 TARGET+=mma.test
 TARGET+=vector.test
+TARGET+=map.test
 
 all: $(TARGET)
 

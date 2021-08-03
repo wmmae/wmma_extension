@@ -85,6 +85,21 @@ mtk::wmma::foreach_v<decltype(frag_c)>(nvcuda::wmma::mem_col_major,
 // is equivalent to `store_vector`
 ```
 
+### map
+This function returns the mapping of matrix element (i, j) and fragment element (tid, fid)
+```cuda
+nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major> frag_b;
+unsigned tid_list[2];
+unsigned fid_list[2];
+unsigned list_size;
+mtk::wmma::map<decltype(frag_b)>(tid_list, fid_list, list_size, i, j);
+for (unsigned k = 0; k < list_size; k++) {
+  if ((threadIdx.x & 0x1f) == tid_list[k]) {
+    frag_b.x[fid_list[k]] = 3.0f;
+  }
+}
+```
+
 
 ## Functions for vector
 ## Sample

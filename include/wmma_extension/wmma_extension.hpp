@@ -94,6 +94,20 @@ __device__ inline void foreach_v(const nvcuda::wmma::layout_t layout, Func func)
 	__syncwarp();
 }
 
+// (i, j) to (tid, frag_i)
+template <class Frag_T>
+__device__ inline void map(
+		unsigned tid_list[2],
+		unsigned fid_list[2],
+		unsigned& list_size,
+		const unsigned i,
+		const unsigned j
+		) {
+	typename std::remove_const<typename std::remove_reference<Frag_T>::type>::type frag;
+	detail_namespace::map(frag, tid_list, fid_list, list_size, i, j);
+	__syncwarp();
+}
+
 // ------------------------------
 // LD/ST functions for vectors
 // ------------------------------
