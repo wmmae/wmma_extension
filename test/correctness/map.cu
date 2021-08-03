@@ -104,7 +104,7 @@ void test() {
 	map_test<Use, M, N, K, T, Layout><<<1, warp_size>>>(error);
 	cudaDeviceSynchronize();
 
-	std::printf("%s<%10s,%2d,%2d,%2d,%7s,%10s>:Error=%e [",
+	std::printf("%s<%12s,%2d,%2d,%2d,%7s,%10s>:Error=%e [",
 			__FILE__,
 			mtk::test_utils::get_string<Use>().c_str(),
 			M, N, K,
@@ -128,7 +128,7 @@ void test(const nvcuda::wmma::layout_t layout) {
 	map_test<Use, M, N, K, T><<<1, warp_size>>>(error, layout);
 	cudaDeviceSynchronize();
 
-	std::printf("%s<%10s,%2d,%2d,%2d,%7s,%10s>:Error=%e [",
+	std::printf("%s<%12s,%2d,%2d,%2d,%7s,%10s>:Error=%e [",
 			__FILE__,
 			mtk::test_utils::get_string<Use>().c_str(),
 			M, N, K,
