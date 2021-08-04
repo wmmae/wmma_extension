@@ -110,15 +110,11 @@ __device__ void smem2dmem(
 					const auto mem_index = j_m + j_n * ld;
 
 					auto tmp_v4 = make_float4(
-							src_smem[j + 0],
-							src_smem[j + 1],
-							src_smem[j + 2],
-							src_smem[j + 3]
+							src_smem[j + 0] * alpha,
+							src_smem[j + 1] * alpha,
+							src_smem[j + 2] * alpha,
+							src_smem[j + 3] * alpha
 							);
-					tmp_v4.x *= alpha;
-					tmp_v4.y *= alpha;
-					tmp_v4.z *= alpha;
-					tmp_v4.w *= alpha;
 
 					*reinterpret_cast<float4*>(&dst_dmem[mem_index]) = tmp_v4;
 				}
@@ -581,5 +577,5 @@ int main() {
 	constexpr unsigned n = 1024;
 	constexpr unsigned k = 1024;
 	constexpr unsigned batch_size = 256;
-	test_batched_sgemm<64, 64, 64, 32, 32, 32, 128, 8, 8>(m, n, k, batch_size);
+	test_batched_sgemm<64, 64, 64, 32, 32, 32, 128, 16, 16>(m, n, k, batch_size);
 }
