@@ -76,11 +76,11 @@ struct GivensMatGenWMMA {
 		__syncwarp();
 		if (lane_id == 0) {
 			const auto c = __float2half(__cosf(theta));
-			const auto s = __float2half(__sinf(theta));
 			smem[gi + gi * DIM] = c;
+			smem[gj + gj * DIM] = c;
+			const auto s = __float2half(__sinf(theta));
 			smem[gi + gj * DIM] =-s;
 			smem[gj + gi * DIM] = s;
-			smem[gj + gj * DIM] = c;
 		}
 		__syncwarp();
 		nvcuda::wmma::load_matrix_sync(frag, smem, DIM);
