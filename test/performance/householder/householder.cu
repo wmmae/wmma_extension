@@ -34,6 +34,10 @@ __global__ void batched_householder_kernel(
 			reinterpret_cast<half2*>(smem_mat_ptr),
 			reinterpret_cast<half2*>(ptr + DIM * DIM * ((threadIdx.x + block_size / warp_size * blockIdx.x) / warp_size))
 			);
+
+	nvcuda::wmma::fragment<nvcuda::wmma::accumulator, DIM, DIM, DIM, half> frag_c;
+	nvcuda::wmma::fill_fragment(frag_c, 0.f);
+
 	nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, DIM, DIM, DIM, half, nvcuda::wmma::col_major> frag_b;
 	nvcuda::wmma::load_matrix_sync(frag_b, smem_mat_ptr, DIM);
 	if ((threadIdx.x & 0x1f) < DIM) {
@@ -43,9 +47,6 @@ __global__ void batched_householder_kernel(
 
 	nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, DIM, DIM, DIM, half, nvcuda::wmma::col_major> frag_a;
 	HouseholderMatGen{}(frag_a, smem_mat_ptr, smem_vec_ptr);
-
-	nvcuda::wmma::fragment<nvcuda::wmma::accumulator, DIM, DIM, DIM, half> frag_c;
-	nvcuda::wmma::fill_fragment(frag_c, 0.f);
 
 	nvcuda::wmma::mma_sync(frag_c, frag_a, frag_b, frag_c);
 
@@ -61,19 +62,21 @@ struct HouseholderMatGenWMMA {
 	__device__ void operator()(
 			nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, DIM, DIM, DIM, half, nvcuda::wmma::col_major>& frag,
 			half* const smem_mat,
-			const half* const smem_vec
+			half* const smem_vec
 			) const {
+#pragma unroll
 		for (unsigned i = 0; i < DIM * DIM; i += warp_size) {
 			const unsigned index = i + (threadIdx.x & 0x1fu);
 			const unsigned m = index % DIM;
 			const unsigned n = index / DIM;
 
-			auto v = smem_vec[m] * smem_vec[n] * __float2half(-2.f);
+			half v = smem_vec[m] * smem_vec[n] * __float2half(-2.f);
 			if (m == n) {
 				v += __float2half(1.f);
 			}
+			__syncwarp();
+			smem_mat[index] = v;
 		}
-		__syncwarp();
 		nvcuda::wmma::load_matrix_sync(frag, smem_mat, DIM);
 	}
 };
@@ -82,19 +85,22 @@ template <unsigned DIM>
 struct HouseholderMatGenWMMAe {
 	__device__ void operator()(
 			nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, DIM, DIM, DIM, half, nvcuda::wmma::col_major>& frag,
-			half* const smem_mat,
+			half* const,
 			const half* const smem_vec
 			) const {
 		mtk::wmma::foreach_ij<decltype(frag)>(
 				[&](const unsigned *list, const unsigned list_size, const unsigned i, const unsigned j) {
-					auto v = smem_vec[i] * smem_vec[j] * __float2half(-2.f);
-					if (j == i) {
+					half v = smem_vec[i] * smem_vec[j] * __float2half(-2.f);
+					if (i == j) {
 						v += __float2half(1.f);
 					}
+					__syncwarp();
+#pragma unroll
 					for (unsigned f = 0; f < list_size; f++) {
 						frag.x[f] = v;
 					}
 				});
+		__syncwarp();
 	}
 };
 
