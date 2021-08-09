@@ -110,15 +110,11 @@ __device__ void smem2dmem(
 					const auto mem_index = j_m + j_n * ld;
 
 					auto tmp_v4 = make_float4(
-							src_smem[j + 0],
-							src_smem[j + 1],
-							src_smem[j + 2],
-							src_smem[j + 3]
+							src_smem[j + 0] * alpha,
+							src_smem[j + 1] * alpha,
+							src_smem[j + 2] * alpha,
+							src_smem[j + 3] * alpha
 							);
-					tmp_v4.x *= alpha;
-					tmp_v4.y *= alpha;
-					tmp_v4.z *= alpha;
-					tmp_v4.w *= alpha;
 
 					*reinterpret_cast<float4*>(&dst_dmem[mem_index]) = tmp_v4;
 				}
@@ -215,15 +211,11 @@ __device__ void mma_core(
 		// Load C
 		mtk::wmma::mma_f32::fragment<nvcuda::wmma::accumulator, WARP_M, WARP_N, WARP_K, FRAGMENT_T, void, TC_Policy> frag_c;
 		const auto c_smem_offset = wi_m + wi_n * SMEM_M;
-		mtk::wmma::mma_f32::load_matrix_sync<nvcuda::wmma::col_major>(frag_c, c_smem + c_smem_offset, SMEM_M);
+		mtk::wmma::mma_f32::load_matrix_sync<nvcuda::wmma::col_major>(frag_c, c_smem + c_smem_offset, SMEM_M, false);
 
-		unsigned stage = 0;
+		unsigned stage = 1;
 #pragma unroll
 		for (unsigned wi_k = WARP_K; wi_k < SMEM_K; wi_k += WARP_K) {
-			// mma
-			mtk::wmma::mma_f32::mma_sync(frag_c, frag_a[stage], frag_b[stage], frag_c);
-
-			stage = 1 - stage;
 
 			// Load A
 			const auto a_smem_offset = wi_m * SMEM_K + wi_k;
@@ -232,7 +224,13 @@ __device__ void mma_core(
 			// Load B
 			const auto b_smem_offset = wi_n * SMEM_K + wi_k;
 			mtk::wmma::mma_f32::load_matrix_sync(frag_b[stage], b_smem + b_smem_offset, SMEM_K, false);
+
+			stage = 1 - stage;
+
+			// mma
+			mtk::wmma::mma_f32::mma_sync(frag_c, frag_a[stage], frag_b[stage], frag_c);
 		}
+		stage = 1 - stage;
 		// mma
 		mtk::wmma::mma_f32::mma_sync(frag_c, frag_a[stage], frag_b[stage], frag_c);
 		mtk::wmma::mma_f32::store_matrix_sync<nvcuda::wmma::col_major>(c_smem + c_smem_offset, frag_c, SMEM_M, false);
@@ -578,6 +576,6 @@ int main() {
 	constexpr unsigned m = 1024;
 	constexpr unsigned n = 1024;
 	constexpr unsigned k = 1024;
-	constexpr unsigned batch_size = 1024;
-	test_batched_sgemm<64, 64, 64, 32, 32, 32, 128, 8, 8>(m, n, k, batch_size);
+	constexpr unsigned batch_size = 256;
+	test_batched_sgemm<64, 128, 64, 64, 32, 64, 128, 8, 8>(m, n, k, batch_size);
 }
