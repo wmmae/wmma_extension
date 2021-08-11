@@ -163,7 +163,7 @@ void test_batched_kernel(
 
 int main() {
 	std::printf("batch_size,api,time\n");
-	for (unsigned i = 10; i <= 24; i++) {
+	for (unsigned i = 13; i <= 21; i++) {
 		test_batched_kernel<32, HouseholderMatGenWMMA <32>>(1u << i);
 		test_batched_kernel<32, HouseholderMatGenWMMAe<32>>(1u << i);
 		test_batched_kernel<16, HouseholderMatGenWMMA <16>>(1u << i);
