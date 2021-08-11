@@ -4,7 +4,7 @@
 
 constexpr unsigned warp_size = 32;
 constexpr unsigned block_size = 256;
-constexpr unsigned test_count = 256;
+constexpr unsigned test_count = 1024;
 constexpr unsigned warp_dim = 16;
 
 template <unsigned DIM>
