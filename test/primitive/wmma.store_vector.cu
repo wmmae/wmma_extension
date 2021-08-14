@@ -1,6 +1,7 @@
 #include <iostream>
 #include <type_traits>
 #include <wmma_extension/wmma_extension.hpp>
+#include "common.hpp"
 
 #ifndef TEST_ARCH
 #define TEST_ARCH (-1)
@@ -9,13 +10,13 @@
 //#define TEST_TF32
 
 #ifndef TEST_TF32
-constexpr std::size_t M = 16;
-constexpr std::size_t N = 16;
-constexpr std::size_t K = 16;
+constexpr int M = 16;
+constexpr int N = 16;
+constexpr int K = 16;
 #else
-constexpr std::size_t M = 16;
-constexpr std::size_t N = 16;
-constexpr std::size_t K = 8;
+constexpr int M = 16;
+constexpr int N = 16;
+constexpr int K = 8;
 #endif
 
 template <class T, class S>
@@ -36,14 +37,6 @@ __global__ void test_store_vector_kernel(
 }
 
 void test(const nvcuda::wmma::layout_t layout) {
-	std::printf("-- test (%s) --\n", __FILE__);
-	std::printf("arch   : %d\n", TEST_ARCH);
-	if (layout == nvcuda::wmma::mem_col_major) {
-		std::printf("layout : col_major\n");
-	} else {
-		std::printf("layout : row_major\n");
-	}
-	std::printf("size   : %lu, %lu, %lu\n", M, N, K);
 	float* src_mem;
 	float* dst_mem;
 
@@ -58,13 +51,22 @@ void test(const nvcuda::wmma::layout_t layout) {
 	test_store_vector_kernel<<<1, 32>>>(dst_mem, src_mem, layout);
 	cudaDeviceSynchronize();
 
+	double error = 0;
 	for (std::size_t i = 0; i < M; i++) {
-		std::printf("%3.1f ", dst_mem[i]);
+		const double diff = src_mem[i] - dst_mem[i];
+		error = std::max(error, std::abs(diff));
 	}
-	std::printf("\n");
 
 	cudaFreeHost(src_mem);
 	cudaFreeHost(dst_mem);
+
+	std::printf("[%s] ARCH=%d, <%2d, %2d, %2d>, error=%e, [%s]\n",
+			__FILE__,
+			TEST_ARCH,
+			M, N, K,
+			error,
+			mtk::test_utils::get_test_result_string(error < mtk::test_utils::get_machine_eps<float>())
+			);
 }
 
 int main() {

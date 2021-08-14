@@ -1,6 +1,7 @@
 #include <iostream>
 #include <type_traits>
 #include <wmma_extension/wmma_extension.hpp>
+#include "common.hpp"
 
 #ifndef TEST_ARCH
 #define TEST_ARCH (-1)
@@ -31,6 +32,7 @@ struct fragment_layout<nvcuda::wmma::accumulator, nvcuda::wmma::row_major> {usin
 
 template <class Use, int m, int n, int k, class T, class Layout>
 __global__ void test_load_vector_ab_kernel(
+		float* const error,
 		const typename mtk::wmma::detail::common::storage_t<T>::type* const src,
 		const typename mtk::wmma::detail::common::storage_t<T>::type* const cor
 		) {
@@ -40,15 +42,23 @@ __global__ void test_load_vector_ab_kernel(
 	nvcuda::wmma::fragment<Use, m, n, k, T, typename fragment_layout<Use, Layout>::type> cor_frag;
 	nvcuda::wmma::load_matrix_sync(cor_frag, cor, m);
 
-	auto error = convert<typename mtk::wmma::detail::common::storage_t<T>::type, float>(0.0f);
+	auto e = convert<typename mtk::wmma::detail::common::storage_t<T>::type, float>(0.0f);
 	for (unsigned i = 0; i < vec_frag.num_elements; i++) {
-		error += m_abs(vec_frag.x[i] - cor_frag.x[i]);
+		e += m_abs(vec_frag.x[i] - cor_frag.x[i]);
 	}
-	printf("[%2u] error = %e\n", threadIdx.x, convert<float>(error));
+	if (threadIdx.x == 0) {
+		*error = 0;
+	}
+	__syncthreads();
+	for (unsigned i = 0; i < blockDim.x; i++) {
+		*error = max(m_abs(e), *error);
+		__syncthreads();
+	}
 }
 
 template <int m, int n, int k, class T, class Layout>
 __global__ void test_load_vector_acc_kernel(
+		float* const error,
 		const T* const src,
 		const T* const cor
 		) {
@@ -62,36 +72,26 @@ __global__ void test_load_vector_acc_kernel(
 		nvcuda::wmma::load_matrix_sync(cor_frag, cor, m, nvcuda::wmma::mem_row_major);
 	}
 
-
-	auto error = convert<typename mtk::wmma::detail::common::storage_t<T>::type, float>(0.0f);
+	auto e = convert<typename mtk::wmma::detail::common::storage_t<T>::type, float>(0.0f);
 	for (unsigned i = 0; i < vec_frag.num_elements; i++) {
-		error += m_abs(vec_frag.x[i] - cor_frag.x[i]);
+		e += m_abs(vec_frag.x[i] - cor_frag.x[i]);
 	}
-	printf("[%2u] error = %e\n", threadIdx.x, convert<float>(error));
+	if (threadIdx.x == 0) {
+		*error = 0;
+	}
+	__syncthreads();
+	for (unsigned i = 0; i < blockDim.x; i++) {
+		*error = max(m_abs(e), *error);
+		__syncthreads();
+	}
 }
 
 template <class Use, int m, int n, int k, class T, class Layout>
 void test() {
-	std::printf("-- test (%s) --\n", __FILE__);
 	std::size_t cor_size = 0;
 	std::size_t vec_length = 0;
-	std::printf("arch   : %d\n", TEST_ARCH);
-	if (std::is_same<Layout, nvcuda::wmma::col_major>::value) {
-		std::printf("layout : col_major\n");
-	} else if (std::is_same<Layout, nvcuda::wmma::col_major>::value) {
-		std::printf("layout : row_major\n");
-	} else {
-		std::printf("layout : void\n");
-	}
-	if (std::is_same<float, T>::value)
-		std::printf("type   : float\n");
-	if (std::is_same<half, T>::value)
-		std::printf("type   : half\n");
-	if (std::is_same<nvcuda::wmma::precision::tf32, T>::value)
-		std::printf("type   : tf32\n");
 
 	if (std::is_same<nvcuda::wmma::matrix_a, Use>::value) {
-		std::printf("use    : a\n");
 		cor_size = m * k;
 		if (std::is_same<nvcuda::wmma::col_major, Layout>::value) {
 			vec_length = m;
@@ -100,7 +100,6 @@ void test() {
 		}
 	}
 	if (std::is_same<nvcuda::wmma::matrix_b, Use>::value) {
-		std::printf("use    : b\n");
 		cor_size = n * k;
 		if (std::is_same<nvcuda::wmma::col_major, Layout>::value) {
 			vec_length = k;
@@ -109,7 +108,6 @@ void test() {
 		}
 	}
 	if (std::is_same<nvcuda::wmma::accumulator, Use>::value) {
-		std::printf("use    : acc\n");
 		cor_size = n * m;
 		if (std::is_same<nvcuda::wmma::col_major, Layout>::value) {
 			vec_length = m;
@@ -117,7 +115,6 @@ void test() {
 			vec_length = n;
 		}
 	}
-	std::printf("size   : %d, %d, %d\n", m, n, k);
 
 	using storage_t = typename mtk::wmma::detail::common::storage_t<T>::type;
 	storage_t* src_mem;
@@ -136,13 +133,25 @@ void test() {
 		cor_mem[i] = convert<storage_t, float>(v);
 	}
 
+	float* error;
+	cudaMallocHost(&error, sizeof(float));
 	cudaDeviceSynchronize();
 	if constexpr (std::is_same<Use, nvcuda::wmma::accumulator>::value) {
-		test_load_vector_acc_kernel<m, n, k, T, Layout><<<1, 32>>>(src_mem, cor_mem);
+		test_load_vector_acc_kernel<m, n, k, T, Layout><<<1, 32>>>(error, src_mem, cor_mem);
 	} else {
-		test_load_vector_ab_kernel<Use, m, n, k, T, Layout><<<1, 32>>>(src_mem, cor_mem);
+		test_load_vector_ab_kernel<Use, m, n, k, T, Layout><<<1, 32>>>(error, src_mem, cor_mem);
 	}
 	cudaDeviceSynchronize();
+	std::printf("[%s] ARCH=%d, <%2d, %2d, %2d>, %10s, %10s, error=%e [%s]\n",
+			__FILE__,
+			TEST_ARCH,
+			m, n, k,
+			mtk::test_utils::get_string<T>().c_str(),
+			mtk::test_utils::get_string<Layout>().c_str(),
+			(*error),
+			mtk::test_utils::get_test_result_string((*error) < mtk::test_utils::get_machine_eps<T>() * 16)
+			);
+	cudaFreeHost(error);
 }
 
 int main() {
