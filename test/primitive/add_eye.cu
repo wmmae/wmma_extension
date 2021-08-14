@@ -2,6 +2,7 @@
 #include <random>
 #include <type_traits>
 #include <wmma_extension/wmma_extension.hpp>
+#include "common.hpp"
 
 #ifndef TEST_ARCH
 #define TEST_ARCH (-1)
@@ -24,8 +25,6 @@ __global__ void make_eye_kernel(T* const eye, const T a) {
 
 template <class T, int M, int N, int K>
 void test() {
-	std::printf("-- test (%s) --\n", __FILE__);
-	std::printf("arch    : %d\n", TEST_ARCH);
 	T *h;
 
 	cudaMallocHost(&h, sizeof(T) * N * N);
@@ -42,7 +41,12 @@ void test() {
 			max_error = std::max(max_error, std::abs(diff));
 		}
 	}
-	std::printf("error   : %e\n", max_error);
+	std::printf("[%s] arch=%d, error=%e, [%s]\n",
+			__FILE__,
+			TEST_ARCH,
+			max_error,
+			mtk::test_utils::get_test_result_string(max_error < mtk::test_utils::get_machine_eps<T>())
+			);
 }
 
 int main() {
