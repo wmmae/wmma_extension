@@ -197,21 +197,21 @@ __device__ void mma_core(
 		constexpr unsigned num_stages = 2;
 
 		// Load A
-		mtk::wmma::mma_f32::fragment<nvcuda::wmma::matrix_a, WARP_M, WARP_N, WARP_K, FRAGMENT_T, nvcuda::wmma::row_major, TC_Policy> frag_a[num_stages];
+		mtk::wmma::tcec::fragment<nvcuda::wmma::matrix_a, WARP_M, WARP_N, WARP_K, FRAGMENT_T, nvcuda::wmma::row_major, TC_Policy> frag_a[num_stages];
 		const auto wi_m = (wi % (SMEM_M / WARP_M)) * WARP_M;
 		const auto a_smem_offset = wi_m * SMEM_K + 0;
-		mtk::wmma::mma_f32::load_matrix_sync(frag_a[0], a_smem + a_smem_offset, SMEM_K, false);
+		mtk::wmma::tcec::load_matrix_sync(frag_a[0], a_smem + a_smem_offset, SMEM_K, false);
 
 		// Load B
-		mtk::wmma::mma_f32::fragment<nvcuda::wmma::matrix_b, WARP_M, WARP_N, WARP_K, FRAGMENT_T, nvcuda::wmma::col_major, TC_Policy> frag_b[num_stages];
+		mtk::wmma::tcec::fragment<nvcuda::wmma::matrix_b, WARP_M, WARP_N, WARP_K, FRAGMENT_T, nvcuda::wmma::col_major, TC_Policy> frag_b[num_stages];
 		const auto wi_n = (wi / (SMEM_M / WARP_M)) * WARP_N;
 		const auto b_smem_offset = wi_n * SMEM_K + 0;
-		mtk::wmma::mma_f32::load_matrix_sync(frag_b[0], b_smem + b_smem_offset, SMEM_K, false);
+		mtk::wmma::tcec::load_matrix_sync(frag_b[0], b_smem + b_smem_offset, SMEM_K, false);
 
 		// Load C
-		mtk::wmma::mma_f32::fragment<nvcuda::wmma::accumulator, WARP_M, WARP_N, WARP_K, FRAGMENT_T, void, TC_Policy> frag_c;
+		mtk::wmma::tcec::fragment<nvcuda::wmma::accumulator, WARP_M, WARP_N, WARP_K, FRAGMENT_T, void, TC_Policy> frag_c;
 		const auto c_smem_offset = wi_m + wi_n * SMEM_M;
-		mtk::wmma::mma_f32::load_matrix_sync<nvcuda::wmma::col_major>(frag_c, c_smem + c_smem_offset, SMEM_M, false);
+		mtk::wmma::tcec::load_matrix_sync<nvcuda::wmma::col_major>(frag_c, c_smem + c_smem_offset, SMEM_M, false);
 
 		unsigned stage = 1;
 #pragma unroll
@@ -219,21 +219,21 @@ __device__ void mma_core(
 
 			// Load A
 			const auto a_smem_offset = wi_m * SMEM_K + wi_k;
-			mtk::wmma::mma_f32::load_matrix_sync(frag_a[stage], a_smem + a_smem_offset, SMEM_K, false);
+			mtk::wmma::tcec::load_matrix_sync(frag_a[stage], a_smem + a_smem_offset, SMEM_K, false);
 
 			// Load B
 			const auto b_smem_offset = wi_n * SMEM_K + wi_k;
-			mtk::wmma::mma_f32::load_matrix_sync(frag_b[stage], b_smem + b_smem_offset, SMEM_K, false);
+			mtk::wmma::tcec::load_matrix_sync(frag_b[stage], b_smem + b_smem_offset, SMEM_K, false);
 
 			stage = 1 - stage;
 
 			// mma
-			mtk::wmma::mma_f32::mma_sync(frag_c, frag_a[stage], frag_b[stage], frag_c);
+			mtk::wmma::tcec::mma_sync(frag_c, frag_a[stage], frag_b[stage], frag_c);
 		}
 		stage = 1 - stage;
 		// mma
-		mtk::wmma::mma_f32::mma_sync(frag_c, frag_a[stage], frag_b[stage], frag_c);
-		mtk::wmma::mma_f32::store_matrix_sync<nvcuda::wmma::col_major>(c_smem + c_smem_offset, frag_c, SMEM_M, false);
+		mtk::wmma::tcec::mma_sync(frag_c, frag_a[stage], frag_b[stage], frag_c);
+		mtk::wmma::tcec::store_matrix_sync<nvcuda::wmma::col_major>(c_smem + c_smem_offset, frag_c, SMEM_M, false);
 	}
 }
 
@@ -406,7 +406,7 @@ void test_batched_sgemm(
 	std::fflush(stdout);
 
 	using FRAGMENT_T = half;
-	using TC_Policy = mtk::wmma::mma_f32::detail::default_policy<FRAGMENT_T, mtk::wmma::mma_f32::with_ec, mtk::wmma::mma_f32::op_mma>::type;
+	using TC_Policy = mtk::wmma::tcec::detail::default_policy<FRAGMENT_T, mtk::wmma::tcec::with_ec, mtk::wmma::tcec::op_mma>::type;
 
 	float **d_a_ptr_array;
 	float **d_b_ptr_array;
