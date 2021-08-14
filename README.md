@@ -3,13 +3,13 @@
 # WMMA API Extension
 
 This extension provides features for
-- mapping between memory and fragment
+- mapping between memory and fragment (primitive functions)
 - operationf for vectors
     - loading a vector as a fragment
     - storing a fragment as a vector
 - making eye matrix fragment
-- C++ interface of `mma` instructions
-- fragment and loding/storing/mma functions with Error Correction [[detail](./docs/mma_f32.md)]
+- C++ interface for `mma` instructions
+- fragment and loding/storing/mma functions with Error Correction (TCEC) [[detail](./docs/mma_f32.md)]
 - etc
 
 without using extra shared memory.
@@ -18,7 +18,7 @@ without using extra shared memory.
 
 WMMA API does not have backward compatibility.
 Please specify an appropriate virtual architecture for real GPU when you use this library.
-For instance, a program which is compiled with `-arch=sm_70` does not work correctly on Ampere GPUs.
+For instance, a program which is compiled with `-arch=sm_70` may not work correctly on Ampere GPUs.
 
 ## Requirements
 - CUDA (10.2 or later)

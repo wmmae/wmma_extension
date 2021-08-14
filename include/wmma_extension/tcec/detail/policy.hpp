@@ -6,7 +6,7 @@
 namespace mtk {
 namespace wmma {
 
-namespace mma_f32 {
+namespace tcec {
 
 // Instruction policy
 struct op_mma;
@@ -32,16 +32,16 @@ namespace detail {
 // ===================================
 // Default policy selector
 // ===================================
-template <class T, class ErrorCorrection = mtk::wmma::mma_f32::with_ec, class Op = mtk::wmma::mma_f32::op_wmma>
+template <class T, class ErrorCorrection = mtk::wmma::tcec::with_ec, class Op = mtk::wmma::tcec::op_wmma>
 struct default_policy;
 template <class ErrorCorrection>
-struct default_policy<half                         , ErrorCorrection, mtk::wmma::mma_f32::op_wmma> {using type = mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_wmma, ErrorCorrection, 16, 16, 16>;};
+struct default_policy<half                         , ErrorCorrection, mtk::wmma::tcec::op_wmma> {using type = mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_wmma, ErrorCorrection, 16, 16, 16>;};
 template <class ErrorCorrection>
-struct default_policy<nvcuda::wmma::precision::tf32, ErrorCorrection, mtk::wmma::mma_f32::op_wmma> {using type = mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_wmma, ErrorCorrection, 16, 16, 8 >;};
+struct default_policy<nvcuda::wmma::precision::tf32, ErrorCorrection, mtk::wmma::tcec::op_wmma> {using type = mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_wmma, ErrorCorrection, 16, 16, 8 >;};
 template <class ErrorCorrection>
-struct default_policy<half                         , ErrorCorrection, mtk::wmma::mma_f32::op_mma > {using type = mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_mma , ErrorCorrection, 16, 8 , 16>;};
+struct default_policy<half                         , ErrorCorrection, mtk::wmma::tcec::op_mma > {using type = mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma , ErrorCorrection, 16, 8 , 16>;};
 template <class ErrorCorrection>
-struct default_policy<nvcuda::wmma::precision::tf32, ErrorCorrection, mtk::wmma::mma_f32::op_mma > {using type = mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_mma , ErrorCorrection, 16, 8 , 8 >;};
+struct default_policy<nvcuda::wmma::precision::tf32, ErrorCorrection, mtk::wmma::tcec::op_mma > {using type = mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma , ErrorCorrection, 16, 8 , 8 >;};
 
 
 // ===================================
@@ -61,7 +61,7 @@ struct default_fragment<Use, T, Layout, Policy<op_mma , ErrorCorrection, fm, fn,
 };
 } // namespace detail
 
-} // namespace mma_f32
+} // namespace tcec
 } // namespace wmma
 } // namespace mtk
 #endif

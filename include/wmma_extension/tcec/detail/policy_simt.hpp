@@ -7,7 +7,7 @@
 namespace mtk {
 namespace wmma {
 
-namespace mma_f32 {
+namespace tcec {
 
 // Instruction policy
 struct op_simt;
@@ -17,8 +17,8 @@ namespace detail {
 // Default policy selector
 // ===================================
 template <class T>
-struct default_policy<T                            , mtk::wmma::mma_f32::without_ec, mtk::wmma::mma_f32::op_simt> {
-	using type = mtk::wmma::mma_f32::Policy<mtk::wmma::mma_f32::op_simt, mtk::wmma::mma_f32::without_ec, 16, 16, 16>;
+struct default_policy<T                            , mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt> {
+	using type = mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_simt, mtk::wmma::tcec::without_ec, 16, 16, 16>;
 };
 
 // ===================================
@@ -30,7 +30,7 @@ struct default_fragment<Use, T, Layout, Policy<op_simt, ErrorCorrection, fm, fn,
 };
 } // namespace detail
 
-} // namespace mma_f32
+} // namespace tcec
 } // namespace wmma
 } // namespace mtk
 #endif

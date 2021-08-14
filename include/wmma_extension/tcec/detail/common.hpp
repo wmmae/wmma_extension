@@ -7,7 +7,7 @@
 
 namespace mtk {
 namespace wmma {
-namespace mma_f32 {
+namespace tcec {
 namespace detail {
 template <class Use, int a, int b, int c>
 struct select_value {};
@@ -62,7 +62,7 @@ struct layout_switch<nvcuda::wmma::col_major, a, b> {const static int value = a;
 template <int a, int b>
 struct layout_switch<nvcuda::wmma::row_major, a, b> {const static int value = b;};
 } // detail
-} // mma_f32
+} // tcec
 } // namespace wmma
 } // namespace mtk
 #endif

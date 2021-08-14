@@ -1,4 +1,4 @@
-# WMMA Extension for single precision matmul using Tensor Cores and error correction technique
+# WMMA Extension for single precision matmul using Tensor Cores and error correction technique (TCEC)
 
 ## Correction tequnique
 See this slide page 9 [[slide](https://static.momo86.net/f/1/cse21-slide)].  
@@ -22,63 +22,63 @@ git clone https://github.com/wmmae/wmma_extension
 // sample.cu
 // nvcc -I./path/to/wmma_extension/include/ -std=c++17 sample.cu ...
 //
-#include <wmma_extension/mma_f32/tcec.hpp>
+#include <wmma_extension/tcec/tcec.hpp>
 
 template <unsigned N>
 __global__ void mma_kernel(float* const d_ptr, const float* const a_ptr, const float* const b_ptr, const float* const c_ptr) {
     __shared__ float smem[N * N];
     fill_zero(smem, N * N);
 
-    mtk::wmma::mma_f32::fragment<nvcuda::wmma::mma_f32::matrix_a, N, N, N, half, nvcuda::wmma::mma_f32::col_major> frag_a;
-    mtk::wmma::mma_f32::fragment<nvcuda::wmma::mma_f32::matrix_b, N, N, N, half, nvcuda::wmma::mma_f32::col_major> frag_b;
-    mtk::wmma::mma_f32::fragment<nvcuda::wmma::mma_f32::accumulator, N, N, N, half> frag_c, frag_d;
+    mtk::wmma::tcec::fragment<nvcuda::wmma::matrix_a, N, N, N, half, nvcuda::wmma::col_major> frag_a;
+    mtk::wmma::tcec::fragment<nvcuda::wmma::matrix_b, N, N, N, half, nvcuda::wmma::col_major> frag_b;
+    mtk::wmma::tcec::fragment<nvcuda::wmma::accumulator, N, N, N, half> frag_c, frag_d;
 
     // Load A
     // copy_matrix(smem, N, a_ptr, N, N, N);
-    mtk::wmma::mma_f32::load_matrix_sync(frag_a, smem, N);
+    mtk::wmma::tcec::load_matrix_sync(frag_a, smem, N);
 
     // Load B
     // copy_matrix(smem, N, b_ptr, N, N, N);
-    mtk::wmma::mma_f32::load_matrix_sync(frag_b, smem, N);
+    mtk::wmma::tcec::load_matrix_sync(frag_b, smem, N);
 
     // Load C
     // copy_matrix(smem, N, c_ptr, N, N, N);
-    mtk::wmma::mma_f32::load_matrix_sync(frag_c, smem, N, nvcuda::wmma::mma_f32::mem_col_major);
+    mtk::wmma::tcec::load_matrix_sync(frag_c, smem, N, nvcuda::wmma::mem_col_major);
 
     // Fill D
-    mtk::wmma::mma_f32::fill_fragment(frag_d, 0.0f);
+    mtk::wmma::tcec::fill_fragment(frag_d, 0.0f);
 
     // mma
-    mtk::wmma::mma_f32::mma_sync(frag_d, frag_a, frag_b, frag_c);
+    mtk::wmma::tcec::mma_sync(frag_d, frag_a, frag_b, frag_c);
 
     // Store D
-    mtk::wmma::mma_f32::store_matrix_sync(smem, frag_d, N, nvcuda::wmma::mma_f32::mem_col_major);
+    mtk::wmma::tcec::store_matrix_sync(smem, frag_d, N, nvcuda::wmma::mem_col_major);
     //copy_matrix(d_ptr, N, smem, N, N, N);
 }
 ```
 
 ## Fragment
 ```cpp
-template <class Use, int m, int n, int k, class T, class Layout = void, Policy = typename mtk::wmma::mma_f32::detail::default_policy<T>::type>
+template <class Use, int m, int n, int k, class T, class Layout = void, Policy = typename mtk::wmma::tcec::detail::default_policy<T>::type>
 struct fragment;
 ```
 
 ### Template arguments
-`mtk::wmma::mma_f32::fragment` is a fragment for this computation.
+`mtk::wmma::tcec::fragment` is a fragment for this computation.
 It contains arrays of `nvcuda::wmma::fragment`.
 - `m`, `n` and `k` have to be a multiple of `Policy::m`, `Policy::n` and `Policy::k` respectively.
-You can get a default policy by `mtk::wmma::mma_f32::detail::default_policy<T>::type`.
+You can get a default policy by `mtk::wmma::tcec::detail::default_policy<T>::type`.
 - `k` has to be a multiple of 16 when `T` is `half` and 8 when `T` is `nvcuda::wmma::precision::tf32`.
 - `T` is `half` or `nvcuda::wmma::precision::tf32`. Unlike `nvcuda::wmma::fragment`, even if `Use` is `nvcuda::wmma::accumulator`, the same is true.
-- `Policy` is a concept of `mtk::wmma::mma_f32::Policy<Op, ErrorCorrection, fm, fn, fk>`.
-  - `Op` : `mtk::wmma::mma_f32::op_mma` / `mtk::wmma::mma_f32::op_wmma`
-  - `ErrorCorrection` : `mtk::wmma::mma_f32::with_ec` / `mtk::wmma::mma_f32::without_ec`
+- `Policy` is a concept of `mtk::wmma::tcec::Policy<Op, ErrorCorrection, fm, fn, fk>`.
+  - `Op` : `mtk::wmma::tcec::op_mma` / `mtk::wmma::tcec::op_wmma`
+  - `ErrorCorrection` : `mtk::wmma::tcec::with_ec` / `mtk::wmma::tcec::without_ec`
   - `fm`, `fn`, `fk` is a size of internal fragments.
 
 ### Policy
 `default_policy` can make `Policy` easily.
 ```cuda
-using policy = mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f32::with_ec, mtk::wmma::mma_f32::op_mma>::type;
+using policy = mtk::wmma::tcec::detail::default_policy<half, mtk::wmma::tcec::with_ec, mtk::wmma::tcec::op_mma>::type;
 ```
 
 ## Supported fragment
@@ -96,14 +96,14 @@ using policy = mtk::wmma::mma_f32::detail::default_policy<half, mtk::wmma::mma_f
 - Member function `x(index)` and `dx(index)` return the referrence of a elements.
 
 ## Functions
-- `mtk::wmma::mma_f32::fill_fragment`
-- `mtk::wmma::mma_f32::load_matrix_sync`
-- `mtk::wmma::mma_f32::store_matrix_sync`
-- `mtk::wmma::mma_f32::mma_sync`
+- `mtk::wmma::tcec::fill_fragment`
+- `mtk::wmma::tcec::load_matrix_sync`
+- `mtk::wmma::tcec::store_matrix_sync`
+- `mtk::wmma::tcec::mma_sync`
 
-- `mtk::wmma::mma_f32::load_vector`
-- `mtk::wmma::mma_f32::store_vector`
-- `mtk::wmma::mma_f32::fill_zero`
+- `mtk::wmma::tcec::load_vector`
+- `mtk::wmma::tcec::store_vector`
+- `mtk::wmma::tcec::fill_zero`
 
 ## SIMT Core computation
 
@@ -115,7 +115,7 @@ This library provides fragments and functionf for mma operations using CUDA SIMT
 
 ### Policy
 ```cuda
-using simt_policy = typename mtk::wmma::mma_f32::default_policy<float, mtk::wmma::mma_f32::without_ec, mtk::wmma::mma_f32::op_simt>::type;
+using simt_policy = typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type;
 
-mtk::wmma::mma_f32::fragment<nvcuda::wmma::mma_f32::matrix_a, N, N, N, half, nvcuda::wmma::mma_f32::col_major, simt_policy> frag_a;
+mtk::wmma::tcec::fragment<nvcuda::wmma::matrix_a, N, N, N, half, nvcuda::wmma::col_major, simt_policy> frag_a;
 ```

@@ -4,7 +4,7 @@
 #include <string>
 #include <sstream>
 #include <stdexcept>
-#include <wmma_extension/mma_f32/tcec.hpp>
+#include <wmma_extension/tcec/tcec.hpp>
 
 #ifndef WMMAE_CUDA_CHECK_ERROR
 #define WMMAE_CUDA_CHECK_ERROR(status) cuda_check_error(status, __FILE__, __LINE__, __func__)
@@ -35,10 +35,10 @@ template <> std::string to_string<nvcuda::wmma::row_major>      (){return "row_m
 template <> std::string to_string<float>                        (){return "float";}
 template <> std::string to_string<half>                         (){return "half";}
 template <> std::string to_string<nvcuda::wmma::precision::tf32>(){return "tf32";}
-template <> std::string to_string<mtk::wmma::mma_f32::op_wmma  >(){return "op_wmma";}
-template <> std::string to_string<mtk::wmma::mma_f32::op_mma   >(){return "op_mma";}
+template <> std::string to_string<mtk::wmma::tcec::op_wmma  >(){return "op_wmma";}
+template <> std::string to_string<mtk::wmma::tcec::op_mma   >(){return "op_mma";}
 #ifdef TEST_SIMT
-template <> std::string to_string<mtk::wmma::mma_f32::op_simt  >(){return "op_simt";}
+template <> std::string to_string<mtk::wmma::tcec::op_simt  >(){return "op_simt";}
 #endif
 
 
