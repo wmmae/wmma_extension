@@ -29,9 +29,9 @@ __global__ void mma_kernel(float* const d_ptr, const float* const a_ptr, const f
     __shared__ float smem[N * N];
     fill_zero(smem, N * N);
 
-    mtk::wmma::tcec::fragment<nvcuda::wmma::tcec::matrix_a, N, N, N, half, nvcuda::wmma::tcec::col_major> frag_a;
-    mtk::wmma::tcec::fragment<nvcuda::wmma::tcec::matrix_b, N, N, N, half, nvcuda::wmma::tcec::col_major> frag_b;
-    mtk::wmma::tcec::fragment<nvcuda::wmma::tcec::accumulator, N, N, N, half> frag_c, frag_d;
+    mtk::wmma::tcec::fragment<nvcuda::wmma::matrix_a, N, N, N, half, nvcuda::wmma::col_major> frag_a;
+    mtk::wmma::tcec::fragment<nvcuda::wmma::matrix_b, N, N, N, half, nvcuda::wmma::col_major> frag_b;
+    mtk::wmma::tcec::fragment<nvcuda::wmma::accumulator, N, N, N, half> frag_c, frag_d;
 
     // Load A
     // copy_matrix(smem, N, a_ptr, N, N, N);
@@ -43,7 +43,7 @@ __global__ void mma_kernel(float* const d_ptr, const float* const a_ptr, const f
 
     // Load C
     // copy_matrix(smem, N, c_ptr, N, N, N);
-    mtk::wmma::tcec::load_matrix_sync(frag_c, smem, N, nvcuda::wmma::tcec::mem_col_major);
+    mtk::wmma::tcec::load_matrix_sync(frag_c, smem, N, nvcuda::wmma::mem_col_major);
 
     // Fill D
     mtk::wmma::tcec::fill_fragment(frag_d, 0.0f);
@@ -52,7 +52,7 @@ __global__ void mma_kernel(float* const d_ptr, const float* const a_ptr, const f
     mtk::wmma::tcec::mma_sync(frag_d, frag_a, frag_b, frag_c);
 
     // Store D
-    mtk::wmma::tcec::store_matrix_sync(smem, frag_d, N, nvcuda::wmma::tcec::mem_col_major);
+    mtk::wmma::tcec::store_matrix_sync(smem, frag_d, N, nvcuda::wmma::mem_col_major);
     //copy_matrix(d_ptr, N, smem, N, N, N);
 }
 ```
@@ -117,5 +117,5 @@ This library provides fragments and functionf for mma operations using CUDA SIMT
 ```cuda
 using simt_policy = typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type;
 
-mtk::wmma::tcec::fragment<nvcuda::wmma::tcec::matrix_a, N, N, N, half, nvcuda::wmma::tcec::col_major, simt_policy> frag_a;
+mtk::wmma::tcec::fragment<nvcuda::wmma::matrix_a, N, N, N, half, nvcuda::wmma::col_major, simt_policy> frag_a;
 ```
