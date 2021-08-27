@@ -519,7 +519,7 @@ void test_batched_sgemm(
 		const auto end_clock = std::chrono::system_clock::now();
 		const auto elapsed_time = std::chrono::duration_cast<std::chrono::microseconds>(end_clock - start_clock).count() * 1e-6 / test_count;
 		const auto complexity = 2lu * static_cast<std::size_t>(m) * static_cast<std::size_t>(n) * static_cast<std::size_t>(k) * static_cast<std::size_t>(batch_size);
-		const auto performance = complexity / elapsed_time / (1lu << 40);
+		const auto performance = complexity / elapsed_time / (1e12);
 
 		std::printf("%15s: %e s\n", "Time", elapsed_time);
 		std::printf("%15s: %e TFlop/s\n", "Performance", performance);
@@ -550,7 +550,7 @@ void test_batched_sgemm(
 		const auto end_clock = std::chrono::system_clock::now();
 		const auto elapsed_time = std::chrono::duration_cast<std::chrono::microseconds>(end_clock - start_clock).count() * 1e-6 / test_count;
 		const auto complexity = 2lu * static_cast<std::size_t>(m) * static_cast<std::size_t>(n) * static_cast<std::size_t>(k) * static_cast<std::size_t>(batch_size);
-		const auto performance = complexity / elapsed_time / (1lu << 40);
+		const auto performance = complexity / elapsed_time / (1e12);
 
 		std::printf("%15s: %e s (cuBLAS)\n", "Time", elapsed_time);
 		std::printf("%15s: %e TFlop/s (cuBLAS)\n", "Performance", performance);
