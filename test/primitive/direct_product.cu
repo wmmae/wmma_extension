@@ -2,6 +2,7 @@
 #include <random>
 #include <type_traits>
 #include <wmma_extension/wmma_extension.hpp>
+#include "common.hpp"
 
 #ifndef TEST_ARCH
 #define TEST_ARCH (-1)
@@ -108,9 +109,6 @@ __global__ void direct_product_kernel(float* const h, const float* const u, cons
 
 template <unsigned CORRECTION_TERMS>
 void test() {
-	std::printf("-- test (%s) --\n", __FILE__);
-	std::printf("arch    : %d\n", TEST_ARCH);
-	std::printf("c terms : %u\n", CORRECTION_TERMS);
 	float *u;
 	float *v;
 	float *h;
@@ -138,7 +136,13 @@ void test() {
 			max_error = std::max(max_error, std::abs(diff));
 		}
 	}
-	std::printf("error   : %e\n", max_error);
+	std::printf("[%s] ARCH=%d, c_terms=%u, error=%e [%s]\n",
+			__FILE__,
+			TEST_ARCH,
+			CORRECTION_TERMS,
+			max_error,
+			mtk::test_utils::get_test_result_string(max_error < mtk::test_utils::get_machine_eps<float>() * 16)
+			);
 
 	cudaFreeHost(u);
 	cudaFreeHost(v);
