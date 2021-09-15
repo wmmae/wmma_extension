@@ -49,12 +49,12 @@ struct fragment {
 		return sub_d_frag[sub_frag_id].x[frag_index];
 	}
 	// const version
-	__device__ const typename mtk::wmma::detail::common::storage_t<typename mtk::wmma::tcec::detail::sub_frag_t<Use, T>::type>::type x(const unsigned index) const {
+	__device__ typename mtk::wmma::detail::common::storage_t<typename mtk::wmma::tcec::detail::sub_frag_t<Use, T>::type>::type x(const unsigned index) const {
 		const auto frag_index = index % sub_frag_t::num_elements;
 		const auto sub_frag_id = index / sub_frag_t::num_elements;
 		return sub_frag[sub_frag_id].x[frag_index];
 	}
-	__device__ const typename mtk::wmma::detail::common::storage_t<typename mtk::wmma::tcec::detail::sub_frag_t<Use, T>::type>::type dx(const unsigned index) const {
+	__device__ typename mtk::wmma::detail::common::storage_t<typename mtk::wmma::tcec::detail::sub_frag_t<Use, T>::type>::type dx(const unsigned index) const {
 		const auto frag_index = index % sub_frag_t::num_elements;
 		const auto sub_frag_id = index / sub_frag_t::num_elements;
 		return sub_d_frag[sub_frag_id].x[frag_index];
