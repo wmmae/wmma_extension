@@ -54,6 +54,7 @@ int main() {
 	test_elementwise<32, half                         , typename mtk::wmma::tcec::detail::default_policy<half                         , mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type>();
 	test_elementwise<32, half                         , typename mtk::wmma::tcec::detail::default_policy<half                         , mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma >::type>();
 	test_elementwise<32, half                         , typename mtk::wmma::tcec::detail::default_policy<half                         , mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma >::type>();
+	test_elementwise<32, float                        , typename mtk::wmma::tcec::detail::default_policy<float                        , mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type>();
 
 #ifdef TEST_SIMT
 	test_elementwise<32, float                        , typename mtk::wmma::tcec::detail::default_policy<float                        , mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type>();
