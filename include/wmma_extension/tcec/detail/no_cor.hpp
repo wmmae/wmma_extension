@@ -29,6 +29,13 @@ struct fragment <Use, m, n, k, T, Layout, mtk::wmma::tcec::Policy<Op, mtk::wmma:
 		const auto sub_frag_id = index / sub_frag_t::num_elements;
 		return sub_frag[sub_frag_id].x[frag_index];
 	}
+
+	// const version
+	__device__ typename mtk::wmma::detail::common::storage_t<typename mtk::wmma::tcec::detail::sub_frag_t<Use, T>::type>::type x(const unsigned index) const {
+		const auto frag_index = index % sub_frag_t::num_elements;
+		const auto sub_frag_id = index / sub_frag_t::num_elements;
+		return sub_frag[sub_frag_id].x[frag_index];
+	}
 };
 
 template <class Use, int m, int n, int k, class T, class Layout, class Op, int fm, int fn, int fk>
