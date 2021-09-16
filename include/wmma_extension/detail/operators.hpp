@@ -86,6 +86,20 @@ struct mul<Use, M, N, K, half, Layout> {
 		return res;
 	}
 };
+
+// Div
+template <class Use, int M, int N, int K, class Type, class Layout>
+struct div {
+	__device__ nvcuda::wmma::fragment<Use, M, N, K, Type, Layout> operator()(
+			const nvcuda::wmma::fragment<Use, M, N, K, Type, Layout>& a,
+			const typename nvcuda::wmma::fragment<Use, M, N, K, Type, Layout>::storage_element_type b) {
+		nvcuda::wmma::fragment<Use, M, N, K, Type, Layout> res;
+		for (unsigned i = 0; i < res.num_elements; i++) {
+			res.x[i] = a.x[i] / b;
+		}
+		return res;
+	}
+};
 } // namespace ops
 } // namespace wmma
 } // namespace mtk

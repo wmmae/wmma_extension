@@ -24,4 +24,11 @@ __device__ nvcuda::wmma::fragment<Use, M, N, K, Type, Layout> operator*(
 	return mtk::wmma::ops::mul<Use, M, N, K, Type, Layout>{}(a, b);
 }
 
+template <class Use, int M, int N, int K, class Type, class Layout>
+__device__ nvcuda::wmma::fragment<Use, M, N, K, Type, Layout> operator/(
+		const nvcuda::wmma::fragment<Use, M, N, K, Type, Layout>& a,
+		const typename nvcuda::wmma::fragment<Use, M, N, K, Type, Layout>::storage_element_type b) {
+	return mtk::wmma::ops::div<Use, M, N, K, Type, Layout>{}(a, b);
+}
+
 #endif
