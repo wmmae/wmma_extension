@@ -43,7 +43,7 @@ struct sub {
 			const nvcuda::wmma::fragment<Use, M, N, K, Type, Layout>& b) {
 		nvcuda::wmma::fragment<Use, M, N, K, Type, Layout> res;
 		for (unsigned i = 0; i < res.num_elements; i++) {
-			res.x[i] = a.x[i] + b.x[i];
+			res.x[i] = a.x[i] - b.x[i];
 		}
 		return res;
 	}
