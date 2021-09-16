@@ -4,16 +4,17 @@
 #include "detail/common.hpp"
 
 template <class Use, int M, int N, int K, class Type, class Layout>
-nvcuda::wmma::fragment<Use, M, N, K, Type, Layout> operator+(
+__device__ nvcuda::wmma::fragment<Use, M, N, K, Type, Layout> operator+(
 		const nvcuda::wmma::fragment<Use, M, N, K, Type, Layout>& a,
 		const nvcuda::wmma::fragment<Use, M, N, K, Type, Layout>& b) {
-	return mtk::wmma::detail::add{}(a, b);
+	return mtk::wmma::ops::add<Use, M, N, K, Type, Layout>{}(a, b);
 }
 
 template <class Use, int M, int N, int K, class Type, class Layout>
-nvcuda::wmma::fragment<Use, M, N, K, Type, Layout> operator-(
+__device__ nvcuda::wmma::fragment<Use, M, N, K, Type, Layout> operator-(
 		const nvcuda::wmma::fragment<Use, M, N, K, Type, Layout>& a,
 		const nvcuda::wmma::fragment<Use, M, N, K, Type, Layout>& b) {
-	return mtk::wmma::detail::sub{}(a, b);
+	return mtk::wmma::ops::sub<Use, M, N, K, Type, Layout>{}(a, b);
 }
+
 #endif

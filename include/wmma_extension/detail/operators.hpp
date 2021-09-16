@@ -9,7 +9,8 @@ namespace ops {
 // Add
 template <class Use, int M, int N, int K, class Type, class Layout>
 struct add {
-	nvcuda::wmma::fragment<Use, M, N, K, Type, Layout> operator()(
+	__device__ add() {}
+	__device__ nvcuda::wmma::fragment<Use, M, N, K, Type, Layout> operator()(
 			const nvcuda::wmma::fragment<Use, M, N, K, Type, Layout>& a,
 			const nvcuda::wmma::fragment<Use, M, N, K, Type, Layout>& b) {
 		nvcuda::wmma::fragment<Use, M, N, K, Type, Layout> res;
@@ -22,12 +23,13 @@ struct add {
 
 template <class Use, int M, int N, int K, class Layout>
 struct add<Use, M, N, K, half, Layout> {
-	nvcuda::wmma::fragment<Use, M, N, K, half, Layout> operator()(
+	__device__ add() {}
+	__device__ nvcuda::wmma::fragment<Use, M, N, K, half, Layout> operator()(
 			const nvcuda::wmma::fragment<Use, M, N, K, half, Layout>& a,
 			const nvcuda::wmma::fragment<Use, M, N, K, half, Layout>& b) {
-		nvcuda::wmma::fragment<Use, M, N, K, Type, Layout> res;
+		nvcuda::wmma::fragment<Use, M, N, K, half, Layout> res;
 		for (unsigned i = 0; i < res.num_elements / 2; i++) {
-			reinterpret_cast<half2>(res.x)[i] = __hadd2(reinterpret_cast<half2>(a.x)[i], reinterpret_cast<half2>(b.x)[i]);
+			reinterpret_cast<half2*>(res.x)[i] = __hadd2(reinterpret_cast<const half2*>(a.x)[i], reinterpret_cast<const half2*>(b.x)[i]);
 		}
 		return res;
 	}
@@ -36,7 +38,7 @@ struct add<Use, M, N, K, half, Layout> {
 // Sub
 template <class Use, int M, int N, int K, class Type, class Layout>
 struct sub {
-	nvcuda::wmma::fragment<Use, M, N, K, Type, Layout> operator()(
+	__device__ nvcuda::wmma::fragment<Use, M, N, K, Type, Layout> operator()(
 			const nvcuda::wmma::fragment<Use, M, N, K, Type, Layout>& a,
 			const nvcuda::wmma::fragment<Use, M, N, K, Type, Layout>& b) {
 		nvcuda::wmma::fragment<Use, M, N, K, Type, Layout> res;
@@ -49,12 +51,12 @@ struct sub {
 
 template <class Use, int M, int N, int K, class Layout>
 struct sub<Use, M, N, K, half, Layout> {
-	nvcuda::wmma::fragment<Use, M, N, K, half, Layout> operator()(
+	__device__ nvcuda::wmma::fragment<Use, M, N, K, half, Layout> operator()(
 			const nvcuda::wmma::fragment<Use, M, N, K, half, Layout>& a,
 			const nvcuda::wmma::fragment<Use, M, N, K, half, Layout>& b) {
-		nvcuda::wmma::fragment<Use, M, N, K, Type, Layout> res;
+		nvcuda::wmma::fragment<Use, M, N, K, half, Layout> res;
 		for (unsigned i = 0; i < res.num_elements / 2; i++) {
-			reinterpret_cast<half2>(res.x)[i] = __hsub2(reinterpret_cast<half2>(a.x)[i], reinterpret_cast<half2>(b.x)[i]);
+			reinterpret_cast<half2*>(res.x)[i] = __hsub2(reinterpret_cast<const half2*>(a.x)[i], reinterpret_cast<const half2*>(b.x)[i]);
 		}
 		return res;
 	}
