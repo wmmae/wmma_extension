@@ -33,6 +33,69 @@ __global__ void test_kernel(
 	atomicAdd(error, e);
 }
 
+template <int M, int N, int K, class T, class STORAGE_T, class OP_FUNC>
+__global__ void test_acc_kernel(
+		float* const error,
+		const STORAGE_T* const A,
+		const STORAGE_T* const B,
+		const STORAGE_T* const ref,
+		const unsigned ldm,
+		const nvcuda::wmma::layout_t layout,
+		const OP_FUNC func
+		) {
+	nvcuda::wmma::fragment<nvcuda::wmma::accumulator, M, N, K, T> frag_a, frag_b, frag_ref;
+	nvcuda::wmma::load_matrix_sync(frag_a  , A  , ldm, layout);
+	nvcuda::wmma::load_matrix_sync(frag_b  , B  , ldm, layout);
+	nvcuda::wmma::load_matrix_sync(frag_ref, ref, ldm, layout);
+
+	const auto frag_c = func(frag_a, frag_b);
+
+	float e = 0.;
+	for (unsigned i = 0; i < frag_ref.num_elements; i++) {
+		const auto diff = std::abs(
+				mtk::wmma::detail::common::cast<float>(frag_ref.x[i]) - mtk::wmma::detail::common::cast<float>(frag_c.x[i]));
+		e = (e > diff) ? e : diff;
+	}
+	atomicAdd(error, e);
+}
+
+template <class Use, int M, int N, int K, class T, class Layout, class storage_t, class OP_FUNC>
+struct launch_kernel {
+	void operator()(
+			float* const error,
+			const storage_t* const mat_a,
+			const storage_t* const mat_b,
+			const storage_t* const mat_r,
+			const OP_FUNC op_func
+			) {
+		test_kernel<Use, M, N, K, T, Layout, storage_t><<<1, warp_size>>>(
+				error,
+				mat_a, mat_b, mat_r,
+				(std::is_same<Layout, nvcuda::wmma::col_major>::value ? mtk::wmma::detail::common::get_M<Use, M, N, K>::value : mtk::wmma::detail::common::get_N<Use, M, N, K>::value),
+				op_func
+				);
+	}
+};
+
+template <int M, int N, int K, class T, class Layout, class storage_t, class OP_FUNC>
+struct launch_kernel<nvcuda::wmma::accumulator, M, N, K, T, Layout, storage_t, OP_FUNC> {
+	void operator()(
+			float* const error,
+			const storage_t* const mat_a,
+			const storage_t* const mat_b,
+			const storage_t* const mat_r,
+			const OP_FUNC op_func
+			) {
+		test_acc_kernel<M, N, K, T, storage_t><<<1, warp_size>>>(
+				error,
+				mat_a, mat_b, mat_r,
+				(std::is_same<Layout, nvcuda::wmma::col_major>::value ? mtk::wmma::detail::common::get_M<nvcuda::wmma::accumulator, M, N, K>::value : mtk::wmma::detail::common::get_N<nvcuda::wmma::accumulator, M, N, K>::value),
+				(std::is_same<Layout, nvcuda::wmma::col_major>::value ? nvcuda::wmma::mem_col_major : nvcuda::wmma::mem_row_major),
+				op_func
+				);
+	}
+};
+
 template <class Use, int M, int N, int K, class T, class Layout, class OP_FUNC, class ELEM_FUNC>
 void test_core(const OP_FUNC op_func, const ELEM_FUNC elem_func, const std::string test_name) {
 	const auto num_max_elements = mtk::wmma::detail::common::get_M<Use, M, N, K>::value * mtk::wmma::detail::common::get_N<Use, M, N, K>::value;
@@ -55,10 +118,11 @@ void test_core(const OP_FUNC op_func, const ELEM_FUNC elem_func, const std::stri
 	float *error;
 	cudaMallocHost(&error, sizeof(float));
 	*error = 0.f;
-	test_kernel<Use, M, N, K, T, Layout, storage_t><<<1, warp_size>>>(
+	launch_kernel<Use, M, N, K, T, Layout, storage_t, OP_FUNC>{}(
 			error,
-			mat_a, mat_b, mat_r,
-			(std::is_same<Layout, nvcuda::wmma::col_major>::value ? mtk::wmma::detail::common::get_M<Use, M, N, K>::value : mtk::wmma::detail::common::get_N<Use, M, N, K>::value),
+			mat_a,
+			mat_b,
+			mat_r,
 			op_func
 			);
 	cudaDeviceSynchronize();
@@ -79,13 +143,18 @@ void test_core(const OP_FUNC op_func, const ELEM_FUNC elem_func, const std::stri
 	cudaFreeHost(mat_r);
 }
 
+template <class Use, class Layout>
+struct layout_switch {using type = Layout;};
+template <class Layout>
+struct layout_switch<nvcuda::wmma::accumulator, Layout> {using type = void;};
+
 template <class Use, int M, int N, int K, class T, class Layout>
 void test() {
 	using storage_t = typename mtk::wmma::detail::common::storage_t<T>::type;
 	test_core<Use, M, N, K, T, Layout>(
 			[]__device__(
-				const nvcuda::wmma::fragment<Use, M, N, K, T, Layout>& a,
-				const nvcuda::wmma::fragment<Use, M, N, K, T, Layout>& b
+				const nvcuda::wmma::fragment<Use, M, N, K, T, typename layout_switch<Use, Layout>::type>& a,
+				const nvcuda::wmma::fragment<Use, M, N, K, T, typename layout_switch<Use, Layout>::type>& b
 				) {return a + b;},
 			[](
 				const storage_t a,
@@ -95,8 +164,8 @@ void test() {
 			);
 	test_core<Use, M, N, K, T, Layout>(
 			[]__device__(
-				const nvcuda::wmma::fragment<Use, M, N, K, T, Layout>& a,
-				const nvcuda::wmma::fragment<Use, M, N, K, T, Layout>& b
+				const nvcuda::wmma::fragment<Use, M, N, K, T, typename layout_switch<Use, Layout>::type>& a,
+				const nvcuda::wmma::fragment<Use, M, N, K, T, typename layout_switch<Use, Layout>::type>& b
 				) {return a - b;},
 			[](
 				const storage_t a,
@@ -106,9 +175,9 @@ void test() {
 			);
 	test_core<Use, M, N, K, T, Layout>(
 			[]__device__(
-				const nvcuda::wmma::fragment<Use, M, N, K, T, Layout>& a,
-				const nvcuda::wmma::fragment<Use, M, N, K, T, Layout>&
-				) {return a * mtk::wmma::detail::common::cast<typename nvcuda::wmma::fragment<Use, M, N, K, T, Layout>::storage_element_type>(3);},
+				const nvcuda::wmma::fragment<Use, M, N, K, T, typename layout_switch<Use, Layout>::type>& a,
+				const nvcuda::wmma::fragment<Use, M, N, K, T, typename layout_switch<Use, Layout>::type>&
+				) {return a * mtk::wmma::detail::common::cast<typename nvcuda::wmma::fragment<Use, M, N, K, T, typename layout_switch<Use, Layout>::type>::storage_element_type>(3);},
 			[](
 				const storage_t a,
 				const storage_t
@@ -117,9 +186,9 @@ void test() {
 			);
 	test_core<Use, M, N, K, T, Layout>(
 			[]__device__(
-				const nvcuda::wmma::fragment<Use, M, N, K, T, Layout>& a,
-				const nvcuda::wmma::fragment<Use, M, N, K, T, Layout>&
-				) {return a / mtk::wmma::detail::common::cast<typename nvcuda::wmma::fragment<Use, M, N, K, T, Layout>::storage_element_type>(3);},
+				const nvcuda::wmma::fragment<Use, M, N, K, T, typename layout_switch<Use, Layout>::type>& a,
+				const nvcuda::wmma::fragment<Use, M, N, K, T, typename layout_switch<Use, Layout>::type>&
+				) {return a / mtk::wmma::detail::common::cast<typename nvcuda::wmma::fragment<Use, M, N, K, T, typename layout_switch<Use, Layout>::type>::storage_element_type>(3);},
 			[](
 				const storage_t a,
 				const storage_t
@@ -133,6 +202,10 @@ int main() {
 	test<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::col_major>();
 	test<nvcuda::wmma::matrix_a, 16, 16, 16, half, nvcuda::wmma::row_major>();
 	test<nvcuda::wmma::matrix_b, 16, 16, 16, half, nvcuda::wmma::row_major>();
+	test<nvcuda::wmma::accumulator, 16, 16, 16, half, nvcuda::wmma::row_major>();
+	test<nvcuda::wmma::accumulator, 16, 16, 16, half, nvcuda::wmma::row_major>();
+	test<nvcuda::wmma::accumulator, 16, 16, 16, float, nvcuda::wmma::row_major>();
+	test<nvcuda::wmma::accumulator, 16, 16, 16, float, nvcuda::wmma::row_major>();
 #ifdef TEST_TF32
 	test<nvcuda::wmma::matrix_a, 16, 16,  8, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major>();
 	test<nvcuda::wmma::matrix_b, 16, 16,  8, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major>();
