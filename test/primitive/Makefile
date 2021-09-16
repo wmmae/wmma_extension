@@ -1,7 +1,7 @@
-TEST_ARCH=70
+TEST_ARCH=80
 ROOT_DIR=../../include
 NVCC=nvcc
-NVCCFLAGS=-std=c++17 -I$(ROOT_DIR) -arch=sm_$(TEST_ARCH) -DTEST_ARCH=$(TEST_ARCH)
+NVCCFLAGS=-std=c++17 -I$(ROOT_DIR) -arch=sm_$(TEST_ARCH) -DTEST_ARCH=$(TEST_ARCH) --extended-lambda
 HEADERS=$(shell find ../../include -name '*.hpp')
 
 TARGET=
@@ -19,6 +19,7 @@ TARGET+=fill.test
 TARGET+=mma.test
 TARGET+=vector.test
 TARGET+=map.test
+TARGET+=operators.test
 
 all: $(TARGET)
 
