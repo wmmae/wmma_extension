@@ -104,6 +104,28 @@ void test() {
 				) {return mtk::wmma::detail::common::cast<float>(a) - mtk::wmma::detail::common::cast<float>(b);},
 			"sub"
 			);
+	test_core<Use, M, N, K, T, Layout>(
+			[]__device__(
+				const nvcuda::wmma::fragment<Use, M, N, K, T, Layout>& a,
+				const nvcuda::wmma::fragment<Use, M, N, K, T, Layout>&
+				) {return a * mtk::wmma::detail::common::cast<typename nvcuda::wmma::fragment<Use, M, N, K, T, Layout>::storage_element_type>(3);},
+			[](
+				const storage_t a,
+				const storage_t
+				) {return mtk::wmma::detail::common::cast<float>(a) * mtk::wmma::detail::common::cast<float>(3.0f);},
+			"mul"
+			);
+	test_core<Use, M, N, K, T, Layout>(
+			[]__device__(
+				const nvcuda::wmma::fragment<Use, M, N, K, T, Layout>& a,
+				const nvcuda::wmma::fragment<Use, M, N, K, T, Layout>&
+				) {return a / mtk::wmma::detail::common::cast<typename nvcuda::wmma::fragment<Use, M, N, K, T, Layout>::storage_element_type>(3);},
+			[](
+				const storage_t a,
+				const storage_t
+				) {return mtk::wmma::detail::common::cast<float>(a) / mtk::wmma::detail::common::cast<float>(3.0f);},
+			"div"
+			);
 }
 
 int main() {
