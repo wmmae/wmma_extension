@@ -80,7 +80,7 @@ struct mul<Use, M, N, K, half, Layout> {
 			const nvcuda::wmma::fragment<Use, M, N, K, half, Layout>& a,
 			const typename nvcuda::wmma::fragment<Use, M, N, K, half, Layout>::storage_element_type b) {
 		nvcuda::wmma::fragment<Use, M, N, K, half, Layout> res;
-		for (unsigned i = 0; i < res.num_elements; i++) {
+		for (unsigned i = 0; i < res.num_elements / 2; i++) {
 			reinterpret_cast<half2*>(res.x)[i] = __hmul2(reinterpret_cast<const half2*>(a.x)[i], __half2half2(b));
 		}
 		return res;
