@@ -1,5 +1,6 @@
 #ifndef __WMMAE_DETAIL_COMMON__
 #define __WMMAE_DETAIL_COMMON__
+#include <cstdint>
 #include <cuda_fp16.h>
 
 #if !defined(__CUDA_ARCH__) || __CUDA_ARCH__ < 800
