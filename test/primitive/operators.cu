@@ -4,7 +4,7 @@
 #include <cmath>
 #include "common.hpp"
 
-#define TEST_TF32
+//#define TEST_TF32
 
 constexpr unsigned warp_size = 32;
 
