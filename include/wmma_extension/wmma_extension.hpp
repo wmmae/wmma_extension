@@ -239,6 +239,7 @@ __device__ inline void print_fragment(const nvcuda::wmma::fragment<MatrixType, M
 			printf("%s = \n", name);
 		}
 	}
+	__syncwarp();
 	for (unsigned i = 0; i < warpSize; i++) {
 		if (i == (threadIdx.x & 0x1f)) {
 			for (unsigned j = 0; j < frag.num_elements; j++) {
@@ -253,7 +254,7 @@ __device__ inline void print_fragment(const nvcuda::wmma::fragment<MatrixType, M
 			}
 			printf("\n");
 		}
-		__syncthreads();
+		__syncwarp();
 	}
 }
 

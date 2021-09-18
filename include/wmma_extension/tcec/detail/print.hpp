@@ -16,7 +16,7 @@ __device__ void print_fragment(
 		printf("%s = \n", name);
 	}
 
-	__syncthreads();
+	__syncwarp();
 	for (unsigned i = 0; i < 32; i++) {
 		if (i == mtk::wmma::detail::common::get_lane_id()) {
 			for (unsigned i = 0; i < frag.num_elements; i++) {
@@ -24,7 +24,7 @@ __device__ void print_fragment(
 			}
 			printf("\n");
 		}
-		__syncthreads();
+		__syncwarp();
 	}
 }
 template <class Use, int m, int n, int k, class Type, class Layout, class OP, int fm, int fn, int fk>
@@ -35,7 +35,7 @@ __device__ void print_fragment(
 		printf("%s = \n", name);
 	}
 
-	__syncthreads();
+	__syncwarp();
 	for (unsigned i = 0; i < 32; i++) {
 		if (i == mtk::wmma::detail::common::get_lane_id()) {
 			for (unsigned i = 0; i < frag.num_elements; i++) {
@@ -43,7 +43,7 @@ __device__ void print_fragment(
 			}
 			printf("\n");
 		}
-		__syncthreads();
+		__syncwarp();
 	}
 }
 } // namespace mtk
