@@ -9,7 +9,9 @@ namespace mtk {
 namespace wmma {
 namespace tcec {
 template <class Use, int m, int n, int k, class Type, class Layout, class OP, int fm, int fn, int fk>
-__device__ void print_fragment(const mtk::wmma::tcec::fragment<Use, m, n, k, Type, Layout, Policy<OP, mtk::wmma::tcec::with_ec, fm, fn, fk>>& frag, const char *name = "") {
+__device__ void print_fragment(
+		const mtk::wmma::tcec::fragment<Use, m, n, k, Type, Layout, Policy<OP, mtk::wmma::tcec::with_ec, fm, fn, fk>>& frag,
+		const char* const name = "") {
 	if (*name != '\0' && mtk::wmma::detail::common::get_lane_id() == 0) {
 		printf("%s = \n", name);
 	}
@@ -26,7 +28,9 @@ __device__ void print_fragment(const mtk::wmma::tcec::fragment<Use, m, n, k, Typ
 	}
 }
 template <class Use, int m, int n, int k, class Type, class Layout, class OP, int fm, int fn, int fk>
-__device__ void print_fragment(const mtk::wmma::tcec::fragment<Use, m, n, k, Type, Layout, Policy<OP, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag, const char *name = "") {
+__device__ void print_fragment(
+		const mtk::wmma::tcec::fragment<Use, m, n, k, Type, Layout, Policy<OP, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag,
+		const char* const name = "") {
 	if (*name != '\0' && mtk::wmma::detail::common::get_lane_id() == 0) {
 		printf("%s = \n", name);
 	}
