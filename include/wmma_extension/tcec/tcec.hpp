@@ -519,3 +519,4 @@ __device__ void mma_sync(
 
 #include "detail/no_cor.hpp"
 #include "detail/notc.hpp"
+#include "detail/print.hpp"

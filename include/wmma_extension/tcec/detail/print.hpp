@@ -1,0 +1,47 @@
+#ifndef __WMMAE_TCEC_DETAIL_PRINT_HPP__
+#define __WMMAE_TCEC_DETAIL_PRINT_HPP__
+#include <stdio.h>
+#include "policy.hpp"
+#include "common.hpp"
+
+namespace mtk {
+namespace wmma {
+namespace tcec {
+template <class Use, int m, int n, int k, class Type, class Layout, class OP, int fm, int fn, int fk>
+__device__ void print_fragment(const mtk::wmma::tcec::fragment<Use, m, n, k, Type, Layout, Policy<OP, mtk::wmma::tcec::with_ec, fm, fn, fk>>& frag, const char *name = "") {
+	if (name != '\0' && mtk::wmma::detail::common::get_lane_id() == 0) {
+		printf("%s = \n", name);
+	}
+
+	__syncthreads();
+	for (unsigned i = 0; i < 32; i++) {
+		if (i == mtk::wmma::detail::common::get_lane_id()) {
+			for (unsigned i = 0; i < frag.num_elements; i++) {
+				printf("(%+e)+(%+e) ", frag.x(i), frag.dx(i));
+			}
+			printf("\n");
+		}
+		__syncthreads();
+	}
+}
+template <class Use, int m, int n, int k, class Type, class Layout, class OP, int fm, int fn, int fk>
+__device__ void print_fragment(const mtk::wmma::tcec::fragment<Use, m, n, k, Type, Layout, Policy<OP, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag, const char *name = "") {
+	if (name != '\0' && mtk::wmma::detail::common::get_lane_id() == 0) {
+		printf("%s = \n", name);
+	}
+
+	__syncthreads();
+	for (unsigned i = 0; i < 32; i++) {
+		if (i == mtk::wmma::detail::common::get_lane_id()) {
+			for (unsigned i = 0; i < frag.num_elements; i++) {
+				printf("%+e ", frag.x(i));
+			}
+			printf("\n");
+		}
+		__syncthreads();
+	}
+}
+} // namespace mtk
+} // namespace wmma
+} // namespace tcec
+#endif
