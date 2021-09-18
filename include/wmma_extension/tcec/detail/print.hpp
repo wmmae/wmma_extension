@@ -20,7 +20,7 @@ __device__ void print_fragment(
 	for (unsigned i = 0; i < 32; i++) {
 		if (i == mtk::wmma::detail::common::get_lane_id()) {
 			for (unsigned i = 0; i < frag.num_elements; i++) {
-				printf("(%+e)+(%+e) ", frag.x(i), detail::correction_scale_1<Type>(frag.dx(i)));
+				printf("(%+.3e)+(%+.3e) ", frag.x(i), detail::correction_scale_1<Type>(frag.dx(i)));
 			}
 			printf("\n");
 		}
@@ -39,7 +39,7 @@ __device__ void print_fragment(
 	for (unsigned i = 0; i < 32; i++) {
 		if (i == mtk::wmma::detail::common::get_lane_id()) {
 			for (unsigned i = 0; i < frag.num_elements; i++) {
-				printf("%+e ", frag.x(i));
+				printf("%+.3e ", frag.x(i));
 			}
 			printf("\n");
 		}
