@@ -59,6 +59,16 @@ struct fragment {
 		const auto sub_frag_id = index / sub_frag_t::num_elements;
 		return sub_d_frag[sub_frag_id].x[frag_index];
 	}
+
+	// integrate
+	__device__ void integrate() {
+		for (int f = 0; f < num_sub_frag_m * num_sub_frag_n; f++) {
+			for (unsigned i = 0; i < sub_frag->num_elements; i++) {
+				sub_frag[f].x[i] += mtk::wmma::tcec::detail::correction_scale_1<T>(sub_d_frag[f].x[i]);
+				sub_d_frag[f].x[i] = 0.0f;
+			}
+		}
+	}
 };
 
 template <class Use, int m, int n, int k, class T, class Layout, class Op, int fm, int fn, int fk>
