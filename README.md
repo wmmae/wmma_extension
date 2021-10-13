@@ -10,7 +10,7 @@ This extension provides features for
 - making eye matrix fragment
 - C++ interface for `mma` instructions
 - fragment and loding/storing/mma functions with Error Correction (TCEC) [[detail](./docs/mma_f32.md)]
-- arithmetic operators for fragments (+, -, *, /) [[detail](./docs/ops.md)]
+- arithmetic operators for fragments (`+, -, *, /, fma`) [[detail](./docs/ops.md)]
 - etc
 
 without using extra shared memory.
