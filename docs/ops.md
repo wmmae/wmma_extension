@@ -2,12 +2,14 @@
 
 ## Supported operators
 
-|  op  | A type | B type |
-|:----:|:------:|:------:|
-| `+`  | `fragment` | `fragment` |
-| `-`  | `fragment` | `fragment` |
-| `*`  | `fragment` | `fragment::storage_element_t` |
-| `/`  | `fragment` | `fragment::storage_element_t` |
+|  op  | A type | B type | C type |
+|:----:|:------:|:------:|:------:|
+| `+`  | `fragment` | `fragment` ||
+| `-`  | `fragment` | `fragment` ||
+| `*`  | `fragment` | `fragment::storage_element_t` ||
+| `/`  | `fragment` | `fragment::storage_element_t` ||
+| `mtk::wmma::fma`  | `fragment` | `fragment::storage_element_t` | `fragment` |
+| `mtk::wmma::fma`  | `fragment::storage_element_t` | `fragment` | `fragment` |
 
 ## Example
 
