@@ -187,6 +187,17 @@ void test() {
 	test_core<Use, M, N, K, T, Layout>(
 			[]__device__(
 				const nvcuda::wmma::fragment<Use, M, N, K, T, typename layout_switch<Use, Layout>::type>& a,
+				const nvcuda::wmma::fragment<Use, M, N, K, T, typename layout_switch<Use, Layout>::type>& b
+				) {return mtk::wmma::fma(mtk::wmma::detail::common::cast<typename nvcuda::wmma::fragment<Use, M, N, K, T, typename layout_switch<Use, Layout>::type>::storage_element_type>(3), a, b);},
+			[](
+				const storage_t a,
+				const storage_t b
+				) {return mtk::wmma::detail::common::cast<float>(a) * mtk::wmma::detail::common::cast<float>(3.0f) + mtk::wmma::detail::common::cast<float>(b);},
+			"fma"
+			);
+	test_core<Use, M, N, K, T, Layout>(
+			[]__device__(
+				const nvcuda::wmma::fragment<Use, M, N, K, T, typename layout_switch<Use, Layout>::type>& a,
 				const nvcuda::wmma::fragment<Use, M, N, K, T, typename layout_switch<Use, Layout>::type>&
 				) {return a / mtk::wmma::detail::common::cast<typename nvcuda::wmma::fragment<Use, M, N, K, T, typename layout_switch<Use, Layout>::type>::storage_element_type>(3);},
 			[](
