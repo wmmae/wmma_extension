@@ -44,7 +44,6 @@ mtk::wmma::foreach<decltype(frag_b)>(
             for (unsigned i = 0; i < fragment_index_count; i++)
                 frag_b.x[frag_index_list[i]] = convert_to<half>(matrix[n * 16 + m]);
         });
-    );
 ```
 
 ### foreach_ij
@@ -57,7 +56,6 @@ mtk::wmma::foreach_ij<decltype(frag_b)>(
             for (unsigned f = 0; f < fragment_index_count; f++)
                 frag_b.x[frag_index_list[f]] = convert_to<half>(matrix[j * 16 + i]);
         });
-    );
 ```
 
 ### foreach_v
