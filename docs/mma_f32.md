@@ -115,7 +115,7 @@ This library provides fragments and functionf for mma operations using CUDA SIMT
 
 ### Policy
 ```cuda
-using simt_policy = typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type;
+using simt_policy = typename mtk::wmma::tcec::detail::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type;
 
-mtk::wmma::tcec::fragment<nvcuda::wmma::matrix_a, N, N, N, half, nvcuda::wmma::col_major, simt_policy> frag_a;
+mtk::wmma::tcec::fragment<nvcuda::wmma::matrix_a, N, N, N, float, nvcuda::wmma::col_major, simt_policy> frag_a;
 ```
