@@ -100,7 +100,7 @@ __device__ void load_matrix_sync(fragment<nvcuda::wmma::accumulator, m, n, k, T,
 				}
 			});
 	if (sync) {
-		__syncthreads();
+		__syncwarp();
 	}
 }
 
@@ -136,7 +136,7 @@ __device__ void load_matrix_sync(fragment<Use, m, n, k, T, Layout, mtk::wmma::tc
 				}
 			});
 	if (sync) {
-		__syncthreads();
+		__syncwarp();
 	}
 }
 
@@ -163,7 +163,7 @@ __device__ void load_matrix_sync_with_mul(fragment<Use, m, n, k, T, Layout, mtk:
 				}
 			});
 	if (sync) {
-		__syncthreads();
+		__syncwarp();
 	}
 }
 
@@ -185,7 +185,7 @@ __device__ void store_matrix_sync(float* const ptr, fragment<nvcuda::wmma::accum
 				}
 			});
 	if (sync) {
-		__syncthreads();
+		__syncwarp();
 	}
 }
 
@@ -206,7 +206,7 @@ __device__ void store_matrix_sync_with_mul(float* const ptr, fragment<nvcuda::wm
 				}
 			});
 	if (sync) {
-		__syncthreads();
+		__syncwarp();
 	}
 }
 
