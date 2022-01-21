@@ -342,7 +342,6 @@ __device__ void mma_sync(
 
 	mtk::wmma::tcec::detail::mma_sync_wrapper<T, A_Layout, B_Layout, float, Policy> mma_op;
 
-	__syncwarp();
 	for (unsigned bm = 0; bm < num_m_block; bm++) {
 		for (unsigned bn = 0; bn < num_n_block; bn++) {
 			mma_op(
@@ -376,7 +375,6 @@ __device__ void mma_sync(
 	mtk::wmma::tcec::detail::mma_sync_wrapper<T, A_Layout, B_Layout, float, Policy> mma_op;
 	mtk::wmma::tcec::detail::fill_zero_wrapper<nvcuda::wmma::accumulator, float, void, Policy> zero_op;
 
-	__syncwarp();
 	for (unsigned bm = 0; bm < num_m_block; bm++) {
 		for (unsigned bn = 0; bn < num_n_block; bn++) {
 			zero_op(frag_d.sub_frag[bm + bn * num_m_block]);
