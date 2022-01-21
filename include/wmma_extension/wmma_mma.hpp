@@ -66,7 +66,7 @@ __device__ inline void load_matrix_sync(mtk::wmma::mma::fragment<Use, M, N, K, F
 			}
 		});
 	if (sync)
-		__syncthreads();
+		__syncwarp();
 }
 
 template <int M, int N, int K, class FT, class T>
@@ -83,7 +83,7 @@ __device__ inline void load_matrix_sync(mtk::wmma::mma::fragment<nvcuda::wmma::a
 			}
 		});
 	if (sync)
-		__syncthreads();
+		__syncwarp();
 }
 
 template <int M, int N, int K, class FT, class T>
@@ -100,7 +100,7 @@ __device__ inline void store_matrix_sync(T* const ptr, const mtk::wmma::mma::fra
 			}
 		});
 	if (sync)
-		__syncthreads();
+		__syncwarp();
 }
 
 // ------------------------------
@@ -160,7 +160,7 @@ __device__ inline void print_fragment(const mtk::wmma::mma::fragment<MatrixType,
 			}
 			printf("\n");
 		}
-		__syncthreads();
+		__syncwarp();
 	}
 }
 } // namespace mma
