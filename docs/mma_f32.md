@@ -1,8 +1,7 @@
 # WMMA Extension for single precision matmul using Tensor Cores and error correction technique (TCEC)
 
-## Correction tequnique
-See this slide page 9 [[slide](https://static.momo86.net/f/1/cse21-slide)].  
-Hiroyuki Ootomo, Rio Yokota. TSQR on TensorCores with error correction. SIAM CSE'21
+## Correction technique
+See [our paper](https://arxiv.org/abs/2203.03341).
 
 ## Requirements
 - CUDA
