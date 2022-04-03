@@ -310,8 +310,6 @@ __global__ void bgemm_kernel(
 				const auto a_dmem_offset = bm * lda + bk;
 				dmem2smem<SMEM_K, SMEM_M, BLOCK_SIZE>(a_smem + stage * SMEM_M * (SMEM_K + smem_skew), real_bk, real_bm, a_dmem + a_dmem_offset, lda);
 
-				cp_async_commit();
-
 				// Load B from global memory to shared memory
 				const auto b_dmem_offset = bn * ldb + bk;
 				dmem2smem<SMEM_K, SMEM_N, BLOCK_SIZE>(b_smem + stage * (SMEM_K + smem_skew) * SMEM_N, real_bk, real_bn, b_dmem + b_dmem_offset, ldb);
@@ -319,9 +317,10 @@ __global__ void bgemm_kernel(
 				cp_async_commit();
 
 				// MMA
-				cp_async_wait_group<2>();
+				cp_async_wait_group<1>();
 				__syncthreads();
 				mma_core<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy>(frag_c, a_smem + (1 - stage) * SMEM_M * (SMEM_K + smem_skew), b_smem + (1 - stage) * (SMEM_K + smem_skew) * SMEM_N);
+				__syncthreads();
 			} // loop bk
 
 			// MMA
