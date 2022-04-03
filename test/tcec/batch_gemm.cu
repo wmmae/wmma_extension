@@ -192,7 +192,7 @@ template <
 	class FRAGMENT_T,
 	class TC_Policy>
 __device__ void mma_core(
-		float* const c_smem,
+		mtk::wmma::tcec::fragment<nvcuda::wmma::accumulator, WARP_M, WARP_N, WARP_K, FRAGMENT_T, void, TC_Policy> frag_c[(SMEM_M * SMEM_N / (WARP_M * WARP_N)) / (BLOCK_SIZE / warp_size)],
 		float* const a_smem,
 		float* const b_smem
 		) {
@@ -214,11 +214,6 @@ __device__ void mma_core(
 		const auto b_smem_offset = wi_n * (SMEM_K + smem_skew) + 0;
 		mtk::wmma::tcec::load_matrix_sync(frag_b[0], b_smem + b_smem_offset, SMEM_K + smem_skew, false);
 
-		// Load C
-		mtk::wmma::tcec::fragment<nvcuda::wmma::accumulator, WARP_M, WARP_N, WARP_K, FRAGMENT_T, void, TC_Policy> frag_c;
-		const auto c_smem_offset = wi_m + wi_n * SMEM_M;
-		mtk::wmma::tcec::load_matrix_sync<nvcuda::wmma::col_major>(frag_c, c_smem + c_smem_offset, SMEM_M, false);
-
 		unsigned stage = 1;
 #pragma unroll
 		for (unsigned wi_k = WARP_K; wi_k < SMEM_K; wi_k += WARP_K) {
@@ -234,12 +229,11 @@ __device__ void mma_core(
 			stage = 1 - stage;
 
 			// mma
-			mtk::wmma::tcec::mma_sync(frag_c, frag_a[stage], frag_b[stage], frag_c);
+			mtk::wmma::tcec::mma_sync(frag_c[w / (BLOCK_SIZE / warp_size)], frag_a[stage], frag_b[stage], frag_c[w / (BLOCK_SIZE / warp_size)]);
 		}
 		stage = 1 - stage;
 		// mma
-		mtk::wmma::tcec::mma_sync(frag_c, frag_a[stage], frag_b[stage], frag_c);
-		mtk::wmma::tcec::store_matrix_sync<nvcuda::wmma::col_major>(c_smem + c_smem_offset, frag_c, SMEM_M, false);
+		mtk::wmma::tcec::mma_sync(frag_c[w / (BLOCK_SIZE / warp_size)], frag_a[stage], frag_b[stage], frag_c[w / (BLOCK_SIZE / warp_size)]);
 	}
 }
 
@@ -302,9 +296,11 @@ __global__ void bgemm_kernel(
 
 			cp_async_commit();
 
-			// Initialize C
-			float* const c_smem = b_smem + (SMEM_K + smem_skew) * SMEM_N * num_stages;
-			fill_zero<SMEM_M, SMEM_N, BLOCK_SIZE>(c_smem);
+
+			mtk::wmma::tcec::fragment<nvcuda::wmma::accumulator, WARP_M, WARP_N, WARP_K, FRAGMENT_T, void, TC_Policy> frag_c[(SMEM_M * SMEM_N / (WARP_M * WARP_N)) / (BLOCK_SIZE / warp_size)];
+			for (unsigned i = 0; i < (SMEM_M * SMEM_N / (WARP_M * WARP_N)) / (BLOCK_SIZE / warp_size); i++) {
+				mtk::wmma::tcec::fill_zero(frag_c[i]);
+			}
 
 			unsigned stage = 0;
 			for (unsigned bk = SMEM_K; bk < k; bk += SMEM_K) {
@@ -325,13 +321,22 @@ __global__ void bgemm_kernel(
 				// MMA
 				cp_async_wait_group<2>();
 				__syncthreads();
-				mma_core<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy>(c_smem, a_smem + (1 - stage) * SMEM_M * (SMEM_K + smem_skew), b_smem + (1 - stage) * (SMEM_K + smem_skew) * SMEM_N);
+				mma_core<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy>(frag_c, a_smem + (1 - stage) * SMEM_M * (SMEM_K + smem_skew), b_smem + (1 - stage) * (SMEM_K + smem_skew) * SMEM_N);
 			} // loop bk
 
 			// MMA
 			cp_async_wait_all();
 			__syncthreads();
-			mma_core<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy>(c_smem, a_smem + stage * SMEM_M * (SMEM_K + smem_skew), b_smem + stage * (SMEM_K + smem_skew) * SMEM_N);
+			mma_core<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy>(frag_c, a_smem + stage * SMEM_M * (SMEM_K + smem_skew), b_smem + stage * (SMEM_K + smem_skew) * SMEM_N);
+			__syncthreads();
+			float* const c_smem = smem;
+			for (unsigned i = 0; i < SMEM_M * SMEM_N / (WARP_M * WARP_N); i += (BLOCK_SIZE / warp_size)) {
+				const auto wi = i + threadIdx.x / warp_size;
+				const auto wi_m = (wi % (SMEM_M / WARP_M)) * WARP_M;
+				const auto wi_n = (wi / (SMEM_M / WARP_M)) * WARP_N;
+				const auto c_smem_offset = wi_m + wi_n * SMEM_M;
+				mtk::wmma::tcec::store_matrix_sync<nvcuda::wmma::col_major>(c_smem + c_smem_offset, frag_c[i / (BLOCK_SIZE / warp_size)], SMEM_M, false);
+			}
 			__syncthreads();
 
 			const auto c_dmem_offset = bm + bn * ldc;
@@ -365,7 +370,7 @@ void bgemm(
 		const unsigned batch_size
 		) {
 	// Set shared memory size
-	const auto shared_memory_size = ((SMEM_M * (SMEM_K + smem_skew) + SMEM_N * (SMEM_K + smem_skew)) * 2 + SMEM_M * SMEM_N) * sizeof(float);
+	const auto shared_memory_size = std::max((SMEM_M * (SMEM_K + smem_skew) + SMEM_N * (SMEM_K + smem_skew)) * 2, + SMEM_M * SMEM_N) * sizeof(float);
 	cudaFuncSetAttribute(&(bgemm_kernel<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, BLOCK_M_PER_MATRIX, BLOCK_N_PER_MATRIX, FRAGMENT_T, TC_Policy>), cudaFuncAttributeMaxDynamicSharedMemorySize, shared_memory_size);
 
 	// Launch
@@ -408,7 +413,7 @@ void test_batched_sgemm(
 	std::printf("%15s: %u\n", "Block size", BLOCK_SIZE);
 	std::printf("%15s: %u\n", "Batch size", batch_size);
 	std::printf("%15s: %e GiB\n", "Memory", static_cast<double>(1lu * (m * n + n * k + k * m) * batch_size * sizeof(float)) / (1lu << 30));
-	std::printf("%15s: %lu byte\n", "Shared memory", ((SMEM_M * (SMEM_K + smem_skew) + SMEM_N * (SMEM_K + smem_skew)) * 2 + SMEM_M * SMEM_N) * sizeof(float));
+	std::printf("%15s: %lu byte\n", "Shared memory", std::max((SMEM_M * (SMEM_K + smem_skew) + SMEM_N * (SMEM_K + smem_skew)) * 2, + SMEM_M * SMEM_N) * sizeof(float));
 	std::fflush(stdout);
 
 	using FRAGMENT_T = half;
