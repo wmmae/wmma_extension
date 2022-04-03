@@ -282,8 +282,6 @@ __global__ void bgemm_kernel(
 			// Load row major A using a loader for col major
 			dmem2smem<SMEM_K, SMEM_M, BLOCK_SIZE>(a_smem, real_bk, real_bm, a_dmem + a_dmem_offset, lda);
 
-			cp_async_commit();
-
 			// Load B from global memory to shared memory
 			const auto real_bn = min(SMEM_N, (blockIdx.z + 1) * n / BLOCK_N_PER_MATRIX - bn);
 			const auto b_dmem_offset = bn * ldb + bk;
@@ -295,7 +293,6 @@ __global__ void bgemm_kernel(
 			dmem2smem<SMEM_K, SMEM_N, BLOCK_SIZE>(b_smem, real_bk, real_bn, b_dmem + b_dmem_offset, ldb);
 
 			cp_async_commit();
-
 
 			mtk::wmma::tcec::fragment<nvcuda::wmma::accumulator, WARP_M, WARP_N, WARP_K, FRAGMENT_T, void, TC_Policy> frag_c[(SMEM_M * SMEM_N / (WARP_M * WARP_N)) / (BLOCK_SIZE / warp_size)];
 			for (unsigned i = 0; i < (SMEM_M * SMEM_N / (WARP_M * WARP_N)) / (BLOCK_SIZE / warp_size); i++) {
