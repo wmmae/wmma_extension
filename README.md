@@ -9,8 +9,9 @@ This extension provides features for
     - storing a fragment as a vector
 - making eye matrix fragment
 - C++ interface for `mma` instructions
-- Error Correction (TCEC) for single-precision emulation [[detail](./docs/mma_f32.md)]
+- Error Correction (TCEC) for SGEMM emulation [[detail](./docs/mma_f32.md)]
 - arithmetic operators for fragments (`+, -, *, /, fma`) [[detail](./docs/ops.md)]
+- utils [[detail](./docs/utils.md)]
 - etc
 
 without using extra shared memory.
