@@ -61,6 +61,9 @@ struct default_fragment<Use, T, Layout, Policy<op_mma , ErrorCorrection, fm, fn,
 };
 } // namespace detail
 
+template <class T, class ErrorCorrection = mtk::wmma::tcec::with_ec, class Op = mtk::wmma::tcec::op_wmma>
+using default_policy = detail::default_policy<T, ErrorCorrection, Op>;
+
 } // namespace tcec
 } // namespace wmma
 } // namespace mtk

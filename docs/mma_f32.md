@@ -58,7 +58,7 @@ __global__ void mma_kernel(float* const d_ptr, const float* const a_ptr, const f
 
 ## Fragment
 ```cpp
-template <class Use, int m, int n, int k, class T, class Layout = void, Policy = typename mtk::wmma::tcec::detail::default_policy<T>::type>
+template <class Use, int m, int n, int k, class T, class Layout = void, Policy = typename mtk::wmma::tcec::default_policy<T>::type>
 struct fragment;
 ```
 
@@ -66,7 +66,7 @@ struct fragment;
 `mtk::wmma::tcec::fragment` is a fragment for this computation.
 It contains arrays of `nvcuda::wmma::fragment`.
 - `m`, `n` and `k` have to be a multiple of `Policy::m`, `Policy::n` and `Policy::k` respectively.
-You can get a default policy by `mtk::wmma::tcec::detail::default_policy<T>::type`.
+You can get a default policy using `mtk::wmma::tcec::default_policy<T>::type`.
 - `k` has to be a multiple of 16 when `T` is `half` and 8 when `T` is `nvcuda::wmma::precision::tf32`.
 - `T` is `half` or `nvcuda::wmma::precision::tf32`. Unlike `nvcuda::wmma::fragment`, even if `Use` is `nvcuda::wmma::accumulator`, the same is true.
 - `Policy` is a concept of `mtk::wmma::tcec::Policy<Op, ErrorCorrection, fm, fn, fk>`.
@@ -77,7 +77,7 @@ You can get a default policy by `mtk::wmma::tcec::detail::default_policy<T>::typ
 ### Policy
 `default_policy` can make `Policy` easily.
 ```cuda
-using policy = mtk::wmma::tcec::detail::default_policy<half, mtk::wmma::tcec::with_ec, mtk::wmma::tcec::op_mma>::type;
+using policy = mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec, mtk::wmma::tcec::op_mma>::type;
 ```
 
 ## Supported fragment
@@ -114,7 +114,7 @@ This library provides fragments and functionf for mma operations using CUDA SIMT
 
 ### Policy
 ```cuda
-using simt_policy = typename mtk::wmma::tcec::detail::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type;
+using simt_policy = typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type;
 
 mtk::wmma::tcec::fragment<nvcuda::wmma::matrix_a, N, N, N, float, nvcuda::wmma::col_major, simt_policy> frag_a;
 ```
