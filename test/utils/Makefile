@@ -5,7 +5,7 @@ NVCCFLAGS=-std=c++17 -I$(ROOT_DIR) -arch=sm_$(TEST_ARCH) -DTEST_ARCH=$(TEST_ARCH
 HEADERS=$(shell find ../../include -name '*.hpp')
 
 TARGET=
-TARGET+=cast.test
+TARGET+=cast.test cp_async.test
 
 all: $(TARGET)
 
