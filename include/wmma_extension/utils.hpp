@@ -14,6 +14,12 @@ __device__ inline uint32_t get_smem_ptr_uint(const void* const ptr) {
 }
 } // namespace detail
 
+// cast
+template <class DST_T, class SRC_T>
+__device__ __host__ inline typename mtk::wmma::detail::common::storage_t<DST_T>::type cast(const SRC_T v) {
+	return mtk::wmma::detail::common::cast<DST_T>(v);
+}
+
 // async copy
 template <unsigned Size>
 __device__ inline void cp_async(void* const smem, const void* const gmem) {
