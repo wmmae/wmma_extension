@@ -21,6 +21,7 @@ __device__ __host__ inline typename mtk::wmma::detail::common::storage_t<DST_T>:
 }
 
 // async copy
+namespace cp_async {
 template <unsigned Size>
 __device__ inline void cp_async(void* const smem, const void* const gmem) {
 #if __CUDA_ARCH__ >= 800
@@ -52,7 +53,7 @@ __device__ inline void wait_group() {
 	asm volatile("{cp.async.wait_group %0;}":: "n"(N));
 #endif
 }
-
+} // namespace cp_async
 } // namespace utils
 } // namespace wmma
 } // namespace mtk
