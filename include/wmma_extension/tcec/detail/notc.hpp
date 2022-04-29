@@ -71,11 +71,11 @@ __device__ void load_matrix_sync(fragment<nvcuda::wmma::accumulator, m, n, k, T,
 	constexpr auto frag_m = mtk::wmma::tcec::detail::select_value<nvcuda::wmma::accumulator, Policy::m, Policy::k, Policy::m>::value;
 	constexpr auto frag_n = mtk::wmma::tcec::detail::select_value<nvcuda::wmma::accumulator, Policy::k, Policy::n, Policy::n>::value;
 
-	mtk::wmma::tcec::detail::foreach_wrapper<nvcuda::wmma::accumulator, T, void, Policy>{}(layout,
-			[&](const unsigned frag_index_list[], const unsigned frag_index_count, const unsigned mem_index) {
+	mtk::wmma::tcec::detail::foreach_ij_wrapper<nvcuda::wmma::accumulator, float, void, Policy>{}(layout,
+			[&](const unsigned frag_index_list[], const unsigned frag_index_count, const unsigned i, const unsigned j) {
 				for (unsigned bm = 0; bm < frag.num_sub_frag_m; bm++) {
 					for (unsigned bn = 0; bn < frag.num_sub_frag_n; bn++) {
-						const auto mem_offset = mtk::wmma::tcec::detail::compute_mem_offset<frag_m, frag_n, MatrixLayout>{}(mem_index, ldm, bm * frag_m, bn * frag_n);
+						const auto mem_offset = mtk::wmma::tcec::detail::compute_mem_offset<frag_m, frag_n, MatrixLayout>{}(i, j, ldm, bm * frag_m, bn * frag_n);
 						const auto v = ptr[mem_offset];
 						const auto hv = mtk::wmma::detail::common::cast<T>(v);
 						for (unsigned i = 0; i < frag_index_count; i++) {
@@ -105,11 +105,11 @@ __device__ void load_matrix_sync(fragment<Use, m, n, k, T, Layout, mtk::wmma::tc
 	constexpr auto frag_m = mtk::wmma::tcec::detail::select_value<Use, Policy::m, Policy::k, Policy::m>::value;
 	constexpr auto frag_n = mtk::wmma::tcec::detail::select_value<Use, Policy::k, Policy::n, Policy::n>::value;
 
-	mtk::wmma::tcec::detail::foreach_wrapper<Use, T, Layout, Policy>{}(
-			[&](const unsigned frag_index_list[], const unsigned frag_index_count, const unsigned mem_index) {
+	mtk::wmma::tcec::detail::foreach_ij_wrapper<Use, T, Layout, Policy>{}(
+			[&](const unsigned frag_index_list[], const unsigned frag_index_count, const unsigned i, const unsigned j) {
 				for (unsigned bm = 0; bm < frag.num_sub_frag_m; bm++) {
 					for (unsigned bn = 0; bn < frag.num_sub_frag_n; bn++) {
-						const auto mem_offset = mtk::wmma::tcec::detail::compute_mem_offset<frag_m, frag_n, MatrixLayout>{}(mem_index, ldm, bm * frag_m, bn * frag_n);
+						const auto mem_offset = mtk::wmma::tcec::detail::compute_mem_offset<frag_m, frag_n, MatrixLayout>{}(i, j, ldm, bm * frag_m, bn * frag_n);
 						const auto v = ptr[mem_offset];
 						const auto hv = mtk::wmma::detail::common::cast<T>(v);
 						for (unsigned i = 0; i < frag_index_count; i++) {
