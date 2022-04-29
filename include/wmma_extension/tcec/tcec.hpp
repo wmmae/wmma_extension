@@ -82,17 +82,17 @@ __device__ void fill_zero(fragment<Use, m, n, k, T, Layout, mtk::wmma::tcec::Pol
 }
 
 // Load matrix
-template <class Layout, int m, int n, int k, class T, class Op, int fm, int fn, int fk>
+template <class MatrixLayout, int m, int n, int k, class T, class Op, int fm, int fn, int fk>
 __device__ void load_matrix_sync(fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::with_ec, fm, fn, fk>>& frag, const float* const ptr, const unsigned ldm, const bool sync = true) {
 	using Policy = mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::with_ec, fm, fn, fk>;
 	constexpr auto frag_m = mtk::wmma::tcec::detail::select_value<nvcuda::wmma::accumulator, Policy::m, Policy::k, Policy::m>::value;
 	constexpr auto frag_n = mtk::wmma::tcec::detail::select_value<nvcuda::wmma::accumulator, Policy::k, Policy::n, Policy::n>::value;
 
-	mtk::wmma::tcec::detail::foreach_ij_wrapper<nvcuda::wmma::accumulator, float, void, Policy>{}(std::is_same<Layout, nvcuda::wmma::col_major>::value ? nvcuda::wmma::mem_col_major : nvcuda::wmma::mem_row_major,
+	mtk::wmma::tcec::detail::foreach_ij_wrapper<nvcuda::wmma::accumulator, float, void, Policy>{}(std::is_same<MatrixLayout, nvcuda::wmma::col_major>::value ? nvcuda::wmma::mem_col_major : nvcuda::wmma::mem_row_major,
 			[&](const unsigned frag_index_list[], const unsigned frag_index_count, const unsigned i, const unsigned j) {
 				for (unsigned bm = 0; bm < frag.num_sub_frag_m; bm++) {
 					for (unsigned bn = 0; bn < frag.num_sub_frag_n; bn++) {
-						const auto mem_offset = mtk::wmma::tcec::detail::compute_mem_offset<frag_m, frag_n, Layout>{}(i, j, ldm, bm * frag_m, bn * frag_n);
+						const auto mem_offset = mtk::wmma::tcec::detail::compute_mem_offset<frag_m, frag_n, MatrixLayout>{}(i, j, ldm, bm * frag_m, bn * frag_n);
 						const auto frag_index = frag_index_list[0];
 						frag.sub_frag  [bm + frag.num_sub_frag_m * bn].x[frag_index] = ptr[mem_offset];
 						frag.sub_d_frag[bm + frag.num_sub_frag_m * bn].x[frag_index] = 0.f;
@@ -113,7 +113,7 @@ __device__ void load_matrix_sync(fragment<nvcuda::wmma::accumulator, m, n, k, T,
 	}
 }
 
-template <class Use, int m, int n, int k, class T, class Layout, class Op, int fm, int fn, int fk>
+template <class MatrixLayout, class Use, int m, int n, int k, class T, class Layout, class Op, int fm, int fn, int fk>
 __device__ void load_matrix_sync(fragment<Use, m, n, k, T, Layout, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::with_ec, fm, fn, fk>>& frag, const float* const ptr, const unsigned ldm, const bool sync = true) {
 	using Policy = mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::with_ec, fm, fn, fk>;
 	constexpr auto frag_m = mtk::wmma::tcec::detail::select_value<Use, Policy::m, Policy::k, Policy::m>::value;
@@ -123,7 +123,7 @@ __device__ void load_matrix_sync(fragment<Use, m, n, k, T, Layout, mtk::wmma::tc
 			[&](const unsigned frag_index_list[], const unsigned frag_index_count, const unsigned i, const unsigned j) {
 				for (unsigned bm = 0; bm < frag.num_sub_frag_m; bm++) {
 					for (unsigned bn = 0; bn < frag.num_sub_frag_n; bn++) {
-						const auto mem_offset = mtk::wmma::tcec::detail::compute_mem_offset<frag_m, frag_n, Layout>{}(i, j, ldm, bm * frag_m, bn * frag_n);
+						const auto mem_offset = mtk::wmma::tcec::detail::compute_mem_offset<frag_m, frag_n, MatrixLayout>{}(i, j, ldm, bm * frag_m, bn * frag_n);
 						const auto v = ptr[mem_offset];
 						const auto hv = mtk::wmma::detail::common::cast<T>(v);
 						const auto dhv = mtk::wmma::detail::common::cast<T>(detail::correction_scale_0<T>(v - mtk::wmma::detail::common::cast<float>(hv)));
@@ -140,7 +140,7 @@ __device__ void load_matrix_sync(fragment<Use, m, n, k, T, Layout, mtk::wmma::tc
 	}
 }
 
-template <class Use, int m, int n, int k, class T, class Layout, class Op, int fm, int fn, int fk>
+template <class MatrixLayout, class Use, int m, int n, int k, class T, class Layout, class Op, int fm, int fn, int fk>
 __device__ void load_matrix_sync_with_mul(fragment<Use, m, n, k, T, Layout, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::with_ec, fm, fn, fk>>& frag, const float* const ptr, const unsigned ldm, const float mul, const bool sync = true) {
 	using Policy = mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::with_ec, fm, fn, fk>;
 	constexpr auto frag_m = mtk::wmma::tcec::detail::select_value<Use, Policy::m, Policy::k, Policy::m>::value;
@@ -150,7 +150,7 @@ __device__ void load_matrix_sync_with_mul(fragment<Use, m, n, k, T, Layout, mtk:
 			[&](const unsigned frag_index_list[], const unsigned frag_index_count, const unsigned i, const unsigned j) {
 				for (unsigned bm = 0; bm < frag.num_sub_frag_m; bm++) {
 					for (unsigned bn = 0; bn < frag.num_sub_frag_n; bn++) {
-						const auto mem_offset = mtk::wmma::tcec::detail::compute_mem_offset<frag_m, frag_n, Layout>{}(i, j, ldm, bm * frag_m, bn * frag_n);
+						const auto mem_offset = mtk::wmma::tcec::detail::compute_mem_offset<frag_m, frag_n, MatrixLayout>{}(i, j, ldm, bm * frag_m, bn * frag_n);
 						const auto v = ptr[mem_offset] * mul;
 						const auto hv = mtk::wmma::detail::common::cast<T>(v);
 						const auto dhv = mtk::wmma::detail::common::cast<T>(detail::correction_scale_0<T>(v - mtk::wmma::detail::common::cast<float>(hv)));
@@ -165,6 +165,16 @@ __device__ void load_matrix_sync_with_mul(fragment<Use, m, n, k, T, Layout, mtk:
 	if (sync) {
 		__syncwarp();
 	}
+}
+
+template <class Use, int m, int n, int k, class T, class Layout, class Op, int fm, int fn, int fk>
+__device__ void load_matrix_sync(fragment<Use, m, n, k, T, Layout, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::with_ec, fm, fn, fk>>& frag, const float* const ptr, const unsigned ldm, const bool sync = true) {
+	load_matrix_sync<Layout>(frag, ptr, ldm, sync);
+}
+
+template <class Use, int m, int n, int k, class T, class Layout, class Op, int fm, int fn, int fk>
+__device__ void load_matrix_sync_with_mul(fragment<Use, m, n, k, T, Layout, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::with_ec, fm, fn, fk>>& frag, const float* const ptr, const unsigned ldm, const float mul, const bool sync = true) {
+	load_matrix_sync_with_mul<Layout>(frag, ptr, ldm, mul, sync);
 }
 
 // Store matrix
