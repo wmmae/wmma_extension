@@ -104,6 +104,17 @@ using policy = mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec, m
 - `mtk::wmma::tcec::store_vector`
 - `mtk::wmma::tcec::fill_zero`
 
+### Note
+While some `fragment` only supports either `row` or `col`, `load_matrix_sync` function can load both memory layout matrices using an additional template parameter.
+
+```cpp
+// e.g.
+using policy = mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec, mtk::wmma::tcec::op_mma>::type;
+mtk::wmma::tcec::fragment<nvcuda::wmma::matrix_a, 32, 32, 32, half, nvcuda::wmma::row_major, policy> frag_a;
+
+mtk::wmma::tcec::load_matrix_sync<nvcuda::wmma::col_major>(frag_a, matrix_ptr, ldm);
+```
+
 ## SIMT Core computation
 
 This library provides fragments and functionf for mma operations using CUDA SIMT Core with the same API as WMMA API.
