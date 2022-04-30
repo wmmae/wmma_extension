@@ -61,8 +61,8 @@ struct fragment {
 };
 
 template <class Use, int m, int n, int k, class T, class Layout, class Op, int fm, int fn, int fk>
-fragment<Use, m, n, k, T, Layout, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::with_ec, fm, fn, fk>> neg(
-		fragment<Use, m, n, k, T, Layout, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::with_ec, fm, fn, fk>>& frag
+__device__ fragment<Use, m, n, k, T, Layout, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::with_ec, fm, fn, fk>> neg(
+		const fragment<Use, m, n, k, T, Layout, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::with_ec, fm, fn, fk>>& frag
 		) {
 	fragment<Use, m, n, k, T, Layout, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::with_ec, fm, fn, fk>> res;
 	for (unsigned i = 0; i < res.num_elements; i++) {
