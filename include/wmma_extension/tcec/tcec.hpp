@@ -61,6 +61,18 @@ struct fragment {
 };
 
 template <class Use, int m, int n, int k, class T, class Layout, class Op, int fm, int fn, int fk>
+fragment<Use, m, n, k, T, Layout, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::with_ec, fm, fn, fk>> neg(
+		fragment<Use, m, n, k, T, Layout, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::with_ec, fm, fn, fk>>& frag
+		) {
+	fragment<Use, m, n, k, T, Layout, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::with_ec, fm, fn, fk>> res;
+	for (unsigned i = 0; i < res.num_elements; i++) {
+		res.x(i)  = -frag.x(i);
+		res.dx(i) = -frag.dx(i);
+	}
+	return res;
+}
+
+template <class Use, int m, int n, int k, class T, class Layout, class Op, int fm, int fn, int fk>
 __device__ void fill_fragment(fragment<Use, m, n, k, T, Layout, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::with_ec, fm, fn, fk>>& frag, const typename mtk::wmma::detail::common::storage_t<typename mtk::wmma::tcec::detail::sub_frag_t<Use, T>::type>::type v) {
 	using Policy = mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::with_ec, fm, fn, fk>;
 	using sub_frag_t = typename mtk::wmma::tcec::detail::sub_frag_t<Use, T>::type;
