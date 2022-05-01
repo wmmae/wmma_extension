@@ -55,7 +55,7 @@ template <unsigned N, class T, class A_Layout, class B_Layout, class MEM_A_Layou
 __global__ void mma_kernel_abd(cuComplex* const d_ptr, const cuComplex* const a_ptr, const cuComplex* const b_ptr, const nvcuda::wmma::layout_t c_layout) {
 	constexpr unsigned LD = N;
 	__shared__ cuComplex smem[N * LD];
-	mtk::test_utils::fill_zero(smem, N * LD * 2);
+	mtk::test_utils::fill_zero(smem, N * LD);
 
 	mtk::wmma::tcec::fragment_complex<nvcuda::wmma::matrix_a   , N, N, N, T, A_Layout, Policy> frag_a;
 	mtk::wmma::tcec::fragment_complex<nvcuda::wmma::matrix_b   , N, N, N, T, B_Layout, Policy> frag_b;
@@ -155,6 +155,7 @@ void test_mma(const nvcuda::wmma::layout_t cd_layout) {
 			max_error,
 			(max_error < error_threshold<T, typename Policy::error_correction> ? "PASSED" : "FAILED")
 			);
+	std::fflush(stdout);
 
 	cudaFreeHost(hA);
 	cudaFreeHost(hB);
