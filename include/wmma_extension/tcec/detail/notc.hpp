@@ -172,7 +172,7 @@ __device__ void load_matrix_sync_with_mul(fragment<Use, m, n, k, T, Layout, mtk:
 
 // Store matrix
 template <class MatrixLayout, int m, int n, int k, class T, int fm, int fn, int fk>
-__device__ void store_matrix_sync(float* const ptr, fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_simt, mtk::wmma::tcec::without_ec, fm, fn, fk>> frag, const unsigned ldm, const nvcuda::wmma::layout_t layout, const bool sync = true) {
+__device__ void store_matrix_sync(float* const ptr, fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_simt, mtk::wmma::tcec::without_ec, fm, fn, fk>> frag, const unsigned ldm, const bool sync = true) {
 	using Policy = mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_simt, mtk::wmma::tcec::without_ec, fm, fn, fk>;
 	constexpr auto frag_m = mtk::wmma::tcec::detail::select_value<nvcuda::wmma::accumulator, Policy::m, Policy::k, Policy::m>::value;
 	constexpr auto frag_n = mtk::wmma::tcec::detail::select_value<nvcuda::wmma::accumulator, Policy::k, Policy::n, Policy::n>::value;
@@ -194,9 +194,9 @@ __device__ void store_matrix_sync(float* const ptr, fragment<nvcuda::wmma::accum
 template <int m, int n, int k, class T, int fm, int fn, int fk>
 __device__ void store_matrix_sync(float* const ptr, fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_simt, mtk::wmma::tcec::without_ec, fm, fn, fk>> frag, const unsigned ldm, const nvcuda::wmma::layout_t layout, const bool sync = true) {
 	if (layout == nvcuda::wmma::mem_col_major) {
-		store_matrix_sync<nvcuda::wmma::col_major>(ptr, frag, ldm, layout, sync);
+		store_matrix_sync<nvcuda::wmma::col_major>(ptr, frag, ldm, sync);
 	} else {
-		store_matrix_sync<nvcuda::wmma::row_major>(ptr, frag, ldm, layout, sync);
+		store_matrix_sync<nvcuda::wmma::row_major>(ptr, frag, ldm, sync);
 	}
 }
 
