@@ -129,3 +129,19 @@ using simt_policy = typename mtk::wmma::tcec::default_policy<float, mtk::wmma::t
 
 mtk::wmma::tcec::fragment<nvcuda::wmma::matrix_a, N, N, N, float, nvcuda::wmma::col_major, simt_policy> frag_a;
 ```
+
+## Complex type
+```cuda
+mtk::wmma::tcec::fragment_complex<nvcuda::wmma::matrix_a, N, N, N, float, nvcuda::wmma::col_major> frag_a;
+// or
+using policy = typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type;
+mtk::wmma::tcec::fragment_complex<nvcuda::wmma::matrix_a, N, N, N, float, nvcuda::wmma::col_major, policy> frag_a;
+```
+
+### Supported functions
+- `mtk::wmma::tcec::fill_fragment`
+- `mtk::wmma::tcec::load_matrix_sync`
+- `mtk::wmma::tcec::store_matrix_sync`
+- `mtk::wmma::tcec::mma_sync`
+
+See [test code](../test/tcec/mma_complex.cu) for more detail.
