@@ -20,7 +20,7 @@ ifeq ($(TEST_SIMT), YES)
 NVCCFLAGS+=-DTEST_SIMT
 endif
 
-TARGET=mma.test elementwise.test vector.test matvec.test batch_gemm.test
+TARGET=mma.test elementwise.test vector.test matvec.test batch_gemm.test mma_complex.test
 
 all: $(TARGET)
 

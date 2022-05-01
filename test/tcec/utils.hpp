@@ -1,6 +1,7 @@
 #ifndef __HMMA_F32_F32_TEST_UTILS_HPP__
 #define __HMMA_F32_F32_TEST_UTILS_HPP__
 #include <cuda_fp16.h>
+#include <cuComplex.h>
 #include <string>
 #include <sstream>
 #include <stdexcept>
@@ -44,9 +45,10 @@ template <> std::string to_string<mtk::wmma::tcec::op_simt  >(){return "op_simt"
 
 constexpr unsigned warp_size = 32;
 
+template <class T>
 __device__ void copy_matrix(
-		float* const dst, const unsigned ldd,
-		const float* const src, const unsigned lds,
+		T* const dst, const unsigned ldd,
+		const T* const src, const unsigned lds,
 		const unsigned m, const unsigned n) {
 	for (unsigned i = 0; i < m * n; i += warp_size) {
 		const auto j = i + threadIdx.x;
@@ -62,6 +64,15 @@ __device__ void fill_zero(float* const dst, const unsigned size) {
 		const auto j = i + threadIdx.x;
 		if (j >= size) return;
 		dst[j] = 0.0f;
+	}
+}
+
+__device__ void fill_zero(cuComplex* const dst, const unsigned size) {
+	for (unsigned i = 0; i < size; i += warp_size) {
+		const auto j = i + threadIdx.x;
+		if (j >= size) return;
+		dst[j].x = 0.0f;
+		dst[j].y = 0.0f;
 	}
 }
 }
