@@ -249,6 +249,9 @@ template <
 	unsigned BLOCK_SIZE,
 	unsigned BLOCK_M_PER_MATRIX,
 	unsigned BLOCK_N_PER_MATRIX,
+	unsigned NUM_UNROLLINGS_BM,
+	unsigned NUM_UNROLLINGS_BN,
+	unsigned NUM_UNROLLINGS,
 	class FRAGMENT_T,
 	class TC_Policy>
 __global__ void bgemm_kernel(
@@ -265,9 +268,9 @@ __global__ void bgemm_kernel(
 	// Sharedm memory
 	extern __shared__ float smem[];
 
-#pragma unroll 4
+#pragma unroll NUM_UNROLLINGS_BN
 	for (unsigned bn = blockIdx.z * n / BLOCK_N_PER_MATRIX; bn < (blockIdx.z + 1) * n / BLOCK_N_PER_MATRIX; bn += SMEM_N) {
-#pragma unroll 4
+#pragma unroll NUM_UNROLLINGS_BM
 		for (unsigned bm = blockIdx.y * m / BLOCK_M_PER_MATRIX; bm < (blockIdx.y + 1) * m / BLOCK_M_PER_MATRIX; bm += SMEM_M) {
 			constexpr unsigned bk = 0;
 
@@ -300,6 +303,7 @@ __global__ void bgemm_kernel(
 			}
 
 			unsigned stage = 0;
+#pragma unroll NUM_UNROLLINGS
 			for (unsigned bk = SMEM_K; bk < k; bk += SMEM_K) {
 				stage = 1 - stage;
 
@@ -352,6 +356,9 @@ template <
 	unsigned BLOCK_SIZE,
 	unsigned BLOCK_M_PER_MATRIX,
 	unsigned BLOCK_N_PER_MATRIX,
+	unsigned NUM_UNROLLINGS_BM,
+	unsigned NUM_UNROLLINGS_BN,
+	unsigned NUM_UNROLLINGS,
 	class FRAGMENT_T,
 	class TC_Policy>
 void bgemm(
@@ -367,11 +374,11 @@ void bgemm(
 		) {
 	// Set shared memory size
 	const auto shared_memory_size = std::max((SMEM_M * (SMEM_K + smem_skew) + SMEM_N * (SMEM_K + smem_skew)) * 2, + SMEM_M * SMEM_N) * sizeof(float);
-	cudaFuncSetAttribute(&(bgemm_kernel<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, BLOCK_M_PER_MATRIX, BLOCK_N_PER_MATRIX, FRAGMENT_T, TC_Policy>), cudaFuncAttributeMaxDynamicSharedMemorySize, shared_memory_size);
+	cudaFuncSetAttribute(&(bgemm_kernel<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, BLOCK_M_PER_MATRIX, BLOCK_N_PER_MATRIX, NUM_UNROLLINGS_BM, NUM_UNROLLINGS_BN, NUM_UNROLLINGS, FRAGMENT_T, TC_Policy>), cudaFuncAttributeMaxDynamicSharedMemorySize, shared_memory_size);
 
 	// Launch
 	const dim3 grid_size(batch_size, BLOCK_M_PER_MATRIX, BLOCK_N_PER_MATRIX);
-	bgemm_kernel<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, BLOCK_M_PER_MATRIX, BLOCK_N_PER_MATRIX, FRAGMENT_T, TC_Policy><<<grid_size, BLOCK_SIZE, shared_memory_size>>>(
+	bgemm_kernel<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, BLOCK_M_PER_MATRIX, BLOCK_N_PER_MATRIX, NUM_UNROLLINGS_BM, NUM_UNROLLINGS_BN, NUM_UNROLLINGS, FRAGMENT_T, TC_Policy><<<grid_size, BLOCK_SIZE, shared_memory_size>>>(
 			m, n, k,
 			alpha,
 			a_ptr, lda,
@@ -390,7 +397,10 @@ template <
 	unsigned WARP_K,
 	unsigned BLOCK_SIZE,
 	unsigned BLOCK_M_PER_MATRIX,
-	unsigned BLOCK_N_PER_MATRIX
+	unsigned BLOCK_N_PER_MATRIX,
+	unsigned NUM_UNROLLINGS_BM,
+	unsigned NUM_UNROLLINGS_BN,
+	unsigned NUM_UNROLLINGS
 >
 void test_batched_sgemm(
 		const unsigned m,
@@ -463,7 +473,7 @@ void test_batched_sgemm(
 	WMMAE_CUDA_CHECK_ERROR(cudaMemcpy(d_c_ptr_array, h_c_ptr_array, sizeof(float*) * batch_size, cudaMemcpyDefault));
 
 	WMMAE_CUDA_CHECK_ERROR(cudaDeviceSynchronize());
-	bgemm<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, BLOCK_M_PER_MATRIX, BLOCK_N_PER_MATRIX, FRAGMENT_T, TC_Policy>(
+	bgemm<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, BLOCK_M_PER_MATRIX, BLOCK_N_PER_MATRIX, NUM_UNROLLINGS_BM, NUM_UNROLLINGS_BN, NUM_UNROLLINGS, FRAGMENT_T, TC_Policy>(
 			m, n, k,
 			1.f,
 			d_a_ptr_array, k,
@@ -505,14 +515,14 @@ void test_batched_sgemm(
 
 	WMMAE_CUDA_CHECK_ERROR(cudaDeviceSynchronize());
 	// evaluation of computing performance
-	constexpr unsigned test_count = 1lu << 8;
+	constexpr unsigned test_count = 1lu << 5;
 
 	{
 		WMMAE_CUDA_CHECK_ERROR(cudaDeviceSynchronize());
 		// evaluation of computing performance
 		const auto start_clock = std::chrono::system_clock::now();
 		for (unsigned c = 0; c < test_count; c++) {
-		bgemm<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, BLOCK_M_PER_MATRIX, BLOCK_N_PER_MATRIX, FRAGMENT_T, TC_Policy>(
+		bgemm<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, BLOCK_M_PER_MATRIX, BLOCK_N_PER_MATRIX, NUM_UNROLLINGS_BM, NUM_UNROLLINGS_BN, NUM_UNROLLINGS, FRAGMENT_T, TC_Policy>(
 					m, n, k,
 					1.f,
 					d_a_ptr_array, k,
@@ -584,5 +594,5 @@ int main() {
 	constexpr unsigned n = 1024;
 	constexpr unsigned k = 1024;
 	constexpr unsigned batch_size = 256;
-	test_batched_sgemm<64, 128, 64, 64, 32, 64, 128, 8, 8>(m, n, k, batch_size);
+	test_batched_sgemm<64, 128, 64, 64, 32, 64, 128, 4, 4, 1, 1, 1>(m, n, k, batch_size);
 }
