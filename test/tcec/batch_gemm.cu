@@ -196,7 +196,7 @@ __device__ void mma_core(
 		float* const a_smem,
 		float* const b_smem
 		) {
-#pragma unroll
+#pragma unroll 2
 	for (unsigned w = 0; w < (SMEM_M * SMEM_N / (WARP_M * WARP_N)); w += BLOCK_SIZE / warp_size) {
 		const auto wi = w + threadIdx.x / warp_size;
 
@@ -215,7 +215,7 @@ __device__ void mma_core(
 		mtk::wmma::tcec::load_matrix_sync(frag_b[0], b_smem + b_smem_offset, SMEM_K + smem_skew, false);
 
 		unsigned stage = 1;
-#pragma unroll
+#pragma unroll 1
 		for (unsigned wi_k = WARP_K; wi_k < SMEM_K; wi_k += WARP_K) {
 
 			// Load A
@@ -301,7 +301,9 @@ __global__ void bgemm_kernel(
 			for (unsigned i = 0; i < (SMEM_M * SMEM_N / (WARP_M * WARP_N)) / (BLOCK_SIZE / warp_size); i++) {
 				mtk::wmma::tcec::fill_zero(frag_c[i]);
 			}
+			cp_async_wait_all();
 
+			__syncthreads();
 			unsigned stage = 0;
 #pragma unroll NUM_UNROLLINGS
 			for (unsigned bk = SMEM_K; bk < k; bk += SMEM_K) {
@@ -318,15 +320,12 @@ __global__ void bgemm_kernel(
 				cp_async_commit();
 
 				// MMA
-				cp_async_wait_group<1>();
-				__syncthreads();
 				mma_core<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy>(frag_c, a_smem + (1 - stage) * SMEM_M * (SMEM_K + smem_skew), b_smem + (1 - stage) * (SMEM_K + smem_skew) * SMEM_N);
+				cp_async_wait_all();
 				__syncthreads();
 			} // loop bk
 
 			// MMA
-			cp_async_wait_all();
-			__syncthreads();
 			mma_core<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, FRAGMENT_T, TC_Policy>(frag_c, a_smem + stage * SMEM_M * (SMEM_K + smem_skew), b_smem + stage * (SMEM_K + smem_skew) * SMEM_N);
 			__syncthreads();
 			float* const c_smem = smem;
@@ -594,5 +593,5 @@ int main() {
 	constexpr unsigned n = 1024;
 	constexpr unsigned k = 1024;
 	constexpr unsigned batch_size = 256;
-	test_batched_sgemm<64, 128, 64, 64, 32, 64, 128, 4, 4, 1, 1, 1>(m, n, k, batch_size);
+	test_batched_sgemm<128, 128, 64, 32, 32, 32, 128, 4, 4, 1, 1, 1>(m, n, k, batch_size);
 }
