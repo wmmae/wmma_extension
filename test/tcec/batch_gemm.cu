@@ -5,6 +5,8 @@
 #include <cublas_v2.h>
 #include "utils.hpp"
 
+#define TEST_CUBLAS
+
 namespace {
 constexpr unsigned warp_size = 32;
 constexpr uint32_t smem_skew = 8;
@@ -420,16 +422,6 @@ void test_batched_sgemm(
 	static_assert(SMEM_M * SMEM_N >= BLOCK_SIZE);
 	static_assert(SMEM_M * SMEM_K >= BLOCK_SIZE);
 	static_assert(SMEM_K * SMEM_N >= BLOCK_SIZE);
-	std::printf("!-- %s\n", __func__);
-	std::printf("%15s: (%u, %u, %u)\n", "Size", m, n, k);
-	std::printf("%15s: (%u, %u, %u)\n", "Smem size", SMEM_M, SMEM_N, SMEM_K);
-	std::printf("%15s: (%u, %u, %u)\n", "Warp size", WARP_M, WARP_N, WARP_K);
-	std::printf("%15s: (%u, %u)\n", "Grid YZ", BLOCK_M_PER_MATRIX, BLOCK_N_PER_MATRIX);
-	std::printf("%15s: %u\n", "Block size", BLOCK_SIZE);
-	std::printf("%15s: %u\n", "Batch size", batch_size);
-	std::printf("%15s: %e GiB\n", "Memory", static_cast<double>(1lu * (m * n + n * k + k * m) * batch_size * sizeof(float)) / (1lu << 30));
-	std::printf("%15s: %lu byte\n", "Shared memory", std::max((SMEM_M * (SMEM_K + smem_skew) + SMEM_N * (SMEM_K + smem_skew)) * 2, + SMEM_M * SMEM_N) * sizeof(float));
-	std::fflush(stdout);
 
 	using FRAGMENT_T = half;
 	using TC_Policy = mtk::wmma::tcec::detail::default_policy<FRAGMENT_T, mtk::wmma::tcec::with_ec, mtk::wmma::tcec::op_mma>::type;
@@ -547,11 +539,15 @@ void test_batched_sgemm(
 		const auto complexity = 2lu * static_cast<std::size_t>(m) * static_cast<std::size_t>(n) * static_cast<std::size_t>(k) * static_cast<std::size_t>(batch_size);
 		const auto performance = complexity / elapsed_time / (1e12);
 
-		std::printf("%15s: %e s\n", "Time", elapsed_time);
-		std::printf("%15s: %e TFlop/s\n", "Performance", performance);
-		std::printf("%15s: %e\n", "Error", std::sqrt(diff_norm / base_norm));
+		std::printf("wmmae,%u,%u,%u,%u,%e,%e\n",
+				m, n, k, batch_size,
+				std::sqrt(diff_norm / base_norm),
+				performance
+				);
+		std::fflush(stdout);
 	}
 	// cuBLAS
+#ifdef TEST_CUBLAS
 	{
 		cublasHandle_t cublas_handle;
 		cublasCreate(&cublas_handle);
@@ -578,10 +574,13 @@ void test_batched_sgemm(
 		const auto complexity = 2lu * static_cast<std::size_t>(m) * static_cast<std::size_t>(n) * static_cast<std::size_t>(k) * static_cast<std::size_t>(batch_size);
 		const auto performance = complexity / elapsed_time / (1e12);
 
-		std::printf("%15s: %e s (cuBLAS)\n", "Time", elapsed_time);
-		std::printf("%15s: %e TFlop/s (cuBLAS)\n", "Performance", performance);
-		cublasDestroy(cublas_handle);
+		std::printf("cublas,%u,%u,%u,%u,-,%e\n",
+				m, n, k, batch_size,
+				performance
+				);
+		std::fflush(stdout);
 	}
+#endif
 
 	// Free
 	for (unsigned i = 0; i < batch_size; i++) {
@@ -599,9 +598,11 @@ void test_batched_sgemm(
 } // noname napespace
 
 int main() {
-	constexpr unsigned m = 1024;
-	constexpr unsigned n = 1024;
-	constexpr unsigned k = 1024;
 	constexpr unsigned batch_size = 256;
-	test_batched_sgemm<128, 128, 64, 32, 32, 32, 128, 4, 4, 1, 1, 1>(m, n, k, batch_size);
+	std::printf("mode,m,n,k,batch_size,residual,throughput\n");
+	for (std::size_t m = 1u << 9; m <= (1u << 10); m <<= 1) {
+		for (std::size_t k = 1u << 7; k <= (1u << 14); k <<= 1) {
+			test_batched_sgemm<128, 128, 32, 32, 32, 32, 256, 4, 4, 1, 1, 1>(m, m, k, batch_size);
+		}
+	}
 }
