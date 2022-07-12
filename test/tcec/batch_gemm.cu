@@ -268,28 +268,36 @@ __global__ void bgemm_kernel(
 	// Sharedm memory
 	extern __shared__ float smem[];
 
+	const auto batch_id = blockIdx.x / (BLOCK_M_PER_MATRIX * BLOCK_N_PER_MATRIX);
+	const auto tid_in_batch = blockIdx.x % (BLOCK_M_PER_MATRIX * BLOCK_N_PER_MATRIX);
+	const auto m_id = tid_in_batch % BLOCK_M_PER_MATRIX;
+	const auto n_id = tid_in_batch / BLOCK_M_PER_MATRIX;
+
+
 #pragma unroll NUM_UNROLLINGS_BN
-	for (unsigned bn = blockIdx.z * n / BLOCK_N_PER_MATRIX; bn < (blockIdx.z + 1) * n / BLOCK_N_PER_MATRIX; bn += SMEM_N) {
+	for (unsigned bn = n_id * n / BLOCK_N_PER_MATRIX; bn < (n_id + 1) * n / BLOCK_N_PER_MATRIX; bn += SMEM_N) {
 #pragma unroll NUM_UNROLLINGS_BM
-		for (unsigned bm = blockIdx.y * m / BLOCK_M_PER_MATRIX; bm < (blockIdx.y + 1) * m / BLOCK_M_PER_MATRIX; bm += SMEM_M) {
+		for (unsigned bm = m_id * m / BLOCK_M_PER_MATRIX; bm < (m_id + 1) * m / BLOCK_M_PER_MATRIX; bm += SMEM_M) {
 			constexpr unsigned bk = 0;
 
 			// Load A from device memory to shared memory
-			const auto real_bm = min(SMEM_M, (blockIdx.y + 1) * m / BLOCK_M_PER_MATRIX - bm);
+			const auto real_bm = min(SMEM_M, (m_id + 1) * m / BLOCK_M_PER_MATRIX - bm);
 			const auto real_bk = min(SMEM_K, k - bk);
 			const auto a_dmem_offset = bm * lda + bk;
 			// Device memory A
-			const float* const a_dmem = a_ptr[blockIdx.x];
+			const float* const a_dmem = a_ptr[batch_id];
 			// Shared memory A
 			float* const a_smem = smem;
 			// Load row major A using a loader for col major
 			dmem2smem<SMEM_K, SMEM_M, BLOCK_SIZE>(a_smem, real_bk, real_bm, a_dmem + a_dmem_offset, lda);
 
+			cp_async_commit();
+
 			// Load B from global memory to shared memory
-			const auto real_bn = min(SMEM_N, (blockIdx.z + 1) * n / BLOCK_N_PER_MATRIX - bn);
+			const auto real_bn = min(SMEM_N, (n_id + 1) * n / BLOCK_N_PER_MATRIX - bn);
 			const auto b_dmem_offset = bn * ldb + bk;
 			// Device memory B
-			const float* const b_dmem = b_ptr[blockIdx.x];
+			const float* const b_dmem = b_ptr[batch_id];
 			// Shared memory B
 			float* const b_smem = a_smem + SMEM_M * (SMEM_K + smem_skew) * num_stages;
 			// Load col major A using a loader for col major
@@ -312,6 +320,8 @@ __global__ void bgemm_kernel(
 				// Load A from device memory to shared memory
 				const auto a_dmem_offset = bm * lda + bk;
 				dmem2smem<SMEM_K, SMEM_M, BLOCK_SIZE>(a_smem + stage * SMEM_M * (SMEM_K + smem_skew), real_bk, real_bm, a_dmem + a_dmem_offset, lda);
+
+				cp_async_commit();
 
 				// Load B from global memory to shared memory
 				const auto b_dmem_offset = bn * ldb + bk;
@@ -339,7 +349,7 @@ __global__ void bgemm_kernel(
 			__syncthreads();
 
 			const auto c_dmem_offset = bm + bn * ldc;
-			float* const c_dmem = c_ptr[blockIdx.x];
+			float* const c_dmem = c_ptr[batch_id];
 			smem2dmem<SMEM_M, SMEM_N, BLOCK_SIZE>(c_dmem + c_dmem_offset, ldc, real_bm, real_bn, c_smem, alpha, beta);
 		} // loop bn
 	} // loop bm
@@ -376,7 +386,7 @@ void bgemm(
 	cudaFuncSetAttribute(&(bgemm_kernel<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, BLOCK_M_PER_MATRIX, BLOCK_N_PER_MATRIX, NUM_UNROLLINGS_BM, NUM_UNROLLINGS_BN, NUM_UNROLLINGS, FRAGMENT_T, TC_Policy>), cudaFuncAttributeMaxDynamicSharedMemorySize, shared_memory_size);
 
 	// Launch
-	const dim3 grid_size(batch_size, BLOCK_M_PER_MATRIX, BLOCK_N_PER_MATRIX);
+	const dim3 grid_size(batch_size * BLOCK_M_PER_MATRIX * BLOCK_N_PER_MATRIX);
 	bgemm_kernel<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, BLOCK_M_PER_MATRIX, BLOCK_N_PER_MATRIX, NUM_UNROLLINGS_BM, NUM_UNROLLINGS_BN, NUM_UNROLLINGS, FRAGMENT_T, TC_Policy><<<grid_size, BLOCK_SIZE, shared_memory_size>>>(
 			m, n, k,
 			alpha,
