@@ -1,6 +1,8 @@
 #ifndef __MTK_HMMA_F32_F32_NO_COR_HPP__
 #define __MTK_HMMA_F32_F32_NO_COR_HPP__
 
+#include <type_traits>
+
 #include "common.hpp"
 #include "policy.hpp"
 #include "functions.hpp"
@@ -41,7 +43,8 @@ struct fragment <Use, m, n, k, T, Layout, mtk::wmma::tcec::Policy<Op, mtk::wmma:
 	__device__ void integrate() {}
 };
 
-template <class Use, int m, int n, int k, class T, class Layout, class Op, int fm, int fn, int fk>
+template <class Use, int m, int n, int k, class T, class Layout, class Op, int fm, int fn, int fk,
+				 typename std::enable_if<(std::is_same<Op, mtk::wmma::tcec::op_mma>::value || std::is_same<Op, mtk::wmma::tcec::op_wmma>::value), bool>::type = false>
 __device__ fragment<Use, m, n, k, T, Layout, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>> neg(
 		const fragment<Use, m, n, k, T, Layout, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag
 		) {
@@ -52,7 +55,8 @@ __device__ fragment<Use, m, n, k, T, Layout, mtk::wmma::tcec::Policy<Op, mtk::wm
 	return res;
 }
 
-template <class Use, int m, int n, int k, class T, class Layout, class Op, int fm, int fn, int fk>
+template <class Use, int m, int n, int k, class T, class Layout, class Op, int fm, int fn, int fk,
+				 typename std::enable_if<(std::is_same<Op, mtk::wmma::tcec::op_mma>::value || std::is_same<Op, mtk::wmma::tcec::op_wmma>::value), bool>::type = false>
 __device__ void fill_fragment(fragment<Use, m, n, k, T, Layout, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag, const typename mtk::wmma::detail::common::storage_t<typename mtk::wmma::tcec::detail::sub_frag_t<Use, T>::type>::type v) {
 	using Policy = mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>;
 	using sub_frag_t = typename mtk::wmma::tcec::detail::sub_frag_t<Use, T>::type;
@@ -64,7 +68,8 @@ __device__ void fill_fragment(fragment<Use, m, n, k, T, Layout, mtk::wmma::tcec:
 	}
 }
 
-template <class Use, int m, int n, int k, class T, class Layout, class Op, int fm, int fn, int fk>
+template <class Use, int m, int n, int k, class T, class Layout, class Op, int fm, int fn, int fk,
+				 typename std::enable_if<(std::is_same<Op, mtk::wmma::tcec::op_mma>::value || std::is_same<Op, mtk::wmma::tcec::op_wmma>::value), bool>::type = false>
 __device__ void fill_zero(fragment<Use, m, n, k, T, Layout, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag) {
 	using sub_frag_t = typename mtk::wmma::tcec::detail::sub_frag_t<Use, T>::type;
 	using Policy = mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>;
@@ -76,7 +81,8 @@ __device__ void fill_zero(fragment<Use, m, n, k, T, Layout, mtk::wmma::tcec::Pol
 }
 
 // Load matrix
-template <class MatrixLayout, int m, int n, int k, class T, class Op, int fm, int fn, int fk, class MEM_T>
+template <class MatrixLayout, int m, int n, int k, class T, class Op, int fm, int fn, int fk, class MEM_T,
+				 typename std::enable_if<(std::is_same<Op, mtk::wmma::tcec::op_mma>::value || std::is_same<Op, mtk::wmma::tcec::op_wmma>::value), bool>::type = false>
 __device__ void load_matrix_sync(fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag, const MEM_T* const ptr, const unsigned ldm, const nvcuda::wmma::layout_t layout, const bool sync = true) {
 	using Policy = mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>;
 	constexpr auto frag_m = mtk::wmma::tcec::detail::select_value<nvcuda::wmma::accumulator, Policy::m, Policy::k, Policy::m>::value;
@@ -101,7 +107,8 @@ __device__ void load_matrix_sync(fragment<nvcuda::wmma::accumulator, m, n, k, T,
 	}
 }
 
-template <int m, int n, int k, class T, class Op, int fm, int fn, int fk, class MEM_T>
+template <int m, int n, int k, class T, class Op, int fm, int fn, int fk, class MEM_T,
+				 typename std::enable_if<(std::is_same<Op, mtk::wmma::tcec::op_mma>::value || std::is_same<Op, mtk::wmma::tcec::op_wmma>::value), bool>::type = false>
 __device__ void load_matrix_sync(fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag, const MEM_T* const ptr, const unsigned ldm, const nvcuda::wmma::layout_t layout, const bool sync = true) {
 	if (layout == nvcuda::wmma::mem_col_major) {
 		load_matrix_sync<nvcuda::wmma::col_major>(frag, ptr, ldm, layout, sync);
@@ -110,7 +117,8 @@ __device__ void load_matrix_sync(fragment<nvcuda::wmma::accumulator, m, n, k, T,
 	}
 }
 
-template <class MatrixLayout, class Use, int m, int n, int k, class T, class Layout, class Op, int fm, int fn, int fk, class MEM_T>
+template <class MatrixLayout, class Use, int m, int n, int k, class T, class Layout, class Op, int fm, int fn, int fk, class MEM_T,
+				 typename std::enable_if<(std::is_same<Op, mtk::wmma::tcec::op_mma>::value || std::is_same<Op, mtk::wmma::tcec::op_wmma>::value), bool>::type = false>
 __device__ void load_matrix_sync(fragment<Use, m, n, k, T, Layout, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag, const MEM_T* const ptr, const unsigned ldm, const bool sync = true) {
 	using Policy = mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>;
 	constexpr auto frag_m = mtk::wmma::tcec::detail::select_value<Use, Policy::m, Policy::k, Policy::m>::value;
@@ -135,12 +143,14 @@ __device__ void load_matrix_sync(fragment<Use, m, n, k, T, Layout, mtk::wmma::tc
 	}
 }
 
-template <class Use, int m, int n, int k, class T, class Layout, class Op, int fm, int fn, int fk, class MEM_T>
+template <class Use, int m, int n, int k, class T, class Layout, class Op, int fm, int fn, int fk, class MEM_T,
+				 typename std::enable_if<(std::is_same<Op, mtk::wmma::tcec::op_mma>::value || std::is_same<Op, mtk::wmma::tcec::op_wmma>::value), bool>::type = false>
 __device__ void load_matrix_sync(fragment<Use, m, n, k, T, Layout, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag, const MEM_T* const ptr, const unsigned ldm, const bool sync = true) {
 	load_matrix_sync<Layout>(frag, ptr, ldm, sync);
 }
 
-template <class MatrixLayout, class Use, int m, int n, int k, class T, class Layout, class Op, int fm, int fn, int fk, class MEM_T>
+template <class MatrixLayout, class Use, int m, int n, int k, class T, class Layout, class Op, int fm, int fn, int fk, class MEM_T,
+				 typename std::enable_if<(std::is_same<Op, mtk::wmma::tcec::op_mma>::value || std::is_same<Op, mtk::wmma::tcec::op_wmma>::value), bool>::type = false>
 __device__ void load_matrix_sync_with_mul(fragment<Use, m, n, k, T, Layout, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag, const MEM_T* const ptr, const unsigned ldm, const MEM_T mul, const bool sync = true) {
 	using Policy = mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>;
 	constexpr auto frag_m = mtk::wmma::tcec::detail::select_value<Use, Policy::m, Policy::k, Policy::m>::value;
@@ -165,13 +175,15 @@ __device__ void load_matrix_sync_with_mul(fragment<Use, m, n, k, T, Layout, mtk:
 	}
 }
 
-template <class Use, int m, int n, int k, class T, class Layout, class Op, int fm, int fn, int fk, class MEM_T>
+template <class Use, int m, int n, int k, class T, class Layout, class Op, int fm, int fn, int fk, class MEM_T,
+				 typename std::enable_if<(std::is_same<Op, mtk::wmma::tcec::op_mma>::value || std::is_same<Op, mtk::wmma::tcec::op_wmma>::value), bool>::type = false>
 __device__ void load_matrix_sync(fragment<Use, m, n, k, T, Layout, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag, const MEM_T* const ptr, const unsigned ldm, const MEM_T mul, const bool sync = true) {
 	load_matrix_sync<Layout>(frag, ptr, ldm, mul, sync);
 }
 
 // Store matrix
-template <class MatrixLayout, int m, int n, int k, class T, class Op, int fm, int fn, int fk>
+template <class MatrixLayout, int m, int n, int k, class T, class Op, int fm, int fn, int fk,
+				 typename std::enable_if<(std::is_same<Op, mtk::wmma::tcec::op_mma>::value || std::is_same<Op, mtk::wmma::tcec::op_wmma>::value), bool>::type = false>
 __device__ void store_matrix_sync(float* const ptr, fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>> frag, const unsigned ldm, const bool sync = true) {
 	using Policy = mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>;
 	constexpr auto frag_m = mtk::wmma::tcec::detail::select_value<nvcuda::wmma::accumulator, Policy::m, Policy::k, Policy::m>::value;
@@ -191,8 +203,9 @@ __device__ void store_matrix_sync(float* const ptr, fragment<nvcuda::wmma::accum
 	}
 }
 
-template <int m, int n, int k, class T, class Op, int fm, int fn, int fk>
-__device__ void store_matrix_sync(float* const ptr, fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>> frag, const unsigned ldm, const nvcuda::wmma::layout_t layout, const bool sync = true) {
+template <int m, int n, int k, class T, class Op, int fm, int fn, int fk, class MEM_T,
+				 typename std::enable_if<(std::is_same<Op, mtk::wmma::tcec::op_mma>::value || std::is_same<Op, mtk::wmma::tcec::op_wmma>::value), bool>::type = false>
+__device__ void store_matrix_sync(MEM_T* const ptr, fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>> frag, const unsigned ldm, const nvcuda::wmma::layout_t layout, const bool sync = true) {
 	if (layout == nvcuda::wmma::mem_col_major) {
 		store_matrix_sync<nvcuda::wmma::col_major>(ptr, frag, ldm, sync);
 	} else {
@@ -200,10 +213,11 @@ __device__ void store_matrix_sync(float* const ptr, fragment<nvcuda::wmma::accum
 	}
 }
 
-template <class MatrixLayout, int m, int n, int k, class T, class Op, int fm, int fn, int fk>
-__device__ void store_matrix_sync_with_mul(float* const ptr,
+template <class MatrixLayout, int m, int n, int k, class T, class Op, int fm, int fn, int fk, class MEM_T,
+				 typename std::enable_if<(std::is_same<Op, mtk::wmma::tcec::op_mma>::value || std::is_same<Op, mtk::wmma::tcec::op_wmma>::value), bool>::type = false>
+__device__ void store_matrix_sync_with_mul(MEM_T* const ptr,
 		fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>> frag,
-		const unsigned ldm, const float mul, const bool sync = true) {
+		const unsigned ldm, const MEM_T mul, const bool sync = true) {
 	using Policy = mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>;
 	constexpr auto frag_m = mtk::wmma::tcec::detail::select_value<nvcuda::wmma::accumulator, Policy::m, Policy::k, Policy::m>::value;
 	constexpr auto frag_n = mtk::wmma::tcec::detail::select_value<nvcuda::wmma::accumulator, Policy::k, Policy::n, Policy::n>::value;
@@ -222,10 +236,11 @@ __device__ void store_matrix_sync_with_mul(float* const ptr,
 	}
 }
 
-template <int m, int n, int k, class T, class Op, int fm, int fn, int fk, class MEM_T>
-__device__ void store_matrix_sync_with_mul(float* const ptr,
+template <int m, int n, int k, class T, class Op, int fm, int fn, int fk, class MEM_T,
+				 typename std::enable_if<(std::is_same<Op, mtk::wmma::tcec::op_mma>::value || std::is_same<Op, mtk::wmma::tcec::op_wmma>::value), bool>::type = false>
+__device__ void store_matrix_sync_with_mul(MEM_T* const ptr,
 		fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>> frag,
-		const unsigned ldm, const float mul, const nvcuda::wmma::layout_t layout, const bool sync = true) {
+		const unsigned ldm, const MEM_T mul, const nvcuda::wmma::layout_t layout, const bool sync = true) {
 	if (layout == nvcuda::wmma::mem_col_major) {
 		store_matrix_sync<nvcuda::wmma::col_major>(ptr, frag, ldm, mul, sync);
 	} else {                                                
@@ -234,8 +249,9 @@ __device__ void store_matrix_sync_with_mul(float* const ptr,
 }
 
 // Load vector
-template <int m, int n, int k, class T, class Op, int fm, int fn, int fk>
-__device__ void load_vector(fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag, const float* const ptr, const nvcuda::wmma::layout_t layout) {
+template <int m, int n, int k, class T, class Op, int fm, int fn, int fk, class MEM_T,
+				 typename std::enable_if<(std::is_same<Op, mtk::wmma::tcec::op_mma>::value || std::is_same<Op, mtk::wmma::tcec::op_wmma>::value), bool>::type = false>
+__device__ void load_vector(fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag, const MEM_T* const ptr, const nvcuda::wmma::layout_t layout) {
 	using Policy = mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>;
 	constexpr auto frag_m = mtk::wmma::tcec::detail::select_value<nvcuda::wmma::accumulator, Policy::m, Policy::k, Policy::m>::value;
 	constexpr auto frag_n = mtk::wmma::tcec::detail::select_value<nvcuda::wmma::accumulator, Policy::k, Policy::n, Policy::n>::value;
@@ -251,7 +267,8 @@ __device__ void load_vector(fragment<nvcuda::wmma::accumulator, m, n, k, T, void
 	}
 }
 
-template <class Use, int m, int n, int k, class T, class Layout, class Op, int fm, int fn, int fk, class MEM_T>
+template <class Use, int m, int n, int k, class T, class Layout, class Op, int fm, int fn, int fk, class MEM_T,
+				 typename std::enable_if<(std::is_same<Op, mtk::wmma::tcec::op_mma>::value || std::is_same<Op, mtk::wmma::tcec::op_wmma>::value), bool>::type = false>
 __device__ void load_vector(fragment<Use, m, n, k, T, Layout, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag, const MEM_T* const ptr) {
 	using Policy = mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>;
 	constexpr auto frag_m = mtk::wmma::tcec::detail::select_value<Use, Policy::m, Policy::k, Policy::m>::value;
@@ -275,7 +292,8 @@ __device__ void load_vector(fragment<Use, m, n, k, T, Layout, mtk::wmma::tcec::P
 			});
 }
 
-template <class Use, int m, int n, int k, class T, class Layout, class Op, int fm, int fn, int fk, class MEM_T>
+template <class Use, int m, int n, int k, class T, class Layout, class Op, int fm, int fn, int fk, class MEM_T,
+				 typename std::enable_if<(std::is_same<Op, mtk::wmma::tcec::op_mma>::value || std::is_same<Op, mtk::wmma::tcec::op_wmma>::value), bool>::type = false>
 __device__ void load_vector(fragment<Use, m, n, k, T, Layout, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag, const MEM_T* const ptr, const float mul) {
 	using Policy = mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>;
 	constexpr auto frag_m = mtk::wmma::tcec::detail::select_value<Use, Policy::m, Policy::k, Policy::m>::value;
@@ -300,8 +318,9 @@ __device__ void load_vector(fragment<Use, m, n, k, T, Layout, mtk::wmma::tcec::P
 }
 
 // Store vector
-template <int m, int n, int k, class T, class Op, int fm, int fn, int fk>
-__device__ void store_vector(float* const ptr, fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag, const nvcuda::wmma::layout_t layout) {
+template <int m, int n, int k, class T, class Op, int fm, int fn, int fk, class MEM_T,
+				 typename std::enable_if<(std::is_same<Op, mtk::wmma::tcec::op_mma>::value || std::is_same<Op, mtk::wmma::tcec::op_wmma>::value), bool>::type = false>
+__device__ void store_vector(MEM_T* const ptr, fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag, const nvcuda::wmma::layout_t layout) {
 	using Policy = mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>;
 	constexpr auto frag_m = mtk::wmma::tcec::detail::select_value<nvcuda::wmma::accumulator, Policy::m, Policy::k, Policy::m>::value;
 	constexpr auto frag_n = mtk::wmma::tcec::detail::select_value<nvcuda::wmma::accumulator, Policy::k, Policy::n, Policy::n>::value;
@@ -333,8 +352,9 @@ __device__ void store_vector(float* const ptr, fragment<nvcuda::wmma::accumulato
 	}
 }
 
-template <int m, int n, int k, class T, class Op, int fm, int fn, int fk>
-__device__ void store_vector(float* const ptr, fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag, const float mul, const nvcuda::wmma::layout_t layout) {
+template <int m, int n, int k, class T, class Op, int fm, int fn, int fk, class MEM_T,
+				 typename std::enable_if<(std::is_same<Op, mtk::wmma::tcec::op_mma>::value || std::is_same<Op, mtk::wmma::tcec::op_wmma>::value), bool>::type = false>
+__device__ void store_vector(MEM_T* const ptr, fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag, const float mul, const nvcuda::wmma::layout_t layout) {
 	using Policy = mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>;
 	constexpr auto frag_m = mtk::wmma::tcec::detail::select_value<nvcuda::wmma::accumulator, Policy::m, Policy::k, Policy::m>::value;
 	constexpr auto frag_n = mtk::wmma::tcec::detail::select_value<nvcuda::wmma::accumulator, Policy::k, Policy::n, Policy::n>::value;
@@ -367,7 +387,8 @@ __device__ void store_vector(float* const ptr, fragment<nvcuda::wmma::accumulato
 }
 
 // mma
-template <int m, int n, int k, class A_Layout, class B_Layout, class T, class Op, int fm, int fn, int fk>
+template <int m, int n, int k, class A_Layout, class B_Layout, class T, class Op, int fm, int fn, int fk,
+				 typename std::enable_if<(std::is_same<Op, mtk::wmma::tcec::op_mma>::value || std::is_same<Op, mtk::wmma::tcec::op_wmma>::value), bool>::type = false>
 __device__ void mma_sync(
 		fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag_d,
 		const fragment<nvcuda::wmma::matrix_a, m, n, k, T, A_Layout, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag_a,
@@ -400,7 +421,8 @@ __device__ void mma_sync(
 	}
 }
 
-template <int m, int n, int k, class A_Layout, class B_Layout, class T, class Op, int fm, int fn, int fk>
+template <int m, int n, int k, class A_Layout, class B_Layout, class T, class Op, int fm, int fn, int fk,
+				 typename std::enable_if<(std::is_same<Op, mtk::wmma::tcec::op_mma>::value || std::is_same<Op, mtk::wmma::tcec::op_wmma>::value), bool>::type = false>
 __device__ void mma_sync(
 		fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag_d,
 		const fragment<nvcuda::wmma::matrix_a, m, n, k, T, A_Layout, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag_a,
