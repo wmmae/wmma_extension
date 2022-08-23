@@ -191,8 +191,8 @@ __device__ void store_matrix_sync(float* const ptr, fragment<nvcuda::wmma::accum
 	}
 }
 
-template <int m, int n, int k, class T, class Op, int fm, int fn, int fk>
-__device__ void store_matrix_sync(float* const ptr, fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>> frag, const unsigned ldm, const nvcuda::wmma::layout_t layout, const bool sync = true) {
+template <int m, int n, int k, class T, class Op, int fm, int fn, int fk, class MEM_T>
+__device__ void store_matrix_sync(MEM_T* const ptr, fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>> frag, const unsigned ldm, const nvcuda::wmma::layout_t layout, const bool sync = true) {
 	if (layout == nvcuda::wmma::mem_col_major) {
 		store_matrix_sync<nvcuda::wmma::col_major>(ptr, frag, ldm, sync);
 	} else {
@@ -200,10 +200,10 @@ __device__ void store_matrix_sync(float* const ptr, fragment<nvcuda::wmma::accum
 	}
 }
 
-template <class MatrixLayout, int m, int n, int k, class T, class Op, int fm, int fn, int fk>
-__device__ void store_matrix_sync_with_mul(float* const ptr,
+template <class MatrixLayout, int m, int n, int k, class T, class Op, int fm, int fn, int fk, class MEM_T>
+__device__ void store_matrix_sync_with_mul(MEM_T* const ptr,
 		fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>> frag,
-		const unsigned ldm, const float mul, const bool sync = true) {
+		const unsigned ldm, const MEM_T mul, const bool sync = true) {
 	using Policy = mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>;
 	constexpr auto frag_m = mtk::wmma::tcec::detail::select_value<nvcuda::wmma::accumulator, Policy::m, Policy::k, Policy::m>::value;
 	constexpr auto frag_n = mtk::wmma::tcec::detail::select_value<nvcuda::wmma::accumulator, Policy::k, Policy::n, Policy::n>::value;
@@ -223,9 +223,9 @@ __device__ void store_matrix_sync_with_mul(float* const ptr,
 }
 
 template <int m, int n, int k, class T, class Op, int fm, int fn, int fk, class MEM_T>
-__device__ void store_matrix_sync_with_mul(float* const ptr,
+__device__ void store_matrix_sync_with_mul(MEM_T* const ptr,
 		fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>> frag,
-		const unsigned ldm, const float mul, const nvcuda::wmma::layout_t layout, const bool sync = true) {
+		const unsigned ldm, const MEM_T mul, const nvcuda::wmma::layout_t layout, const bool sync = true) {
 	if (layout == nvcuda::wmma::mem_col_major) {
 		store_matrix_sync<nvcuda::wmma::col_major>(ptr, frag, ldm, mul, sync);
 	} else {                                                
@@ -234,8 +234,8 @@ __device__ void store_matrix_sync_with_mul(float* const ptr,
 }
 
 // Load vector
-template <int m, int n, int k, class T, class Op, int fm, int fn, int fk>
-__device__ void load_vector(fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag, const float* const ptr, const nvcuda::wmma::layout_t layout) {
+template <int m, int n, int k, class T, class Op, int fm, int fn, int fk, class MEM_T>
+__device__ void load_vector(fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag, const MEM_T* const ptr, const nvcuda::wmma::layout_t layout) {
 	using Policy = mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>;
 	constexpr auto frag_m = mtk::wmma::tcec::detail::select_value<nvcuda::wmma::accumulator, Policy::m, Policy::k, Policy::m>::value;
 	constexpr auto frag_n = mtk::wmma::tcec::detail::select_value<nvcuda::wmma::accumulator, Policy::k, Policy::n, Policy::n>::value;
@@ -300,8 +300,8 @@ __device__ void load_vector(fragment<Use, m, n, k, T, Layout, mtk::wmma::tcec::P
 }
 
 // Store vector
-template <int m, int n, int k, class T, class Op, int fm, int fn, int fk>
-__device__ void store_vector(float* const ptr, fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag, const nvcuda::wmma::layout_t layout) {
+template <int m, int n, int k, class T, class Op, int fm, int fn, int fk, class MEM_T>
+__device__ void store_vector(MEM_T* const ptr, fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag, const nvcuda::wmma::layout_t layout) {
 	using Policy = mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>;
 	constexpr auto frag_m = mtk::wmma::tcec::detail::select_value<nvcuda::wmma::accumulator, Policy::m, Policy::k, Policy::m>::value;
 	constexpr auto frag_n = mtk::wmma::tcec::detail::select_value<nvcuda::wmma::accumulator, Policy::k, Policy::n, Policy::n>::value;
@@ -333,8 +333,8 @@ __device__ void store_vector(float* const ptr, fragment<nvcuda::wmma::accumulato
 	}
 }
 
-template <int m, int n, int k, class T, class Op, int fm, int fn, int fk>
-__device__ void store_vector(float* const ptr, fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag, const float mul, const nvcuda::wmma::layout_t layout) {
+template <int m, int n, int k, class T, class Op, int fm, int fn, int fk, class MEM_T>
+__device__ void store_vector(MEM_T* const ptr, fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag, const float mul, const nvcuda::wmma::layout_t layout) {
 	using Policy = mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>;
 	constexpr auto frag_m = mtk::wmma::tcec::detail::select_value<nvcuda::wmma::accumulator, Policy::m, Policy::k, Policy::m>::value;
 	constexpr auto frag_n = mtk::wmma::tcec::detail::select_value<nvcuda::wmma::accumulator, Policy::k, Policy::n, Policy::n>::value;
