@@ -528,6 +528,6 @@ __device__ void mma_sync(
 } // namespace mtk
 #endif
 
-#include "detail/no_cor.hpp"
 #include "detail/notc.hpp"
+#include "detail/no_cor.hpp"
 #include "detail/print.hpp"
