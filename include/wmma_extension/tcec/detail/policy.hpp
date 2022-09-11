@@ -34,6 +34,7 @@ namespace detail {
 // ===================================
 template <class T, class ErrorCorrection = mtk::wmma::tcec::with_ec, class Op = mtk::wmma::tcec::op_wmma>
 struct default_policy;
+
 template <class ErrorCorrection>
 struct default_policy<half                         , ErrorCorrection, mtk::wmma::tcec::op_wmma> {using type = mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_wmma, ErrorCorrection, 16, 16, 16>;};
 template <class ErrorCorrection>

@@ -22,35 +22,54 @@ __device__ uint32_t get_smem_ptr_uint(const void* const ptr) {
 }
 
 template <unsigned SizeInBytes>
+struct size_of_t;
+template <>
+struct size_of_t<4> {using type = std::uint32_t;};
+template <>
+struct size_of_t<8> {using type = std::uint64_t;};
+template <>
+struct size_of_t<16> {using type = float4;};
+
+template <unsigned SizeInBytes>
 __device__ inline void cp_async(void* const smem, const void* const gmem) {
 	const unsigned smem_int_ptr = get_smem_ptr_uint(smem);
+#if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ >= 800)
 	asm volatile(
           "{\n"
           "cp.async.ca.shared.global [%0], [%1], %2;\n"
           "}\n" ::
           "r"(smem_int_ptr), "l"(gmem), "n"(SizeInBytes));
+#else
+	*reinterpret_cast<typename size_of_t<SizeInBytes>::type*>(smem) = *reinterpret_cast<const typename size_of_t<SizeInBytes>::type*>(gmem);
+#endif
 }
 
 __device__ inline void cp_async_commit() {
+#if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ >= 800)
 	asm volatile(
           "{\n"
 		  "cp.async.commit_group;\n"
           "}\n");
+#endif
 }
 
 __device__ inline void cp_async_wait_all() {
+#if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ >= 800)
 	asm volatile(
           "{\n"
 		  "cp.async.wait_all;\n"
           "}\n");
+#endif
 }
 
 template <int N>
 __device__ inline void cp_async_wait_group() {
+#if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ >= 800)
 	asm volatile(
           "{\n"
 		  "cp.async.wait_group %0;\n"
           "}\n":: "n"(N));
+#endif
 }
 
 // SMEM_M * SMEM_N must be larger than or equal to BLOCK_SIZE
