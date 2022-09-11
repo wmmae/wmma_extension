@@ -357,6 +357,20 @@ __global__ void bgemm_kernel(
 	} // loop bm
 }
 
+struct kernel_config {
+	using func_t = void(*)(
+			const unsigned,const unsigned, const unsigned,
+			const float,
+			const float* const* const, const unsigned,
+			const float* const* const, const unsigned,
+			const float, float* const* const, const unsigned);
+	func_t kernel;
+	unsigned smem_size;
+	unsigned grid_size_coef;
+	unsigned grid_size(const unsigned batch_size) const {return batch_size * grid_size_coef;}
+	unsigned block_size;
+};
+
 template <
 	unsigned SMEM_M,
 	unsigned SMEM_N,
@@ -372,7 +386,22 @@ template <
 	unsigned NUM_UNROLLINGS,
 	class FRAGMENT_T,
 	class TC_Policy>
-void bgemm(
+kernel_config gen_bgemm_config() {
+	// Set shared memory size
+	const auto shared_memory_size = std::max((SMEM_M * (SMEM_K + smem_skew) + SMEM_N * (SMEM_K + smem_skew)) * 2, + SMEM_M * SMEM_N) * sizeof(float);
+
+	kernel_config config;
+	config.smem_size = shared_memory_size;
+	config.grid_size_coef = BLOCK_M_PER_MATRIX * BLOCK_N_PER_MATRIX;
+	config.block_size = BLOCK_SIZE;
+	config.kernel = &(bgemm_kernel<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, BLOCK_M_PER_MATRIX, BLOCK_N_PER_MATRIX, NUM_UNROLLINGS_BM, NUM_UNROLLINGS_BN, NUM_UNROLLINGS, FRAGMENT_T, TC_Policy>);
+	cudaFuncSetAttribute(config.kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, shared_memory_size);
+
+	return config;
+}
+
+void launch_bgemm(
+		const kernel_config config,
 		const unsigned m,
 		const unsigned n,
 		const unsigned k,
@@ -383,13 +412,8 @@ void bgemm(
 		float* const* const c_ptr, const unsigned ldc,
 		const unsigned batch_size
 		) {
-	// Set shared memory size
-	const auto shared_memory_size = std::max((SMEM_M * (SMEM_K + smem_skew) + SMEM_N * (SMEM_K + smem_skew)) * 2, + SMEM_M * SMEM_N) * sizeof(float);
-	cudaFuncSetAttribute(&(bgemm_kernel<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, BLOCK_M_PER_MATRIX, BLOCK_N_PER_MATRIX, NUM_UNROLLINGS_BM, NUM_UNROLLINGS_BN, NUM_UNROLLINGS, FRAGMENT_T, TC_Policy>), cudaFuncAttributeMaxDynamicSharedMemorySize, shared_memory_size);
-
 	// Launch
-	const dim3 grid_size(batch_size * BLOCK_M_PER_MATRIX * BLOCK_N_PER_MATRIX);
-	bgemm_kernel<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, BLOCK_M_PER_MATRIX, BLOCK_N_PER_MATRIX, NUM_UNROLLINGS_BM, NUM_UNROLLINGS_BN, NUM_UNROLLINGS, FRAGMENT_T, TC_Policy><<<grid_size, BLOCK_SIZE, shared_memory_size>>>(
+	config.kernel<<<config.grid_size(batch_size), config.block_size, config.smem_size>>>(
 			m, n, k,
 			alpha,
 			a_ptr, lda,
@@ -473,8 +497,10 @@ void test_batched_sgemm(
 	WMMAE_CUDA_CHECK_ERROR(cudaMemcpy(d_b_ptr_array, h_b_ptr_array, sizeof(float*) * batch_size, cudaMemcpyDefault));
 	WMMAE_CUDA_CHECK_ERROR(cudaMemcpy(d_c_ptr_array, h_c_ptr_array, sizeof(float*) * batch_size, cudaMemcpyDefault));
 
+	const auto kernel_conf = gen_bgemm_config<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, BLOCK_M_PER_MATRIX, BLOCK_N_PER_MATRIX, NUM_UNROLLINGS_BM, NUM_UNROLLINGS_BN, NUM_UNROLLINGS, FRAGMENT_T, TC_Policy>();
+
 	WMMAE_CUDA_CHECK_ERROR(cudaDeviceSynchronize());
-	bgemm<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, BLOCK_M_PER_MATRIX, BLOCK_N_PER_MATRIX, NUM_UNROLLINGS_BM, NUM_UNROLLINGS_BN, NUM_UNROLLINGS, FRAGMENT_T, TC_Policy>(
+	launch_bgemm(kernel_conf,
 			m, n, k,
 			1.f,
 			d_a_ptr_array, k,
@@ -523,7 +549,7 @@ void test_batched_sgemm(
 		// evaluation of computing performance
 		const auto start_clock = std::chrono::system_clock::now();
 		for (unsigned c = 0; c < test_count; c++) {
-		bgemm<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, BLOCK_M_PER_MATRIX, BLOCK_N_PER_MATRIX, NUM_UNROLLINGS_BM, NUM_UNROLLINGS_BN, NUM_UNROLLINGS, FRAGMENT_T, TC_Policy>(
+			launch_bgemm(kernel_conf,
 					m, n, k,
 					1.f,
 					d_a_ptr_array, k,
