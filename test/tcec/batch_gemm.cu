@@ -22,35 +22,54 @@ __device__ uint32_t get_smem_ptr_uint(const void* const ptr) {
 }
 
 template <unsigned SizeInBytes>
+struct size_of_t;
+template <>
+struct size_of_t<4> {using type = std::uint32_t;};
+template <>
+struct size_of_t<8> {using type = std::uint64_t;};
+template <>
+struct size_of_t<16> {using type = float4;};
+
+template <unsigned SizeInBytes>
 __device__ inline void cp_async(void* const smem, const void* const gmem) {
 	const unsigned smem_int_ptr = get_smem_ptr_uint(smem);
+#if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ >= 800)
 	asm volatile(
           "{\n"
           "cp.async.ca.shared.global [%0], [%1], %2;\n"
           "}\n" ::
           "r"(smem_int_ptr), "l"(gmem), "n"(SizeInBytes));
+#else
+	*reinterpret_cast<typename size_of_t<SizeInBytes>::type*>(smem) = *reinterpret_cast<const typename size_of_t<SizeInBytes>::type*>(gmem);
+#endif
 }
 
 __device__ inline void cp_async_commit() {
+#if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ >= 800)
 	asm volatile(
           "{\n"
 		  "cp.async.commit_group;\n"
           "}\n");
+#endif
 }
 
 __device__ inline void cp_async_wait_all() {
+#if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ >= 800)
 	asm volatile(
           "{\n"
 		  "cp.async.wait_all;\n"
           "}\n");
+#endif
 }
 
 template <int N>
 __device__ inline void cp_async_wait_group() {
+#if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ >= 800)
 	asm volatile(
           "{\n"
 		  "cp.async.wait_group %0;\n"
           "}\n":: "n"(N));
+#endif
 }
 
 // SMEM_M * SMEM_N must be larger than or equal to BLOCK_SIZE
@@ -357,6 +376,20 @@ __global__ void bgemm_kernel(
 	} // loop bm
 }
 
+struct kernel_config {
+	using func_t = void(*)(
+			const unsigned,const unsigned, const unsigned,
+			const float,
+			const float* const* const, const unsigned,
+			const float* const* const, const unsigned,
+			const float, float* const* const, const unsigned);
+	func_t kernel;
+	unsigned smem_size;
+	unsigned grid_size_coef;
+	unsigned grid_size(const unsigned batch_size) const {return batch_size * grid_size_coef;}
+	unsigned block_size;
+};
+
 template <
 	unsigned SMEM_M,
 	unsigned SMEM_N,
@@ -372,7 +405,22 @@ template <
 	unsigned NUM_UNROLLINGS,
 	class FRAGMENT_T,
 	class TC_Policy>
-void bgemm(
+kernel_config gen_bgemm_config() {
+	// Set shared memory size
+	const auto shared_memory_size = std::max((SMEM_M * (SMEM_K + smem_skew) + SMEM_N * (SMEM_K + smem_skew)) * 2, + SMEM_M * SMEM_N) * sizeof(float);
+
+	kernel_config config;
+	config.smem_size = shared_memory_size;
+	config.grid_size_coef = BLOCK_M_PER_MATRIX * BLOCK_N_PER_MATRIX;
+	config.block_size = BLOCK_SIZE;
+	config.kernel = &(bgemm_kernel<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, BLOCK_M_PER_MATRIX, BLOCK_N_PER_MATRIX, NUM_UNROLLINGS_BM, NUM_UNROLLINGS_BN, NUM_UNROLLINGS, FRAGMENT_T, TC_Policy>);
+	WMMAE_CUDA_CHECK_ERROR_M(cudaFuncSetAttribute(config.kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, shared_memory_size), "@ smem size configuration");
+
+	return config;
+}
+
+void launch_bgemm(
+		const kernel_config config,
 		const unsigned m,
 		const unsigned n,
 		const unsigned k,
@@ -383,13 +431,8 @@ void bgemm(
 		float* const* const c_ptr, const unsigned ldc,
 		const unsigned batch_size
 		) {
-	// Set shared memory size
-	const auto shared_memory_size = std::max((SMEM_M * (SMEM_K + smem_skew) + SMEM_N * (SMEM_K + smem_skew)) * 2, + SMEM_M * SMEM_N) * sizeof(float);
-	cudaFuncSetAttribute(&(bgemm_kernel<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, BLOCK_M_PER_MATRIX, BLOCK_N_PER_MATRIX, NUM_UNROLLINGS_BM, NUM_UNROLLINGS_BN, NUM_UNROLLINGS, FRAGMENT_T, TC_Policy>), cudaFuncAttributeMaxDynamicSharedMemorySize, shared_memory_size);
-
 	// Launch
-	const dim3 grid_size(batch_size * BLOCK_M_PER_MATRIX * BLOCK_N_PER_MATRIX);
-	bgemm_kernel<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, BLOCK_M_PER_MATRIX, BLOCK_N_PER_MATRIX, NUM_UNROLLINGS_BM, NUM_UNROLLINGS_BN, NUM_UNROLLINGS, FRAGMENT_T, TC_Policy><<<grid_size, BLOCK_SIZE, shared_memory_size>>>(
+	config.kernel<<<config.grid_size(batch_size), config.block_size, config.smem_size>>>(
 			m, n, k,
 			alpha,
 			a_ptr, lda,
@@ -424,7 +467,13 @@ void test_batched_sgemm(
 	static_assert(SMEM_K * SMEM_N >= BLOCK_SIZE);
 
 	using FRAGMENT_T = half;
+#if defined(SM_ARCH) && SM_ARCH == 75
+	using TC_Policy = mtk::wmma::tcec::detail::default_policy<FRAGMENT_T, mtk::wmma::tcec::with_ec, mtk::wmma::tcec::op_mma, mtk::wmma::tcec::sm_75>::type;
+#elif defined(SM_ARCH) && SM_ARCH == 70
+	using TC_Policy = mtk::wmma::tcec::detail::default_policy<FRAGMENT_T, mtk::wmma::tcec::with_ec, mtk::wmma::tcec::op_wmma>::type;
+#else
 	using TC_Policy = mtk::wmma::tcec::detail::default_policy<FRAGMENT_T, mtk::wmma::tcec::with_ec, mtk::wmma::tcec::op_mma>::type;
+#endif
 
 	float **d_a_ptr_array;
 	float **d_b_ptr_array;
@@ -473,8 +522,10 @@ void test_batched_sgemm(
 	WMMAE_CUDA_CHECK_ERROR(cudaMemcpy(d_b_ptr_array, h_b_ptr_array, sizeof(float*) * batch_size, cudaMemcpyDefault));
 	WMMAE_CUDA_CHECK_ERROR(cudaMemcpy(d_c_ptr_array, h_c_ptr_array, sizeof(float*) * batch_size, cudaMemcpyDefault));
 
+	const auto kernel_conf = gen_bgemm_config<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, BLOCK_M_PER_MATRIX, BLOCK_N_PER_MATRIX, NUM_UNROLLINGS_BM, NUM_UNROLLINGS_BN, NUM_UNROLLINGS, FRAGMENT_T, TC_Policy>();
+
 	WMMAE_CUDA_CHECK_ERROR(cudaDeviceSynchronize());
-	bgemm<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, BLOCK_M_PER_MATRIX, BLOCK_N_PER_MATRIX, NUM_UNROLLINGS_BM, NUM_UNROLLINGS_BN, NUM_UNROLLINGS, FRAGMENT_T, TC_Policy>(
+	launch_bgemm(kernel_conf,
 			m, n, k,
 			1.f,
 			d_a_ptr_array, k,
@@ -523,7 +574,7 @@ void test_batched_sgemm(
 		// evaluation of computing performance
 		const auto start_clock = std::chrono::system_clock::now();
 		for (unsigned c = 0; c < test_count; c++) {
-		bgemm<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, BLOCK_M_PER_MATRIX, BLOCK_N_PER_MATRIX, NUM_UNROLLINGS_BM, NUM_UNROLLINGS_BN, NUM_UNROLLINGS, FRAGMENT_T, TC_Policy>(
+			launch_bgemm(kernel_conf,
 					m, n, k,
 					1.f,
 					d_a_ptr_array, k,

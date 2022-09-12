@@ -19,6 +19,12 @@ struct without_ec;
 using op_with_error_correction = with_ec;
 using op_without_error_correction = without_ec;
 
+struct sm_70;
+struct sm_75;
+struct sm_80;
+struct sm_86;
+struct sm_not_specified;
+
 template <class Op, class ErrorCorrection, int m_, int n_, int k_>
 struct Policy {
 	using op = Op;
@@ -32,16 +38,28 @@ namespace detail {
 // ===================================
 // Default policy selector
 // ===================================
-template <class T, class ErrorCorrection = mtk::wmma::tcec::with_ec, class Op = mtk::wmma::tcec::op_wmma>
+template <class T, class ErrorCorrection = mtk::wmma::tcec::with_ec, class Op = mtk::wmma::tcec::op_wmma, class Sm = mtk::wmma::tcec::sm_not_specified>
 struct default_policy;
+
+template <class ErrorCorrection, class Sm>
+struct default_policy<half                         , ErrorCorrection, mtk::wmma::tcec::op_wmma, Sm>
+{using type = mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_wmma, ErrorCorrection, 16, 16, 16>;};
+
+template <class ErrorCorrection, class Sm>
+struct default_policy<nvcuda::wmma::precision::tf32, ErrorCorrection, mtk::wmma::tcec::op_wmma, Sm>
+{using type = mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_wmma, ErrorCorrection, 16, 16, 8 >;};
+
+template <class ErrorCorrection, class Sm>
+struct default_policy<half                         , ErrorCorrection, mtk::wmma::tcec::op_mma , Sm>
+{using type = mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma , ErrorCorrection, 16, 8 , 16>;};
+
 template <class ErrorCorrection>
-struct default_policy<half                         , ErrorCorrection, mtk::wmma::tcec::op_wmma> {using type = mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_wmma, ErrorCorrection, 16, 16, 16>;};
-template <class ErrorCorrection>
-struct default_policy<nvcuda::wmma::precision::tf32, ErrorCorrection, mtk::wmma::tcec::op_wmma> {using type = mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_wmma, ErrorCorrection, 16, 16, 8 >;};
-template <class ErrorCorrection>
-struct default_policy<half                         , ErrorCorrection, mtk::wmma::tcec::op_mma > {using type = mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma , ErrorCorrection, 16, 8 , 16>;};
-template <class ErrorCorrection>
-struct default_policy<nvcuda::wmma::precision::tf32, ErrorCorrection, mtk::wmma::tcec::op_mma > {using type = mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma , ErrorCorrection, 16, 8 , 8 >;};
+struct default_policy<half                         , ErrorCorrection, mtk::wmma::tcec::op_mma , mtk::wmma::tcec::sm_75>
+{using type = mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma , ErrorCorrection, 16, 8 , 8>;};
+
+template <class ErrorCorrection, class Sm>
+struct default_policy<nvcuda::wmma::precision::tf32, ErrorCorrection, mtk::wmma::tcec::op_mma , Sm>
+{using type = mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma , ErrorCorrection, 16, 8 , 8 >;};
 
 
 // ===================================
