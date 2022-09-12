@@ -467,7 +467,13 @@ void test_batched_sgemm(
 	static_assert(SMEM_K * SMEM_N >= BLOCK_SIZE);
 
 	using FRAGMENT_T = half;
+#if defined(SM_ARCH) && SM_ARCH == 75
+	using TC_Policy = mtk::wmma::tcec::detail::default_policy<FRAGMENT_T, mtk::wmma::tcec::with_ec, mtk::wmma::tcec::op_mma, mtk::wmma::tcec::sm_75>::type;
+#elif defined(SM_ARCH) && SM_ARCH == 70
+	using TC_Policy = mtk::wmma::tcec::detail::default_policy<FRAGMENT_T, mtk::wmma::tcec::with_ec, mtk::wmma::tcec::op_wmma>::type;
+#else
 	using TC_Policy = mtk::wmma::tcec::detail::default_policy<FRAGMENT_T, mtk::wmma::tcec::with_ec, mtk::wmma::tcec::op_mma>::type;
+#endif
 
 	float **d_a_ptr_array;
 	float **d_b_ptr_array;
