@@ -10,6 +10,9 @@
 #ifndef WMMAE_CUDA_CHECK_ERROR
 #define WMMAE_CUDA_CHECK_ERROR(status) cuda_check_error(status, __FILE__, __LINE__, __func__)
 #endif
+#ifndef WMMAE_CUDA_CHECK_ERROR_M
+#define WMMAE_CUDA_CHECK_ERROR_M(status, message) cuda_check_error(status, __FILE__, __LINE__, __func__, message)
+#endif
 
 inline void cuda_check_error(cudaError_t error, const std::string filename, const std::size_t line, const std::string funcname, const std::string message = ""){
 	if(error != cudaSuccess){

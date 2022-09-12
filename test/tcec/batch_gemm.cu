@@ -414,7 +414,7 @@ kernel_config gen_bgemm_config() {
 	config.grid_size_coef = BLOCK_M_PER_MATRIX * BLOCK_N_PER_MATRIX;
 	config.block_size = BLOCK_SIZE;
 	config.kernel = &(bgemm_kernel<SMEM_M, SMEM_N, SMEM_K, WARP_M, WARP_N, WARP_K, BLOCK_SIZE, BLOCK_M_PER_MATRIX, BLOCK_N_PER_MATRIX, NUM_UNROLLINGS_BM, NUM_UNROLLINGS_BN, NUM_UNROLLINGS, FRAGMENT_T, TC_Policy>);
-	WMMAE_CUDA_CHECK_ERROR(cudaFuncSetAttribute(config.kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, shared_memory_size));
+	WMMAE_CUDA_CHECK_ERROR_M(cudaFuncSetAttribute(config.kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, shared_memory_size), "@ smem size configuration");
 
 	return config;
 }
