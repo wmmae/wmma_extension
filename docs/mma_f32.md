@@ -106,6 +106,7 @@ using policy = mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec, m
 - `mtk::wmma::tcec::store_matrix_sync`
 - `mtk::wmma::tcec::mma_sync`
 
+- `mtk::wmma::tcec::mma_rz_sync`
 - `mtk::wmma::tcec::load_vector`
 - `mtk::wmma::tcec::store_vector`
 - `mtk::wmma::tcec::fill_zero`
@@ -149,5 +150,8 @@ mtk::wmma::tcec::fragment_complex<nvcuda::wmma::matrix_a, N, N, N, float, nvcuda
 - `mtk::wmma::tcec::load_matrix_sync`
 - `mtk::wmma::tcec::store_matrix_sync`
 - `mtk::wmma::tcec::mma_sync`
+
+- `mtk::wmma::tcec::mma_rz_sync`
+- `mtk::wmma::tcec::fill_zero`
 
 See [test code](../test/tcec/mma_complex.cu) for more detail.
