@@ -122,6 +122,20 @@ mtk::wmma::tcec::fragment<nvcuda::wmma::matrix_a, 32, 32, 32, half, nvcuda::wmma
 mtk::wmma::tcec::load_matrix_sync<nvcuda::wmma::col_major>(frag_a, matrix_ptr, ldm);
 ```
 
+
+## Rounding mode
+To specify the rounding mode in `+C` operation, use functions as follows.
+- `mtk::wmma::tcec::mma_rn_sync`
+- `mtk::wmma::tcec::mma_rz_sync`
+
+### Default rounding mode
+| op         | rounding mode |
+| ---------- | ------------- |
+| with_ec    | RN            |
+| without_ec | RZ            |
+
+Read [our paper](https://arxiv.org/abs/2203.03341) for detail.
+
 ## SIMT Core computation
 
 This library provides fragments and functionf for mma operations using CUDA SIMT Core with the same API as WMMA API.
