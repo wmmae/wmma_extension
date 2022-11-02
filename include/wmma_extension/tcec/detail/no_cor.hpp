@@ -386,10 +386,10 @@ __device__ void store_vector(MEM_T* const ptr, fragment<nvcuda::wmma::accumulato
 	}
 }
 
-// mma
+// mma_rz
 template <int m, int n, int k, class A_Layout, class B_Layout, class T, class Op, int fm, int fn, int fk,
 				 typename std::enable_if<(std::is_same<Op, mtk::wmma::tcec::op_mma>::value || std::is_same<Op, mtk::wmma::tcec::op_wmma>::value), bool>::type = false>
-__device__ void mma_sync(
+__device__ void mma_rz_sync(
 		fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag_d,
 		const fragment<nvcuda::wmma::matrix_a, m, n, k, T, A_Layout, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag_a,
 		const fragment<nvcuda::wmma::matrix_b, m, n, k, T, B_Layout, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag_b,
@@ -423,7 +423,7 @@ __device__ void mma_sync(
 
 template <int m, int n, int k, class A_Layout, class B_Layout, class T, class Op, int fm, int fn, int fk,
 				 typename std::enable_if<(std::is_same<Op, mtk::wmma::tcec::op_mma>::value || std::is_same<Op, mtk::wmma::tcec::op_wmma>::value), bool>::type = false>
-__device__ void mma_sync(
+__device__ void mma_rz_sync(
 		fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag_d,
 		const fragment<nvcuda::wmma::matrix_a, m, n, k, T, A_Layout, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag_a,
 		const fragment<nvcuda::wmma::matrix_b, m, n, k, T, B_Layout, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag_b) {
@@ -456,24 +456,108 @@ __device__ void mma_sync(
 	}
 }
 
-// mma_rz
+// mma_rn
 template <int m, int n, int k, class A_Layout, class B_Layout, class T, class Op, int fm, int fn, int fk,
 				 typename std::enable_if<(std::is_same<Op, mtk::wmma::tcec::op_mma>::value || std::is_same<Op, mtk::wmma::tcec::op_wmma>::value), bool>::type = false>
-__device__ void mma_rz_sync(
+__device__ void mma_rn_sync(
 		fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag_d,
 		const fragment<nvcuda::wmma::matrix_a, m, n, k, T, A_Layout, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag_a,
 		const fragment<nvcuda::wmma::matrix_b, m, n, k, T, B_Layout, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag_b,
 		const fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag_c) {
-	mma_sync(frag_d, frag_a, frag_b, frag_c);
+	using Policy = mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>;
+	constexpr unsigned num_m_block = frag_d.num_sub_frag_m;
+	constexpr unsigned num_n_block = frag_d.num_sub_frag_n;
+	constexpr unsigned num_k_block = frag_a.num_sub_frag_n;
+
+	mtk::wmma::tcec::detail::mma_sync_wrapper<T, A_Layout, B_Layout, float, Policy> mma_op;
+
+	for (unsigned bm = 0; bm < num_m_block; bm++) {
+		for (unsigned bn = 0; bn < num_n_block; bn++) {
+			typename fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::with_ec, fm, fn, fk>>::sub_frag_t tmp;
+			zero_op(tmp);
+			mma_op(
+					tmp,
+					frag_a.sub_frag[bm + 0  * num_m_block],
+					frag_b.sub_frag[0  + bn * num_k_block],
+					tmp
+					);
+			for (unsigned i = 0; i < tmp.num_elements; i++) {
+				frag_d.sub_frag[bm + bn * num_m_block].x[i] = frag_c.sub_frag[bm + bn * num_m_block].x[i] + tmp.x[i];
+			}
+			for (unsigned bk = 1; bk < num_k_block; bk++) {
+				zero_op(tmp);
+				mma_op(
+						tmp,
+						frag_a.sub_frag[bm + bk * num_m_block],
+						frag_b.sub_frag[bk + bn * num_k_block],
+						tmp
+						);
+				for (unsigned i = 0; i < tmp.num_elements; i++) {
+					frag_d.sub_frag[bm + bn * num_m_block].x[i] += tmp.x[i];
+				}
+			}
+		}
+	}
 }
 
 template <int m, int n, int k, class A_Layout, class B_Layout, class T, class Op, int fm, int fn, int fk,
 				 typename std::enable_if<(std::is_same<Op, mtk::wmma::tcec::op_mma>::value || std::is_same<Op, mtk::wmma::tcec::op_wmma>::value), bool>::type = false>
-__device__ void mma_rz_sync(
+__device__ void mma_rn_sync(
 		fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag_d,
 		const fragment<nvcuda::wmma::matrix_a, m, n, k, T, A_Layout, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag_a,
 		const fragment<nvcuda::wmma::matrix_b, m, n, k, T, B_Layout, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag_b) {
-	mma_sync(frag_d, frag_a, frag_b);
+	using Policy = mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>;
+	constexpr unsigned num_m_block = frag_d.num_sub_frag_m;
+	constexpr unsigned num_n_block = frag_d.num_sub_frag_n;
+	constexpr unsigned num_k_block = frag_a.num_sub_frag_n;
+
+	mtk::wmma::tcec::detail::mma_sync_wrapper<T, A_Layout, B_Layout, float, Policy> mma_op;
+	mtk::wmma::tcec::detail::fill_zero_wrapper<nvcuda::wmma::accumulator, float, void, Policy> zero_op;
+
+	for (unsigned bm = 0; bm < num_m_block; bm++) {
+		for (unsigned bn = 0; bn < num_n_block; bn++) {
+			typename fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::with_ec, fm, fn, fk>>::sub_frag_t tmp;
+			zero_op(frag_d.sub_frag[bm + bn * num_m_block]);
+			mma_op(
+					frag_d.sub_frag[bm + bn * num_m_block],
+					frag_a.sub_frag[bm + 0  * num_m_block],
+					frag_b.sub_frag[0  + bn * num_k_block],
+					frag_d.sub_frag[bm + bn * num_m_block]
+					);
+			for (unsigned bk = 1; bk < num_k_block; bk++) {
+				zero_op(tmp);
+				mma_op(
+						tmp,
+						frag_a.sub_frag[bm + bk * num_m_block],
+						frag_b.sub_frag[bk + bn * num_k_block],
+						tmp
+						);
+				for (unsigned i = 0; i < tmp.num_elements; i++) {
+					frag_d.sub_frag[bm + bn * num_m_block].x[i] += tmp.x[i];
+				}
+			}
+		}
+	}
+}
+
+// mma
+template <int m, int n, int k, class A_Layout, class B_Layout, class T, class Op, int fm, int fn, int fk,
+				 typename std::enable_if<(std::is_same<Op, mtk::wmma::tcec::op_mma>::value || std::is_same<Op, mtk::wmma::tcec::op_wmma>::value), bool>::type = false>
+__device__ void mma_sync(
+		fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag_d,
+		const fragment<nvcuda::wmma::matrix_a, m, n, k, T, A_Layout, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag_a,
+		const fragment<nvcuda::wmma::matrix_b, m, n, k, T, B_Layout, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag_b,
+		const fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag_c) {
+	mma_rz_sync(frag_d, frag_a, frag_b, frag_c);
+}
+
+template <int m, int n, int k, class A_Layout, class B_Layout, class T, class Op, int fm, int fn, int fk,
+				 typename std::enable_if<(std::is_same<Op, mtk::wmma::tcec::op_mma>::value || std::is_same<Op, mtk::wmma::tcec::op_wmma>::value), bool>::type = false>
+__device__ void mma_sync(
+		fragment<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag_d,
+		const fragment<nvcuda::wmma::matrix_a, m, n, k, T, A_Layout, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag_a,
+		const fragment<nvcuda::wmma::matrix_b, m, n, k, T, B_Layout, mtk::wmma::tcec::Policy<Op, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag_b) {
+	mma_rz_sync(frag_d, frag_a, frag_b);
 }
 } // namespace tcec
 } // namespace wmma

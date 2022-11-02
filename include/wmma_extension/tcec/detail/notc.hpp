@@ -425,7 +425,7 @@ __device__ void mma_sync(
 	}
 }
 
-// mma
+// mma_rz
 template <int m, int n, int k, class A_Layout, class B_Layout, class AB_T, class CD_T, int fm, int fn, int fk>
 __device__ void mma_rz_sync(
 		fragment<nvcuda::wmma::accumulator, m, n, k, CD_T, void, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_simt, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag_d,
@@ -437,6 +437,24 @@ __device__ void mma_rz_sync(
 
 template <int m, int n, int k, class A_Layout, class B_Layout, class AB_T, class CD_T, int fm, int fn, int fk>
 __device__ void mma_rz_sync(
+		fragment<nvcuda::wmma::accumulator, m, n, k, CD_T, void, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_simt, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag_d,
+		const fragment<nvcuda::wmma::matrix_a, m, n, k, AB_T, A_Layout, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_simt, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag_a,
+		const fragment<nvcuda::wmma::matrix_b, m, n, k, AB_T, B_Layout, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_simt, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag_b) {
+	mma_sync(frag_d, frag_a, frag_b);
+}
+
+// mma_rn
+template <int m, int n, int k, class A_Layout, class B_Layout, class AB_T, class CD_T, int fm, int fn, int fk>
+__device__ void mma_rn_sync(
+		fragment<nvcuda::wmma::accumulator, m, n, k, CD_T, void, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_simt, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag_d,
+		const fragment<nvcuda::wmma::matrix_a, m, n, k, AB_T, A_Layout, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_simt, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag_a,
+		const fragment<nvcuda::wmma::matrix_b, m, n, k, AB_T, B_Layout, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_simt, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag_b,
+		const fragment<nvcuda::wmma::accumulator, m, n, k, CD_T, void, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_simt, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag_c) {
+	mma_sync(frag_d, frag_a, frag_b, frag_c);
+}
+
+template <int m, int n, int k, class A_Layout, class B_Layout, class AB_T, class CD_T, int fm, int fn, int fk>
+__device__ void mma_rn_sync(
 		fragment<nvcuda::wmma::accumulator, m, n, k, CD_T, void, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_simt, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag_d,
 		const fragment<nvcuda::wmma::matrix_a, m, n, k, AB_T, A_Layout, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_simt, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag_a,
 		const fragment<nvcuda::wmma::matrix_b, m, n, k, AB_T, B_Layout, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_simt, mtk::wmma::tcec::without_ec, fm, fn, fk>>& frag_b) {
