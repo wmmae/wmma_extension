@@ -470,6 +470,7 @@ __device__ void mma_rn_sync(
 	constexpr unsigned num_k_block = frag_a.num_sub_frag_n;
 
 	mtk::wmma::tcec::detail::mma_sync_wrapper<T, A_Layout, B_Layout, float, Policy> mma_op;
+	mtk::wmma::tcec::detail::fill_zero_wrapper<nvcuda::wmma::accumulator, float, void, Policy> zero_op;
 
 	for (unsigned bm = 0; bm < num_m_block; bm++) {
 		for (unsigned bn = 0; bn < num_n_block; bn++) {
