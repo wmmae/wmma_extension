@@ -429,6 +429,32 @@ __device__ void mma_rz_sync(
 	mtk::wmma::tcec::mma_rz_sync(frag_d.real, frag_a.imag, mtk::wmma::tcec::neg(frag_b.imag), frag_d.real);
 }
 
+// -----------
+// mma_rn
+// -----------
+template <int m, int n, int k, class A_Layout, class B_Layout, class T, class Op, class Ec, int fm, int fn, int fk>
+__device__ void mma_rn_sync(
+		fragment_complex<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<Op, Ec, fm, fn, fk>>& frag_d,
+		const fragment_complex<nvcuda::wmma::matrix_a, m, n, k, T, A_Layout, mtk::wmma::tcec::Policy<Op, Ec, fm, fn, fk>>& frag_a,
+		const fragment_complex<nvcuda::wmma::matrix_b, m, n, k, T, B_Layout, mtk::wmma::tcec::Policy<Op, Ec, fm, fn, fk>>& frag_b,
+		const fragment_complex<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<Op, Ec, fm, fn, fk>>& frag_c) {
+	mtk::wmma::tcec::mma_rn_sync(frag_d.real, frag_a.real, frag_b.real, frag_c.real);
+	mtk::wmma::tcec::mma_rn_sync(frag_d.imag, frag_a.imag, frag_b.real, frag_c.imag);
+	mtk::wmma::tcec::mma_rn_sync(frag_d.imag, frag_a.real, frag_b.imag, frag_d.imag);
+	mtk::wmma::tcec::mma_rn_sync(frag_d.real, frag_a.imag, mtk::wmma::tcec::neg(frag_b.imag), frag_d.real);
+}
+
+template <int m, int n, int k, class A_Layout, class B_Layout, class T, class Op, class Ec, int fm, int fn, int fk>
+__device__ void mma_rn_sync(
+		fragment_complex<nvcuda::wmma::accumulator, m, n, k, T, void, mtk::wmma::tcec::Policy<Op, Ec, fm, fn, fk>>& frag_d,
+		const fragment_complex<nvcuda::wmma::matrix_a, m, n, k, T, A_Layout, mtk::wmma::tcec::Policy<Op, Ec, fm, fn, fk>>& frag_a,
+		const fragment_complex<nvcuda::wmma::matrix_b, m, n, k, T, B_Layout, mtk::wmma::tcec::Policy<Op, Ec, fm, fn, fk>>& frag_b) {
+	mtk::wmma::tcec::mma_rn_sync(frag_d.imag, frag_a.imag, frag_b.real);
+	mtk::wmma::tcec::mma_rn_sync(frag_d.imag, frag_a.real, frag_b.imag, frag_d.imag);
+	mtk::wmma::tcec::mma_rn_sync(frag_d.real, frag_a.real, frag_b.real);
+	mtk::wmma::tcec::mma_rn_sync(frag_d.real, frag_a.imag, mtk::wmma::tcec::neg(frag_b.imag), frag_d.real);
+}
+
 } // namespace tcec
 } // namespace wmma
 } // namespace mtk
