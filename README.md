@@ -26,10 +26,12 @@ For instance, a program which is compiled with `-arch=sm_70` may not work correc
 - CUDA (10.2 or later)
 - C++ (17 or later)
 
-## Supported fragment
-- sm_70: ((16, 16, 16), fp16/fp32)
-- sm_75: ((16, 16, 16), fp16/fp32)
-- sm_80: ((16, 16, 16), fp16/fp32), ((16, 16, 8), tf32)
+## Supported architecures / fragment
+- [x] sm_70: ((16, 16, 16), fp16/fp32)
+- [x] sm_75: ((16, 16, 16), fp16/fp32)
+- [x] sm_80: ((16, 16, 16), fp16/fp32), ((16, 16, 8), tf32)
+- [ ] sm_89:
+- [ ] sm_90:
 
 # Functions
 ## Primitive functions
