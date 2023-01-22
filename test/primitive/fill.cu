@@ -69,12 +69,12 @@ void test() {
 }
 
 int main() {
-#if TEST_ARCH == 80 || TEST_ARCH == 86
+#if TEST_ARCH >= 80
 	test<nvcuda::wmma::matrix_a   , 16, 8, 16, half, nvcuda::wmma::row_major>();
 	test<nvcuda::wmma::matrix_b   , 16, 8, 16, half, nvcuda::wmma::col_major>();
 	test<nvcuda::wmma::accumulator, 16, 8, 16, half, void                   >();
 #endif
-#if TEST_ARCH == 80 || TEST_ARCH == 86 || TEST_ARCH == 75
+#if TEST_ARCH >= 75
 	test<nvcuda::wmma::matrix_a   , 16, 8, 8 , half, nvcuda::wmma::row_major>();
 	test<nvcuda::wmma::matrix_b   , 16, 8, 8 , half, nvcuda::wmma::col_major>();
 	test<nvcuda::wmma::accumulator, 16, 8, 8 , half, void                   >();
