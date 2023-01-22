@@ -90,7 +90,7 @@ void test() {
 }
 
 int main() {
-#if TEST_ARCH == 80 || TEST_ARCH == 86
+#if TEST_ARCH >= 80
 	test<16, 8, 16, half, float, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_col_major, nvcuda::wmma::mem_col_major>();
 	test<16, 8, 16, half, float, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_col_major, nvcuda::wmma::mem_row_major>();
 	test<16, 8, 16, half, float, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_row_major, nvcuda::wmma::mem_col_major>();
@@ -102,14 +102,14 @@ int main() {
 	test<16, 8, 8, nvcuda::wmma::precision::tf32, float, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_row_major, nvcuda::wmma::mem_row_major>();
 #endif
 
-#if TEST_ARCH == 80 || TEST_ARCH == 86 || TEST_ARCH == 75
+#if TEST_ARCH >= 75
 	test<16, 8, 8, half, float, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_col_major, nvcuda::wmma::mem_col_major>();
 	test<16, 8, 8, half, float, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_col_major, nvcuda::wmma::mem_row_major>();
 	test<16, 8, 8, half, float, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_row_major, nvcuda::wmma::mem_col_major>();
 	test<16, 8, 8, half, float, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_row_major, nvcuda::wmma::mem_row_major>();
 #endif
 
-#if TEST_ARCH == 70 || TEST_ARCH == 75
+#if TEST_ARCH >= 70 && TEST_ARCH <= 75
 	test<8, 8, 4, half, float, float, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::mem_col_major, nvcuda::wmma::mem_col_major>();
 	test<8, 8, 4, half, float, float, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::mem_col_major, nvcuda::wmma::mem_row_major>();
 	test<8, 8, 4, half, float, float, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::mem_row_major, nvcuda::wmma::mem_col_major>();
