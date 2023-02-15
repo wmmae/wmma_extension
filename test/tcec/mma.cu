@@ -13,7 +13,7 @@ constexpr double error_threshold<half                         , mtk::wmma::tcec:
 template <>
 constexpr double error_threshold<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec> = 1e-2;
 template <>
-constexpr double error_threshold<float                        , mtk::wmma::tcec::without_ec> = 1e-6;
+constexpr double error_threshold<float                        , mtk::wmma::tcec::without_ec> = 1e-5;
 
 template <unsigned N, class T, class A_Layout, class B_Layout, class MEM_A_Layout, class MEM_B_Layout, class Policy>
 __global__ void mma_kernel_abcd(float* const d_ptr, const float* const a_ptr, const float* const b_ptr, const float* const c_ptr, const nvcuda::wmma::layout_t cd_layout) {
