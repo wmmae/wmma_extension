@@ -183,5 +183,15 @@ __global__ void kernel(float* const d, const half* const a, const half* const b,
 - `fill_fragment`
 - `fill_zero`
 
+# Publication
+```bibtex
+@inproceedings{ootomo_wmmae_2023,
+  author = {Ootomo, Hiroyuki and Yokota, Rio},
+  title = {Reducing Shared Memory Footprint to Leverage High Throughput on Tensor Cores and Its Flexible API Extension Library},
+  year = {2023},
+  series = {HPC Asia '23}
+}
+```
+
 # LICENSE
 MIT
