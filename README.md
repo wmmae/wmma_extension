@@ -185,13 +185,10 @@ __global__ void kernel(float* const d, const half* const a, const half* const b,
 
 # Publication
 ```bibtex
-@inproceedings{10.1145/3578178.3578238,
+@inproceedings{ootomo_wmmae_2023,
   author = {Ootomo, Hiroyuki and Yokota, Rio},
   title = {Reducing Shared Memory Footprint to Leverage High Throughput on Tensor Cores and Its Flexible API Extension Library},
   year = {2023},
-  url = {https://doi.org/10.1145/3578178.3578238},
-  doi = {10.1145/3578178.3578238},
-  location = {Singapore, Singapore},
   series = {HPC Asia '23}
 }
 ```
