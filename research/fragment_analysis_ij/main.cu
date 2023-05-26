@@ -1,5 +1,6 @@
 #include <iostream>
 #include <wmma_extension/wmma_extension.hpp>
+#include "../common/utils.hpp"
 
 constexpr unsigned warp_size = 32;
 
@@ -200,7 +201,7 @@ void ab_fragment_analysis(
 			ab_fragment_analysis_kernel<nvcuda::wmma::matrix_b, m, n, k, T, nvcuda::wmma::row_major><<<1, warp_size>>>();
 		}
 	}
-	cudaDeviceSynchronize();
+	CUDA_CHECK_ERROR(cudaDeviceSynchronize());
 }
 
 template <int m, int n, int k, class T>
@@ -210,7 +211,7 @@ void c_fragment_analysis(
 	std::printf("# sm_%2d, %15s, (%2d, %2d, %2d), %7s, %10s\n", ARCH, "accumulator", m, n, k, get_type_name<T>().c_str(), layout.c_str());
 	const auto l = (layout == "col_major" ? nvcuda::wmma::mem_col_major : nvcuda::wmma::mem_row_major);
 	c_fragment_analysis_kernel<m, n, k, T><<<1, warp_size>>>(l);
-	cudaDeviceSynchronize();
+	CUDA_CHECK_ERROR(cudaDeviceSynchronize());
 }
 
 int main() {

@@ -1,5 +1,6 @@
 #include <iostream>
 #include <wmma_extension/wmma_mma.hpp>
+#include "../common/utils.hpp"
 
 constexpr unsigned bank_size = 32;
 constexpr unsigned warp_size = 32;
@@ -62,13 +63,13 @@ void print_bank_conflict(
 		) {
 	const unsigned num_elements_per_thread = ((std::is_same<Use, nvcuda::wmma::matrix_a>::value) ? (m * k) : (k * n)) / warp_size;
 	unsigned *bank_array;
-	cudaMallocHost(&bank_array, sizeof(unsigned) * bank_size * num_elements_per_thread);
+	CUDA_CHECK_ERROR(cudaMallocHost(&bank_array, sizeof(unsigned) * bank_size * num_elements_per_thread));
 	for (unsigned i = 0; i < bank_size * num_elements_per_thread; i++) bank_array[i] = 0;
 	std::printf("[<%s,%d,%d,%d,%s,%s>, layout = %s, ldm = %lu] ---------------------------------------------------------- \n",
 			get_name_str<Use>().c_str(), m, n, k, get_name_str<T>().c_str(), get_name_str<Layout>().c_str(),
 			(layout == nvcuda::wmma::mem_col_major ? "col" : "row"), ldm);
 	kernel<Use, m, n, k, T, Layout><<<1, 32>>>(bank_array, layout, ldm);
-	cudaDeviceSynchronize();
+	CUDA_CHECK_ERROR(cudaDeviceSynchronize());
 
 	for (unsigned i = 0; i < num_elements_per_thread; i++) {
 		const auto bank_array_ptr = bank_array + i * bank_size;
