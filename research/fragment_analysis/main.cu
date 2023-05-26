@@ -1,5 +1,5 @@
 #include <iostream>
-#include <wmma_extension.hpp>
+#include <wmma_extension/wmma_extension.hpp>
 
 constexpr unsigned warp_size = 32;
 
