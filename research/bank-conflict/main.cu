@@ -5,8 +5,9 @@
 constexpr unsigned bank_size = 32;
 constexpr unsigned warp_size = 32;
 
-constexpr unsigned skew = 0;
-constexpr unsigned ldm = 64 + skew;
+constexpr unsigned skew_min = 0;
+constexpr unsigned skew_max = 8;
+constexpr unsigned ldm_base = 64;
 
 namespace {
 template <class T>
@@ -65,9 +66,9 @@ void print_bank_conflict(
 	unsigned *bank_array;
 	CUDA_CHECK_ERROR(cudaMallocHost(&bank_array, sizeof(unsigned) * bank_size * num_elements_per_thread));
 	for (unsigned i = 0; i < bank_size * num_elements_per_thread; i++) bank_array[i] = 0;
-	std::printf("[<%s,%d,%d,%d,%s,%s>, layout = %s, ldm = %lu] ---------------------------------------------------------- \n",
+	std::printf("[<%s,%d,%d,%d,%s,%s>, layout = %s, ldm = %lu (skew=%lu)] ---------------------------------------------------------- \n",
 			get_name_str<Use>().c_str(), m, n, k, get_name_str<T>().c_str(), get_name_str<Layout>().c_str(),
-			(layout == nvcuda::wmma::mem_col_major ? "col" : "row"), ldm);
+			(layout == nvcuda::wmma::mem_col_major ? "col" : "row"), ldm, (ldm % 32lu));
 	kernel<Use, m, n, k, T, Layout><<<1, 32>>>(bank_array, layout, ldm);
 	CUDA_CHECK_ERROR(cudaDeviceSynchronize());
 
@@ -83,21 +84,24 @@ void print_bank_conflict(
 		}
 		std::printf("\n");
 	}
-	cudaFreeHost(bank_array);
+	CUDA_CHECK_ERROR(cudaFreeHost(bank_array));
 }
 
 int main() {
-	print_bank_conflict<nvcuda::wmma::matrix_a, 16, 8, 16, half, nvcuda::wmma::row_major>(nvcuda::wmma::mem_col_major, ldm);
-	print_bank_conflict<nvcuda::wmma::matrix_a, 16, 8, 16, half, nvcuda::wmma::row_major>(nvcuda::wmma::mem_row_major, ldm);
-	print_bank_conflict<nvcuda::wmma::matrix_b, 16, 8, 16, half, nvcuda::wmma::col_major>(nvcuda::wmma::mem_col_major, ldm);
-	print_bank_conflict<nvcuda::wmma::matrix_b, 16, 8, 16, half, nvcuda::wmma::col_major>(nvcuda::wmma::mem_row_major, ldm);
-	print_bank_conflict<nvcuda::wmma::accumulator, 16, 8, 16, float, void>(nvcuda::wmma::mem_col_major, ldm);
-	print_bank_conflict<nvcuda::wmma::accumulator, 16, 8, 16, float, void>(nvcuda::wmma::mem_row_major, ldm);
+	for (std::size_t skew = skew_min; skew <= skew_max; skew++) {
+		const auto ldm = ldm_base + skew;
+		print_bank_conflict<nvcuda::wmma::matrix_a, 16, 8, 16, half, nvcuda::wmma::row_major>(nvcuda::wmma::mem_col_major, ldm);
+		print_bank_conflict<nvcuda::wmma::matrix_a, 16, 8, 16, half, nvcuda::wmma::row_major>(nvcuda::wmma::mem_row_major, ldm);
+		print_bank_conflict<nvcuda::wmma::matrix_b, 16, 8, 16, half, nvcuda::wmma::col_major>(nvcuda::wmma::mem_col_major, ldm);
+		print_bank_conflict<nvcuda::wmma::matrix_b, 16, 8, 16, half, nvcuda::wmma::col_major>(nvcuda::wmma::mem_row_major, ldm);
+		print_bank_conflict<nvcuda::wmma::accumulator, 16, 8, 16, float, void>(nvcuda::wmma::mem_col_major, ldm);
+		print_bank_conflict<nvcuda::wmma::accumulator, 16, 8, 16, float, void>(nvcuda::wmma::mem_row_major, ldm);
 
-	print_bank_conflict<nvcuda::wmma::matrix_a, 16, 8, 8, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major>(nvcuda::wmma::mem_col_major, ldm);
-	print_bank_conflict<nvcuda::wmma::matrix_a, 16, 8, 8, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major>(nvcuda::wmma::mem_row_major, ldm);
-	print_bank_conflict<nvcuda::wmma::matrix_b, 16, 8, 8, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major>(nvcuda::wmma::mem_col_major, ldm);
-	print_bank_conflict<nvcuda::wmma::matrix_b, 16, 8, 8, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major>(nvcuda::wmma::mem_row_major, ldm);
-	print_bank_conflict<nvcuda::wmma::accumulator, 16, 8, 8, float, void>(nvcuda::wmma::mem_col_major, ldm);
-	print_bank_conflict<nvcuda::wmma::accumulator, 16, 8, 8, float, void>(nvcuda::wmma::mem_row_major, ldm);
+		print_bank_conflict<nvcuda::wmma::matrix_a, 16, 8, 8, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major>(nvcuda::wmma::mem_col_major, ldm);
+		print_bank_conflict<nvcuda::wmma::matrix_a, 16, 8, 8, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major>(nvcuda::wmma::mem_row_major, ldm);
+		print_bank_conflict<nvcuda::wmma::matrix_b, 16, 8, 8, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major>(nvcuda::wmma::mem_col_major, ldm);
+		print_bank_conflict<nvcuda::wmma::matrix_b, 16, 8, 8, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major>(nvcuda::wmma::mem_row_major, ldm);
+		print_bank_conflict<nvcuda::wmma::accumulator, 16, 8, 8, float, void>(nvcuda::wmma::mem_col_major, ldm);
+		print_bank_conflict<nvcuda::wmma::accumulator, 16, 8, 8, float, void>(nvcuda::wmma::mem_row_major, ldm);
+	}
 }
