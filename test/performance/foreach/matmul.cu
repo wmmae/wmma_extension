@@ -4,12 +4,29 @@
 #include <mma.h>
 #include <wmma_extension/wmma_extension.hpp>
 
-constexpr std::size_t block_size = 256;
+constexpr unsigned block_size = 256;
 constexpr unsigned warp_size = 32;
 
 #ifndef CUDA_ARCH_SM
 #define CUDA_ARCH_SM 0
 #endif
+
+// Copy a SMEM_M-by-SMEM_N matrix on the device memory to shared memory
+template <unsigned SMEM_M, unsigned SMEM_N>
+__device__ void d2s_col_cta(
+		const float* const d_ptr,
+		float* const f32_s_ptr,
+		half* const f16_s_ptr,
+		const unsigned ld
+		) {
+	for (unsigned i = threadIdx.x; i < SMEM_M * SMEM_N; i += block_size) {
+		const auto im = i % SMEM_M;
+		const auto in = i / SMEM_M;
+		const float v = d_ptr[im + in * ld];
+		f32_s_ptr[i] = v;
+		f16_s_ptr[i] = __float2half(v);
+	}
+}
 
 template <bool UseWMMAe>
 __global__ void matmul(float* const c_ptr, const float* const a_ptr, const float* const b_ptr, const unsigned n);
@@ -20,11 +37,11 @@ __global__ void matmul<true>(float* const c_ptr, const float* const a_ptr, const
 	__shared__ float F32_smem[block_size * warp_size];
 	__shared__ half F16_smem[block_size * warp_size];
 
-	const unsigned unique_id = threadIdx.x & 0x1f;
+	const unsigned lane_id = threadIdx.x & 0x1f;
 	const unsigned warp_id = threadIdx.x >> 5;
 
-	const unsigned block_c_row = blockIdx.x % (n / warp_size);
-	const unsigned block_c_col = blockIdx.x / (n / warp_size);
+	const unsigned block_c_row = (blockIdx.x % (n / warp_size)) * warp_size;
+	const unsigned block_c_col = (blockIdx.x / (n / warp_size)) * warp_size;
 
 	nvcuda::wmma::fragment<nvcuda::wmma::accumulator, FDIM, FDIM, FDIM, float> frag_c[4];
 	for (unsigned i = 0; i < 4; i++) {
@@ -32,12 +49,7 @@ __global__ void matmul<true>(float* const c_ptr, const float* const a_ptr, const
 	}
 
 	for (unsigned kb = 0; kb < n; kb += block_size) {
-		for (unsigned i = 0; i < block_size * warp_size; i += block_size) {
-			const auto v = a_ptr[block_c_row + unique_id + (warp_id + i / warp_size + kb) * n];
-			const unsigned smem_index = threadIdx.x;
-			F32_smem[smem_index] = v;
-			F16_smem[smem_index] = __float2half(v);
-		}
+		d2s_col_cta<warp_size, block_size>(a_ptr + block_c_row + kb * n, F32_smem, F16_smem, n);
 
 		nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, FDIM, FDIM, FDIM, half, nvcuda::wmma::col_major> frag_a[4], frag_da[4];
 		for (unsigned i = 0; i < 2; i++) {
@@ -59,12 +71,8 @@ __global__ void matmul<true>(float* const c_ptr, const float* const a_ptr, const
 				});
 
 		__syncthreads();
-		for (unsigned i = 0; i < block_size * warp_size; i += block_size) {
-			const auto v = b_ptr[(block_c_col + i / block_size) * n + kb + threadIdx.x];
-			const unsigned smem_index = threadIdx.x + i;
-			F32_smem[smem_index] = v;
-			F16_smem[smem_index] = __float2half(v);
-		}
+		d2s_col_cta<block_size, warp_size>(b_ptr + kb + block_c_col * n, F32_smem, F16_smem, n);
+
 		__syncthreads();
 		nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, FDIM, FDIM, FDIM, half, nvcuda::wmma::col_major> frag_b[4], frag_db[4];
 		for (unsigned i = 0; i < 2; i++) {
@@ -114,7 +122,7 @@ __global__ void matmul<true>(float* const c_ptr, const float* const a_ptr, const
 		for (unsigned j = 0; j < (block_size / warp_size); j++) {
 			v += F32_smem[i + threadIdx.x + j * warp_size * warp_size];
 		}
-		c_ptr[(block_c_col + warp_id) * n + block_c_row + unique_id] = v;
+		c_ptr[(block_c_col + warp_id) * n + block_c_row + lane_id] = v;
 	}
 }
 
@@ -124,11 +132,11 @@ __global__ void matmul<false>(float* const c_ptr, const float* const a_ptr, cons
 	__shared__ float F32_smem[block_size * warp_size];
 	__shared__ half F16_smem[block_size * warp_size];
 
-	const unsigned unique_id = threadIdx.x & 0x1f;
+	const unsigned lane_id = threadIdx.x & 0x1f;
 	const unsigned warp_id = threadIdx.x >> 5;
 
-	const unsigned block_c_row = blockIdx.x % (n / warp_size);
-	const unsigned block_c_col = blockIdx.x / (n / warp_size);
+	const unsigned block_c_row = (blockIdx.x % (n / warp_size)) * warp_size;
+	const unsigned block_c_col = (blockIdx.x / (n / warp_size)) * warp_size;
 
 	nvcuda::wmma::fragment<nvcuda::wmma::accumulator, FDIM, FDIM, FDIM, float> frag_c[4];
 	for (unsigned i = 0; i < 4; i++) {
@@ -136,12 +144,7 @@ __global__ void matmul<false>(float* const c_ptr, const float* const a_ptr, cons
 	}
 
 	for (unsigned kb = 0; kb < n; kb += block_size) {
-		for (unsigned i = 0; i < block_size * warp_size; i += block_size) {
-			const auto v = a_ptr[block_c_row + unique_id + (warp_id + i / warp_size + kb) * n];
-			const unsigned smem_index = threadIdx.x;
-			F32_smem[smem_index] = v;
-			F16_smem[smem_index] = __float2half(v);
-		}
+		d2s_col_cta<warp_size, block_size>(a_ptr + block_c_row + kb * n, F32_smem, F16_smem, n);
 
 		nvcuda::wmma::fragment<nvcuda::wmma::matrix_a, FDIM, FDIM, FDIM, half, nvcuda::wmma::col_major> frag_a[4], frag_da[4];
 		for (unsigned i = 0; i < 2; i++) {
@@ -164,12 +167,7 @@ __global__ void matmul<false>(float* const c_ptr, const float* const a_ptr, cons
 		}
 		__syncthreads();
 
-		for (unsigned i = 0; i < block_size * warp_size; i += block_size) {
-			const auto v = b_ptr[(block_c_col + i / block_size) * n + kb + threadIdx.x];
-			const unsigned smem_index = threadIdx.x + i;
-			F32_smem[smem_index] = v;
-			F16_smem[smem_index] = __float2half(v);
-		}
+		d2s_col_cta<block_size, warp_size>(b_ptr + kb + block_c_col * n, F32_smem, F16_smem, n);
 		__syncthreads();
 		nvcuda::wmma::fragment<nvcuda::wmma::matrix_b, FDIM, FDIM, FDIM, half, nvcuda::wmma::col_major> frag_b[4], frag_db[4];
 		for (unsigned i = 0; i < 2; i++) {
@@ -217,7 +215,7 @@ __global__ void matmul<false>(float* const c_ptr, const float* const a_ptr, cons
 		for (unsigned j = 0; j < (block_size / warp_size); j++) {
 			v += F32_smem[i + threadIdx.x + j * warp_size * warp_size];
 		}
-		c_ptr[(block_c_col + warp_id) * n + block_c_row + unique_id] = v;
+		c_ptr[(block_c_col + warp_id) * n + block_c_row + lane_id] = v;
 	}
 }
 
