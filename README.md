@@ -31,7 +31,7 @@ For instance, a program which is compiled with `-arch=sm_70` may not work correc
 - [x] sm_75: ((16, 16, 16), fp16/fp32)
 - [x] sm_80: ((16, 16, 16), fp16/fp32), ((16, 16, 8), tf32)
 - [x] sm_89: ((16, 16, 16), fp16/fp32), ((16, 16, 8), tf32)
-- [ ] sm_90: * `wgmma` instruction is not supported yet
+- [x] sm_90: ((16, 16, 16), fp16/fp32), ((16, 16, 8), tf32) (`wgmma` instruction is not supported yet)
 
 # Functions
 ## Primitive functions
