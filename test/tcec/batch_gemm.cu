@@ -1,7 +1,6 @@
 #include <iostream>
 #include <chrono>
 #include <cassert>
-#include <cublas.h>
 #include <cublas_v2.h>
 #include "utils.hpp"
 
