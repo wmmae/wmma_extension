@@ -9,6 +9,9 @@ template <class T>
 std::string get_string();
 template <> std::string get_string<float>() {return "float";}
 template <> std::string get_string<half >() {return "half";}
+template <> std::string get_string<std::uint8_t>() {return "uint8";}
+template <> std::string get_string<std::int8_t>() {return "int8";}
+template <> std::string get_string<std::int32_t>() {return "int32";}
 template <> std::string get_string<nvcuda::wmma::precision::tf32>() {return "tf32";}
 template <> std::string get_string<nvcuda::wmma::col_major>() {return "col_major";}
 template <> std::string get_string<nvcuda::wmma::row_major>() {return "row_major";}
@@ -25,6 +28,12 @@ template <>
 double get_machine_eps<nvcuda::wmma::precision::tf32>(){return 1./(1 << 10);}
 template <>
 double get_machine_eps<float>(){return 1./(1 << 23);}
+template <>
+double get_machine_eps<std::int32_t>(){return get_machine_eps<float>();}
+template <>
+double get_machine_eps<std::int8_t>(){return get_machine_eps<float>();}
+template <>
+double get_machine_eps<std::uint8_t>(){return get_machine_eps<float>();}
 
 const char* get_test_result_string(const bool passed) {
 	return passed ? "PASSED" : "FAILED";

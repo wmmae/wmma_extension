@@ -89,6 +89,53 @@ void test() {
 			);
 }
 
+
+template <int M, int N, int K, class AB_T, class C_T, class D_T, class a_layout, class b_layout, nvcuda::wmma::layout_t c_layout, nvcuda::wmma::layout_t d_layout>
+void test_imma() {
+	using AB_STORAGE_T = typename mtk::wmma::detail::common::storage_t<AB_T>::type;
+	D_T* d_ptr;
+	C_T* c_ptr;
+	AB_STORAGE_T* a_ptr;
+	AB_STORAGE_T* b_ptr;
+
+	cudaMallocHost(&a_ptr, M * K * sizeof(AB_STORAGE_T));
+	cudaMallocHost(&b_ptr, K * N * sizeof(AB_STORAGE_T));
+	cudaMallocHost(&c_ptr, M * N * sizeof(C_T));
+	cudaMallocHost(&d_ptr, M * N * sizeof(D_T));
+
+	std::mt19937 mt(std::random_device{}());
+	std::uniform_int_distribution<AB_STORAGE_T> dist(
+      std::is_same_v<AB_STORAGE_T, std::uint8_t> ? 0 : -128,
+      std::is_same_v<AB_STORAGE_T, std::uint8_t> ? 127 : 255
+      );
+
+	for (std::size_t i = 0; i < M * K; i++) {
+		a_ptr[i] = mtk::wmma::detail::common::cast<AB_STORAGE_T>(dist(mt));
+	}
+	for (std::size_t i = 0; i < K * N; i++) {
+		b_ptr[i] = mtk::wmma::detail::common::cast<AB_STORAGE_T>(dist(mt));
+	}
+	for (std::size_t i = 0; i < M * N; i++) {
+		c_ptr[i] = mtk::wmma::detail::common::cast<C_T>(dist(mt));
+	}
+
+	cudaDeviceSynchronize();
+	test_kernel<M, N, K, AB_T, C_T, D_T, a_layout, b_layout, c_layout, d_layout><<<1, 32>>>(d_ptr, a_ptr, b_ptr, c_ptr);
+	cudaDeviceSynchronize();
+	const auto error = mtk::test_utils::get_max_relative_error<M, N, K, AB_T, C_T, D_T, a_layout, b_layout, c_layout, d_layout>(a_ptr, b_ptr, c_ptr, d_ptr);
+	std::printf("[%s] ARCH=%d, M=%2d, N=%2d, K=%2d, a_%5s_%s, b_%5s_%s, c_%5s_%s, d_%5s_%s : res = %e [%s]\n",
+			__FILE__,
+			TEST_ARCH,
+			M, N, K,
+			mtk::test_utils::get_string<AB_T>().c_str(), mtk::test_utils::get_string<a_layout>().c_str(),
+			mtk::test_utils::get_string<AB_T>().c_str(), mtk::test_utils::get_string<b_layout>().c_str(),
+			mtk::test_utils::get_string<C_T >().c_str(), get_layout_name(c_layout).c_str(),
+			mtk::test_utils::get_string<D_T >().c_str(), get_layout_name(d_layout).c_str(),
+			error,
+			mtk::test_utils::get_test_result_string(error < mtk::test_utils::get_machine_eps<AB_T>() * 16)
+			);
+}
+
 int main() {
 #if TEST_ARCH >= 80
 	test<16, 8, 16, half, float, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_col_major, nvcuda::wmma::mem_col_major>();
@@ -107,6 +154,11 @@ int main() {
 	test<16, 8, 8, half, float, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_col_major, nvcuda::wmma::mem_row_major>();
 	test<16, 8, 8, half, float, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_row_major, nvcuda::wmma::mem_col_major>();
 	test<16, 8, 8, half, float, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_row_major, nvcuda::wmma::mem_row_major>();
+
+	test<16, 8, 16, std::int8_t, std::int32_t, std::int32_t, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_col_major, nvcuda::wmma::mem_col_major>();
+	test<16, 8, 16, std::int8_t, std::int32_t, std::int32_t, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_col_major, nvcuda::wmma::mem_row_major>();
+	test<16, 8, 16, std::int8_t, std::int32_t, std::int32_t, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_row_major, nvcuda::wmma::mem_col_major>();
+	test<16, 8, 16, std::int8_t, std::int32_t, std::int32_t, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_row_major, nvcuda::wmma::mem_row_major>();
 #endif
 
 #if TEST_ARCH >= 70 && TEST_ARCH <= 75
