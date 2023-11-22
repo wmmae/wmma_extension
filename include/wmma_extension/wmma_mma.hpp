@@ -5,6 +5,7 @@
 #include "detail/m16n8k8.hpp"
 #include "detail/m16n8k8_tf32.hpp"
 #include "detail/m8n8k4.hpp"
+#include "detail/m16n8k16_imma.hpp"
 
 namespace mtk {
 namespace wmma {
