@@ -159,6 +159,11 @@ int main() {
 	test_imma<16, 8, 16, std::int8_t, std::int32_t, std::int32_t, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_col_major, nvcuda::wmma::mem_row_major>();
 	test_imma<16, 8, 16, std::int8_t, std::int32_t, std::int32_t, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_row_major, nvcuda::wmma::mem_col_major>();
 	test_imma<16, 8, 16, std::int8_t, std::int32_t, std::int32_t, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_row_major, nvcuda::wmma::mem_row_major>();
+
+	test_imma<16, 8, 32, std::int8_t, std::int32_t, std::int32_t, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_col_major, nvcuda::wmma::mem_col_major>();
+	test_imma<16, 8, 32, std::int8_t, std::int32_t, std::int32_t, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_col_major, nvcuda::wmma::mem_row_major>();
+	test_imma<16, 8, 32, std::int8_t, std::int32_t, std::int32_t, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_row_major, nvcuda::wmma::mem_col_major>();
+	test_imma<16, 8, 32, std::int8_t, std::int32_t, std::int32_t, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_row_major, nvcuda::wmma::mem_row_major>();
 #endif
 
 #if TEST_ARCH >= 70 && TEST_ARCH <= 75
