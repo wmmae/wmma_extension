@@ -18,6 +18,49 @@ namespace mtk {
 namespace wmma {
 
 namespace detail {
+namespace common {
+template <class T>
+struct storage_t {using type = T;};
+template <class T> inline __device__ __host__ typename storage_t<T>::type cast(const float v) {return static_cast<typename storage_t<T>::type>(v);}
+template <class T> inline __device__ __host__ typename storage_t<T>::type cast(const half v) {return static_cast<typename storage_t<T>::type>(v);}
+
+template <> struct storage_t<nvcuda::wmma::precision::tf32> {using type = float;};
+__device__ __host__ inline float to_tf32(const float a) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
+	float ret;
+    asm("{.reg .b32 %mr;\n"
+        "cvt.rna.tf32.f32 %mr, %1;\n"
+        "mov.b32 %0, %mr;}\n" : "=f"(ret) : "f"(a));
+    return ret;
+#else
+	return a;
+#endif
+}
+template <> inline __device__ __host__ typename storage_t<nvcuda::wmma::precision::tf32>::type cast<nvcuda::wmma::precision::tf32>(const float v){return to_tf32(v);}
+template <> inline __device__ __host__ typename storage_t<nvcuda::wmma::precision::tf32>::type cast<nvcuda::wmma::precision::tf32>(const half  v){return to_tf32(__half2float(v));}
+
+inline __device__ unsigned get_lane_id() {
+	unsigned lane_id;
+	asm(R"({mov.s32 %0, %laneid;})":"=r"(lane_id));
+	return lane_id;
+}
+
+template <class Use, int M, int N, int K> struct get_M;
+template <int M, int N, int K> struct get_M<nvcuda::wmma::matrix_a   , M, N, K>{static const int value = M;};
+template <int M, int N, int K> struct get_M<nvcuda::wmma::matrix_b   , M, N, K>{static const int value = K;};
+template <int M, int N, int K> struct get_M<nvcuda::wmma::accumulator, M, N, K>{static const int value = M;};
+
+template <class Use, int M, int N, int K> struct get_N;
+template <int M, int N, int K> struct get_N<nvcuda::wmma::matrix_a   , M, N, K>{static const int value = K;};
+template <int M, int N, int K> struct get_N<nvcuda::wmma::matrix_b   , M, N, K>{static const int value = N;};
+template <int M, int N, int K> struct get_N<nvcuda::wmma::accumulator, M, N, K>{static const int value = N;};
+
+template <class Layout, int col_value, int row_value> struct layout_switch;
+template <int col_value, int row_value> struct layout_switch<nvcuda::wmma::col_major, col_value, row_value> {static const int value = col_value;};
+template <int col_value, int row_value> struct layout_switch<nvcuda::wmma::row_major, col_value, row_value> {static const int value = row_value;};
+
+} // namespace common
+
 template <unsigned byte, class T>
 struct fill_zero_core;
 
@@ -66,6 +109,14 @@ struct fill_zero_core<64, T> {
 		*(reinterpret_cast<int4*>(ptr) + 3) = make_int4(0, 0, 0, 0);
 	}
 };
+
+template <class T>
+struct size_of {static constexpr unsigned value = 0;};
+template <> struct size_of<std::uint8_t> {static constexpr unsigned value = 1;};
+template <> struct size_of<std::int8_t > {static constexpr unsigned value = 1;};
+template <> struct size_of<std::int32_t> {static constexpr unsigned value = 4;};
+template <> struct size_of<half        > {static constexpr unsigned value = 2;};
+template <> struct size_of<float       > {static constexpr unsigned value = 4;};
 } // namespace detail
 
 namespace mma {
@@ -105,77 +156,47 @@ __device__ inline void fill_fragment(__frag_base<float, 4>& f, const T v) {
 	for (unsigned i = 0; i < f.num_elements; i++)
 		f.x[i] = v;
 }
+template <class T>
+__device__ inline void fill_fragment(__frag_base<std::uint8_t, 4>& f, const T v) {
+#pragma unroll
+	for (unsigned i = 0; i < f.num_elements; i++)
+		f.x[i] = v;
+}
+template <class T>
+__device__ inline void fill_fragment(__frag_base<std::int8_t, 4>& f, const T v) {
+#pragma unroll
+	for (unsigned i = 0; i < f.num_elements; i++)
+		f.x[i] = v;
+}
+template <class T>
+__device__ inline void fill_fragment(__frag_base<std::uint8_t, 2>& f, const T v) {
+#pragma unroll
+	for (unsigned i = 0; i < f.num_elements; i++)
+		f.x[i] = v;
+}
+template <class T>
+__device__ inline void fill_fragment(__frag_base<std::int8_t, 2>& f, const T v) {
+#pragma unroll
+	for (unsigned i = 0; i < f.num_elements; i++)
+		f.x[i] = v;
+}
+template <class T>
+__device__ inline void fill_fragment(__frag_base<std::int32_t, 4>& f, const T v) {
+#pragma unroll
+	for (unsigned i = 0; i < f.num_elements; i++)
+		f.x[i] = v;
+}
 
 template <class Use, int m, int n, int k, class T, class Layout = void>
 class fragment;
 
-template <class Use, int M, int N, int K, class Layout>
-__device__ inline void fill_zero(mtk::wmma::mma::fragment<Use, M, N, K, float, Layout>& frag) {
-	constexpr unsigned size = 4 * mtk::wmma::mma::fragment<Use, M, N, K, float, Layout>::num_elements;
-	detail::fill_zero_core<size, float>{}(reinterpret_cast<float*>(frag.x));
-}
-
-template <class Use, int M, int N, int K, class Layout>
-__device__ inline void fill_zero(mtk::wmma::mma::fragment<Use, M, N, K, nvcuda::wmma::precision::tf32, Layout>& frag) {
-	constexpr unsigned size = 4 * mtk::wmma::mma::fragment<Use, M, N, K, nvcuda::wmma::precision::tf32, Layout>::num_elements;
-	detail::fill_zero_core<size, float>{}(reinterpret_cast<float*>(frag.x));
-}
-
-template <class Use, int M, int N, int K, class Layout>
-__device__ inline void fill_zero(mtk::wmma::mma::fragment<Use, M, N, K, half, Layout>& frag) {
-	constexpr unsigned size = 2 * mtk::wmma::mma::fragment<Use, M, N, K, half, Layout>::num_elements;
-	detail::fill_zero_core<size, half>{}(reinterpret_cast<half*>(frag.x));
+template <class Use, int M, int N, int K, class T, class Layout>
+__device__ inline void fill_zero(mtk::wmma::mma::fragment<Use, M, N, K, T, Layout>& frag) {
+	constexpr unsigned size = detail::size_of<typename detail::common::storage_t<T>::type>::value * mtk::wmma::mma::fragment<Use, M, N, K, T, Layout>::num_elements;
+	detail::fill_zero_core<size, T>{}(reinterpret_cast<T*>(frag.x));
 }
 } // namespace mma
 
-namespace detail {
-namespace common {
-template <class T>
-struct storage_t {using type = T;};
-template <class T> inline __device__ __host__ typename storage_t<T>::type cast(const float v);
-template <class T> inline __device__ __host__ typename storage_t<T>::type cast(const half v);
-template <> inline __device__ __host__ typename storage_t<float>::type cast<float>(const float v){return v;}
-template <> inline __device__ __host__ typename storage_t<half >::type cast<half >(const float v){return __float2half(v);}
-template <> inline __device__ __host__ typename storage_t<float>::type cast<float>(const half v){return __half2float(v);}
-template <> inline __device__ __host__ typename storage_t<half >::type cast<half >(const half v){return v;}
-
-template <> struct storage_t<nvcuda::wmma::precision::tf32> {using type = float;};
-__device__ __host__ inline float to_tf32(const float a) {
-#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
-	float ret;
-    asm("{.reg .b32 %mr;\n"
-        "cvt.rna.tf32.f32 %mr, %1;\n"
-        "mov.b32 %0, %mr;}\n" : "=f"(ret) : "f"(a));
-    return ret;
-#else
-	return a;
-#endif
-}
-template <> inline __device__ __host__ typename storage_t<nvcuda::wmma::precision::tf32>::type cast<nvcuda::wmma::precision::tf32>(const float v){return to_tf32(v);}
-template <> inline __device__ __host__ typename storage_t<nvcuda::wmma::precision::tf32>::type cast<nvcuda::wmma::precision::tf32>(const half  v){return to_tf32(__half2float(v));}
-
-inline __device__ unsigned get_lane_id() {
-	unsigned lane_id;
-	asm(R"({mov.s32 %0, %laneid;})":"=r"(lane_id));
-	return lane_id;
-}
-
-template <class Use, int M, int N, int K> struct get_M;
-template <int M, int N, int K> struct get_M<nvcuda::wmma::matrix_a   , M, N, K>{static const int value = M;};
-template <int M, int N, int K> struct get_M<nvcuda::wmma::matrix_b   , M, N, K>{static const int value = K;};
-template <int M, int N, int K> struct get_M<nvcuda::wmma::accumulator, M, N, K>{static const int value = M;};
-
-template <class Use, int M, int N, int K> struct get_N;
-template <int M, int N, int K> struct get_N<nvcuda::wmma::matrix_a   , M, N, K>{static const int value = K;};
-template <int M, int N, int K> struct get_N<nvcuda::wmma::matrix_b   , M, N, K>{static const int value = N;};
-template <int M, int N, int K> struct get_N<nvcuda::wmma::accumulator, M, N, K>{static const int value = N;};
-
-template <class Layout, int col_value, int row_value> struct layout_switch;
-template <int col_value, int row_value> struct layout_switch<nvcuda::wmma::col_major, col_value, row_value> {static const int value = col_value;};
-template <int col_value, int row_value> struct layout_switch<nvcuda::wmma::row_major, col_value, row_value> {static const int value = row_value;};
-
-} // namespace common
-} // namespace detail
 template <class Use, int M, int N, int K, class Layout>
 __device__ inline void fill_zero(nvcuda::wmma::fragment<Use, M, N, K, float, Layout>& frag) {
 	const unsigned size = 4 * nvcuda::wmma::fragment<Use, M, N, K, float, Layout>::num_elements;
