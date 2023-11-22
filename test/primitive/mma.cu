@@ -105,8 +105,8 @@ void test_imma() {
 
 	std::mt19937 mt(std::random_device{}());
 	std::uniform_int_distribution<AB_STORAGE_T> dist(
-      std::is_same_v<AB_STORAGE_T, std::uint8_t> ? 0 : -128,
-      std::is_same_v<AB_STORAGE_T, std::uint8_t> ? 127 : 255
+      static_cast<AB_STORAGE_T>(std::is_same_v<AB_STORAGE_T, std::uint8_t> ? 0 : -128),
+      static_cast<AB_STORAGE_T>(std::is_same_v<AB_STORAGE_T, std::uint8_t> ? 127 : 255)
       );
 
 	for (std::size_t i = 0; i < M * K; i++) {
@@ -155,10 +155,10 @@ int main() {
 	test<16, 8, 8, half, float, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_row_major, nvcuda::wmma::mem_col_major>();
 	test<16, 8, 8, half, float, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_row_major, nvcuda::wmma::mem_row_major>();
 
-	test<16, 8, 16, std::int8_t, std::int32_t, std::int32_t, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_col_major, nvcuda::wmma::mem_col_major>();
-	test<16, 8, 16, std::int8_t, std::int32_t, std::int32_t, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_col_major, nvcuda::wmma::mem_row_major>();
-	test<16, 8, 16, std::int8_t, std::int32_t, std::int32_t, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_row_major, nvcuda::wmma::mem_col_major>();
-	test<16, 8, 16, std::int8_t, std::int32_t, std::int32_t, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_row_major, nvcuda::wmma::mem_row_major>();
+	test_imma<16, 8, 16, std::int8_t, std::int32_t, std::int32_t, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_col_major, nvcuda::wmma::mem_col_major>();
+	test_imma<16, 8, 16, std::int8_t, std::int32_t, std::int32_t, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_col_major, nvcuda::wmma::mem_row_major>();
+	test_imma<16, 8, 16, std::int8_t, std::int32_t, std::int32_t, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_row_major, nvcuda::wmma::mem_col_major>();
+	test_imma<16, 8, 16, std::int8_t, std::int32_t, std::int32_t, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::mem_row_major, nvcuda::wmma::mem_row_major>();
 #endif
 
 #if TEST_ARCH >= 70 && TEST_ARCH <= 75
