@@ -6,10 +6,10 @@
 namespace mtk {
 namespace wmma {
 namespace mma {
-template <> class fragment<nvcuda::wmma::matrix_a   , 16, 8, 16, std::int8_t , nvcuda::wmma::row_major> : public __frag_base<std::int32_t , 2>{};
-template <> class fragment<nvcuda::wmma::matrix_b   , 16, 8, 16, std::int8_t , nvcuda::wmma::col_major> : public __frag_base<std::int32_t , 1>{};
-template <> class fragment<nvcuda::wmma::matrix_a   , 16, 8, 16, std::uint8_t, nvcuda::wmma::row_major> : public __frag_base<std::uint32_t, 2>{};
-template <> class fragment<nvcuda::wmma::matrix_b   , 16, 8, 16, std::uint8_t, nvcuda::wmma::col_major> : public __frag_base<std::uint32_t, 1>{};
+template <> class fragment<nvcuda::wmma::matrix_a   , 16, 8, 16, std::int8_t , nvcuda::wmma::row_major> : public __frag_base<std::int8_t , 8>{};
+template <> class fragment<nvcuda::wmma::matrix_b   , 16, 8, 16, std::int8_t , nvcuda::wmma::col_major> : public __frag_base<std::int8_t , 4>{};
+template <> class fragment<nvcuda::wmma::matrix_a   , 16, 8, 16, std::uint8_t, nvcuda::wmma::row_major> : public __frag_base<std::uint8_t, 8>{};
+template <> class fragment<nvcuda::wmma::matrix_b   , 16, 8, 16, std::uint8_t, nvcuda::wmma::col_major> : public __frag_base<std::uint8_t, 4>{};
 template <> class fragment<nvcuda::wmma::accumulator, 16, 8, 16, std::int32_t> : public __frag_base<std::int32_t, 4>{};
 
 // foreach
