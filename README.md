@@ -174,6 +174,7 @@ __global__ void kernel(float* const d, const half* const a, const half* const b,
 | m16n8k8  | `nvcuda::wmma::tf32` | `float`              | sm_80 or higher |
 | m8n8k4   | `half`               | `float` / `half`     | sm_70, sm_75    |
 | m16n8k16 | `int8` / `uint8`     | `int32`              | sm_80 or higher |
+| m16n8k32 | `int8` / `uint8`     | `int32`              | sm_80 or higher |
 
 ### Supported functions
 - `foreach`
