@@ -28,9 +28,9 @@ without using extra shared memory.
 ## Supported architecures / fragment
 - [x] sm_70: ((16, 16, 16), fp16/fp32)
 - [x] sm_75: ((16, 16, 16), fp16/fp32)
-- [x] sm_80: ((16, 16, 16), fp16/fp32), ((16, 16, 8), tf32)
-- [x] sm_89: ((16, 16, 16), fp16/fp32), ((16, 16, 8), tf32)
-- [x] sm_90: ((16, 16, 16), fp16/fp32), ((16, 16, 8), tf32) (`wgmma` instruction is not supported yet)
+- [x] sm_80: ((16, 16, 16), fp16/fp32), ((16, 16, 8), tf32/fp32)
+- [x] sm_89: ((16, 16, 16), fp16/fp32), ((16, 16, 8), tf32/fp32)
+- [x] sm_90: ((16, 16, 16), fp16/fp32), ((16, 16, 8), tf32/fp32) (`wgmma` instruction is not supported yet)
 
 # Functions
 ## Primitive functions
@@ -167,12 +167,13 @@ __global__ void kernel(float* const d, const half* const a, const half* const b,
 
 ### Supported fragments
 
-| shape    |  type                | arch            |
-|:-------- |:-------------------- |:--------------- |
-| m16n8k16 | `half`               | sm_80 or higher |
-| m16n8k8  | `half`               | sm_75 or higher |
-| m16n8k8  | `nvcuda::wmma::tf32` | sm_80 or higher |
-| m8n8k4   | `half`               | sm_70, sm_75    |
+| shape    |  A,B type            |  C type              | arch            |
+|:-------- |:-------------------- |:-------------------- |:--------------- |
+| m16n8k16 | `half`               | `float` / `half`     | sm_80 or higher |
+| m16n8k8  | `half`               | `float` / `half`     | sm_75 or higher |
+| m16n8k8  | `nvcuda::wmma::tf32` | `float`              | sm_80 or higher |
+| m8n8k4   | `half`               | `float` / `half`     | sm_70, sm_75    |
+| m16n8k16 | `int8` / `uint8`     | `int32`              | sm_80 or higher |
 
 ### Supported functions
 - `foreach`
