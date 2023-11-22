@@ -108,12 +108,12 @@ __device__ inline void mma_sync(
     mma.sync.aligned.m16n8k16.row.col.s32.s8.s8.s32
       {%0, %1, %2, %3},
       {%4, %5},
-      {%6, %7},
-      {%8, %9, %10, %11};
+      {%6},
+      {%7, %8, %9, %10};
 })"
 			: "=r"(d.x[0]), "=r"(d.x[1]), "=r"(d.x[2]), "=r"(d.x[3])
 			: "r"(*reinterpret_cast<const unsigned*>(a.x)),
-			"r"(*reinterpret_cast<const unsigned*>(a.x + 2)),
+			"r"(*reinterpret_cast<const unsigned*>(a.x + 1)),
 			"r"(*reinterpret_cast<const unsigned*>(b.x)),
 			"r"(c.x[0]), "r"(c.x[1]), "r"(c.x[2]), "r"(c.x[3]));
 }
@@ -127,12 +127,12 @@ __device__ inline void mma_sync(
     mma.sync.aligned.m16n8k16.row.col.s32.u8.u8.s32
       {%0, %1, %2, %3},
       {%4, %5},
-      {%6, %7},
-      {%8, %9, %10, %11};
+      {%6},
+      {%7, %8, %9, %10};
 })"
 			: "=r"(d.x[0]), "=r"(d.x[1]), "=r"(d.x[2]), "=r"(d.x[3])
 			: "r"(*reinterpret_cast<const unsigned*>(a.x)),
-			"r"(*reinterpret_cast<const unsigned*>(a.x + 2)),
+			"r"(*reinterpret_cast<const unsigned*>(a.x + 1)),
 			"r"(*reinterpret_cast<const unsigned*>(b.x)),
 			"r"(c.x[0]), "r"(c.x[1]), "r"(c.x[2]), "r"(c.x[3]));
 }
