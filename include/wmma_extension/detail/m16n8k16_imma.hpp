@@ -16,7 +16,7 @@ template <> class fragment<nvcuda::wmma::accumulator, 16, 8, 16, std::int32_t> :
 template <class Func>
 __device__ inline void foreach(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_a, 16, 8, 16, std::int8_t, nvcuda::wmma::row_major>& frag, Func func) {
 	const unsigned col = (mtk::wmma::detail::common::get_lane_id() % 4) * 4;
-	const unsigned row = mtk::wmma::detail::common::get_lane_id() / 16;
+	const unsigned row = mtk::wmma::detail::common::get_lane_id() / 4;
 	for (unsigned i = 0; i < 4; i++) {
     {const unsigned frag_index_list[1] = {i + 0};func(frag_index_list, 1, col + i + (row + 0) * 16);}
     {const unsigned frag_index_list[1] = {i + 4};func(frag_index_list, 1, col + i + (row + 8) * 16);}
@@ -53,7 +53,7 @@ __device__ inline void foreach(mtk::wmma::mma::fragment<nvcuda::wmma::accumulato
 template <class Func>
 __device__ inline void foreach_ij(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_a, 16, 8, 16, std::int8_t, nvcuda::wmma::row_major>& frag, Func func) {
 	const unsigned col = (mtk::wmma::detail::common::get_lane_id() % 4) * 4;
-	const unsigned row = mtk::wmma::detail::common::get_lane_id() / 16;
+	const unsigned row = mtk::wmma::detail::common::get_lane_id() / 4;
 
 	for (unsigned i = 0; i < 4; i++) {
     {const unsigned frag_index_list[1] = {i + 0};func(frag_index_list, 1, (row + 0), col + i);}
@@ -113,7 +113,7 @@ __device__ inline void mma_sync(
 })"
 			: "=r"(d.x[0]), "=r"(d.x[1]), "=r"(d.x[2]), "=r"(d.x[3])
 			: "r"(*reinterpret_cast<const unsigned*>(a.x)),
-			"r"(*reinterpret_cast<const unsigned*>(a.x + 1)),
+			"r"(*reinterpret_cast<const unsigned*>(a.x + 4)),
 			"r"(*reinterpret_cast<const unsigned*>(b.x)),
 			"r"(c.x[0]), "r"(c.x[1]), "r"(c.x[2]), "r"(c.x[3]));
 }
@@ -132,7 +132,7 @@ __device__ inline void mma_sync(
 })"
 			: "=r"(d.x[0]), "=r"(d.x[1]), "=r"(d.x[2]), "=r"(d.x[3])
 			: "r"(*reinterpret_cast<const unsigned*>(a.x)),
-			"r"(*reinterpret_cast<const unsigned*>(a.x + 1)),
+			"r"(*reinterpret_cast<const unsigned*>(a.x + 4)),
 			"r"(*reinterpret_cast<const unsigned*>(b.x)),
 			"r"(c.x[0]), "r"(c.x[1]), "r"(c.x[2]), "r"(c.x[3]));
 }
