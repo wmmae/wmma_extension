@@ -16,11 +16,10 @@ This extension provides features for
 
 without using extra shared memory.
 
-**Caution!!**
-
-WMMA API does not have backward compatibility.
-Please specify an appropriate virtual architecture for real GPU when you use this library.
-For instance, a program which is compiled with `-arch=sm_70` may not work correctly on Ampere GPUs.
+> [!NOTE]
+> WMMA API does not have backward compatibility.
+> Please specify an appropriate virtual architecture for real GPU when you use this library.
+> For instance, a program which is compiled with `-arch=sm_70` may not work correctly on Ampere GPUs.
 
 ## Requirements
 - CUDA (10.2 or later)
