@@ -16,7 +16,7 @@ This extension provides features for
 
 without using extra shared memory.
 
-> [!NOTE]
+> [!IMPORTANT]
 > WMMA API does not have backward compatibility.
 > Please specify an appropriate virtual architecture for real GPU when you use this library.
 > For instance, a program which is compiled with `-arch=sm_70` may not work correctly on Ampere GPUs.
@@ -167,7 +167,7 @@ __global__ void kernel(float* const d, const half* const a, const half* const b,
 
 ### Supported fragments
 
-| shape    |  A,B type            |  C type              | arch            |
+| shape    |  A,B type            |  C, D type           | arch            |
 |:-------- |:-------------------- |:-------------------- |:--------------- |
 | m16n8k16 | `half`               | `float` / `half`     | sm_80 or higher |
 | m16n8k8  | `half`               | `float` / `half`     | sm_75 or higher |
