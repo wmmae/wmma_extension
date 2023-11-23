@@ -94,6 +94,31 @@ __device__ inline void foreach_ij(mtk::wmma::mma::fragment<nvcuda::wmma::accumul
   }
 }
 
+// load_matrix_sync
+__device__ inline void load_matrix_sync(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_a, 16, 8, 32, std::int8_t, nvcuda::wmma::row_major>& frag, const std::int8_t* const ptr, const unsigned ldm, const bool sync = true) {
+  const unsigned col = (mtk::wmma::detail::common::get_lane_id() % 4) * 4;
+  const unsigned row = mtk::wmma::detail::common::get_lane_id() / 4;
+
+  *reinterpret_cast<std::int32_t*>(&frag.x[ 0]) = *reinterpret_cast<const std::int32_t*>(&ptr[(row + 0) * ldm + col]);
+  *reinterpret_cast<std::int32_t*>(&frag.x[ 4]) = *reinterpret_cast<const std::int32_t*>(&ptr[(row + 8) * ldm + col]);
+  *reinterpret_cast<std::int32_t*>(&frag.x[ 8]) = *reinterpret_cast<const std::int32_t*>(&ptr[(row + 0) * ldm + col + 16]);
+  *reinterpret_cast<std::int32_t*>(&frag.x[12]) = *reinterpret_cast<const std::int32_t*>(&ptr[(row + 8) * ldm + col + 16]);
+
+  if (sync)
+    __syncwarp();
+}
+
+__device__ inline void load_matrix_sync(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_b, 16, 8, 32, std::int8_t, nvcuda::wmma::col_major>& frag, const std::int8_t* const ptr, const unsigned ldm, const bool sync = true) {
+  const unsigned col = mtk::wmma::detail::common::get_lane_id() / 4;
+  const unsigned row = (mtk::wmma::detail::common::get_lane_id() % 4) * 4;
+
+  *reinterpret_cast<std::int32_t*>(&frag.x[0]) = *reinterpret_cast<const std::int32_t*>(&ptr[col * ldm + row]);
+  *reinterpret_cast<std::int32_t*>(&frag.x[4]) = *reinterpret_cast<const std::int32_t*>(&ptr[col * ldm + row + 16]);
+
+  if (sync)
+    __syncwarp();
+}
+
 // alias
 template <class Func>
 __device__ inline void foreach(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_a, 16, 8, 32, std::uint8_t, nvcuda::wmma::row_major>& frag, Func func) {
@@ -103,6 +128,24 @@ __device__ inline void foreach(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_a, 
 template <class Func>
 __device__ inline void foreach(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_b, 16, 8, 32, std::uint8_t, nvcuda::wmma::col_major>& frag, Func func) {
   foreach(*reinterpret_cast<mtk::wmma::mma::fragment<nvcuda::wmma::matrix_b, 16, 8, 32, std::int8_t, nvcuda::wmma::col_major>*>(&frag), func);
+}
+
+__device__ inline void load_matrix_sync(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_a, 16, 8, 32, std::uint8_t, nvcuda::wmma::row_major>& frag, const std::uint8_t* const ptr, const unsigned ldm, const bool sync = true) {
+  load_matrix_sync(
+      *reinterpret_cast<mtk::wmma::mma::fragment<nvcuda::wmma::matrix_a, 16, 8, 32, std::int8_t, nvcuda::wmma::row_major>*>(&frag),
+      reinterpret_cast<const std::int8_t*>(ptr),
+      ldm,
+      sync
+      );
+}
+
+__device__ inline void load_matrix_sync(mtk::wmma::mma::fragment<nvcuda::wmma::matrix_b, 16, 8, 32, std::uint8_t, nvcuda::wmma::col_major>& frag, const std::uint8_t* const ptr, const unsigned ldm, const bool sync = true) {
+  load_matrix_sync(
+      *reinterpret_cast<mtk::wmma::mma::fragment<nvcuda::wmma::matrix_b, 16, 8, 32, std::int8_t, nvcuda::wmma::col_major>*>(&frag),
+      reinterpret_cast<const std::int8_t*>(ptr),
+      ldm,
+      sync
+      );
 }
 
 __device__ inline void mma_sync(
