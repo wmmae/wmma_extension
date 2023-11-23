@@ -18,7 +18,7 @@ namespace detail {
 // ===================================
 template <class T>
 struct default_policy<T                            , mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt> {
-	using type = mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_simt, mtk::wmma::tcec::without_ec, 16, 16, 16>;
+  using type = mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_simt, mtk::wmma::tcec::without_ec, 16, 16, 16>;
 };
 
 // ===================================
@@ -26,7 +26,7 @@ struct default_policy<T                            , mtk::wmma::tcec::without_ec
 // ===================================
 template <class Use, class T, class Layout, class ErrorCorrection, int fm, int fn, int fk>
 struct default_fragment<Use, T, Layout, Policy<op_simt, ErrorCorrection, fm, fn, fk>> {
-	using type = mtk::wmma::mma_simt::fragment<Use, fm, fn, fk, T, Layout>;
+  using type = mtk::wmma::mma_simt::fragment<Use, fm, fn, fk, T, Layout>;
 };
 } // namespace detail
 

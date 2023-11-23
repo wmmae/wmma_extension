@@ -27,11 +27,11 @@ struct sm_not_specified;
 
 template <class Op, class ErrorCorrection, int m_, int n_, int k_>
 struct Policy {
-	using op = Op;
-	using error_correction = ErrorCorrection;
-	static const int m = m_;
-	static const int n = n_;
-	static const int k = k_;
+  using op = Op;
+  using error_correction = ErrorCorrection;
+  static const int m = m_;
+  static const int n = n_;
+  static const int k = k_;
 };
 
 namespace detail {
@@ -70,12 +70,12 @@ struct default_fragment;
 
 template <class Use, class T, class Layout, class ErrorCorrection, int fm, int fn, int fk>
 struct default_fragment<Use, T, Layout, Policy<op_wmma, ErrorCorrection, fm, fn, fk>> {
-	using type = nvcuda::wmma::fragment<Use, fm, fn, fk, T, Layout>;
+  using type = nvcuda::wmma::fragment<Use, fm, fn, fk, T, Layout>;
 };
 
 template <class Use, class T, class Layout, class ErrorCorrection, int fm, int fn, int fk>
 struct default_fragment<Use, T, Layout, Policy<op_mma , ErrorCorrection, fm, fn, fk>> {
-	using type = mtk::wmma::mma::fragment<Use, fm, fn, fk, T, Layout>;
+  using type = mtk::wmma::mma::fragment<Use, fm, fn, fk, T, Layout>;
 };
 } // namespace detail
 

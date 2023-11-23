@@ -27,22 +27,22 @@ template <class T> inline __device__ __host__ typename storage_t<T>::type cast(c
 template <> struct storage_t<nvcuda::wmma::precision::tf32> {using type = float;};
 __device__ __host__ inline float to_tf32(const float a) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
-	float ret;
-    asm("{.reg .b32 %mr;\n"
-        "cvt.rna.tf32.f32 %mr, %1;\n"
-        "mov.b32 %0, %mr;}\n" : "=f"(ret) : "f"(a));
-    return ret;
+  float ret;
+  asm("{.reg .b32 %mr;\n"
+      "cvt.rna.tf32.f32 %mr, %1;\n"
+      "mov.b32 %0, %mr;}\n" : "=f"(ret) : "f"(a));
+  return ret;
 #else
-	return a;
+  return a;
 #endif
 }
 template <> inline __device__ __host__ typename storage_t<nvcuda::wmma::precision::tf32>::type cast<nvcuda::wmma::precision::tf32>(const float v){return to_tf32(v);}
 template <> inline __device__ __host__ typename storage_t<nvcuda::wmma::precision::tf32>::type cast<nvcuda::wmma::precision::tf32>(const half  v){return to_tf32(__half2float(v));}
 
 inline __device__ unsigned get_lane_id() {
-	unsigned lane_id;
-	asm(R"({mov.s32 %0, %laneid;})":"=r"(lane_id));
-	return lane_id;
+  unsigned lane_id;
+  asm(R"({mov.s32 %0, %laneid;})":"=r"(lane_id));
+  return lane_id;
 }
 
 template <class Use, int M, int N, int K> struct get_M;
@@ -66,48 +66,48 @@ struct fill_zero_core;
 
 template <class T>
 struct fill_zero_core<2, T> {
-	__device__ void operator()(T* const ptr) {
-		*reinterpret_cast<uint16_t*>(ptr) = 0;
-	}
+  __device__ void operator()(T* const ptr) {
+    *reinterpret_cast<uint16_t*>(ptr) = 0;
+  }
 };
 
 template <class T>
 struct fill_zero_core<4, T> {
-	__device__ void operator()(T* const ptr) {
-		*reinterpret_cast<uint32_t*>(ptr) = 0;
-	}
+  __device__ void operator()(T* const ptr) {
+    *reinterpret_cast<uint32_t*>(ptr) = 0;
+  }
 };
 
 template <class T>
 struct fill_zero_core<8, T> {
-	__device__ void operator()(T* const ptr) {
-		*reinterpret_cast<int2*>(ptr) = make_int2(0, 0);
-	}
+  __device__ void operator()(T* const ptr) {
+    *reinterpret_cast<int2*>(ptr) = make_int2(0, 0);
+  }
 };
 
 template <class T>
 struct fill_zero_core<16, T> {
-	__device__ void operator()(T* const ptr) {
-		*reinterpret_cast<int4*>(ptr) = make_int4(0, 0, 0, 0);
-	}
+  __device__ void operator()(T* const ptr) {
+    *reinterpret_cast<int4*>(ptr) = make_int4(0, 0, 0, 0);
+  }
 };
 
 template <class T>
 struct fill_zero_core<32, T> {
-	__device__ void operator()(T* const ptr) {
-		*(reinterpret_cast<int4*>(ptr) + 0) = make_int4(0, 0, 0, 0);
-		*(reinterpret_cast<int4*>(ptr) + 1) = make_int4(0, 0, 0, 0);
-	}
+  __device__ void operator()(T* const ptr) {
+    *(reinterpret_cast<int4*>(ptr) + 0) = make_int4(0, 0, 0, 0);
+    *(reinterpret_cast<int4*>(ptr) + 1) = make_int4(0, 0, 0, 0);
+  }
 };
 
 template <class T>
 struct fill_zero_core<64, T> {
-	__device__ void operator()(T* const ptr) {
-		*(reinterpret_cast<int4*>(ptr) + 0) = make_int4(0, 0, 0, 0);
-		*(reinterpret_cast<int4*>(ptr) + 1) = make_int4(0, 0, 0, 0);
-		*(reinterpret_cast<int4*>(ptr) + 2) = make_int4(0, 0, 0, 0);
-		*(reinterpret_cast<int4*>(ptr) + 3) = make_int4(0, 0, 0, 0);
-	}
+  __device__ void operator()(T* const ptr) {
+    *(reinterpret_cast<int4*>(ptr) + 0) = make_int4(0, 0, 0, 0);
+    *(reinterpret_cast<int4*>(ptr) + 1) = make_int4(0, 0, 0, 0);
+    *(reinterpret_cast<int4*>(ptr) + 2) = make_int4(0, 0, 0, 0);
+    *(reinterpret_cast<int4*>(ptr) + 3) = make_int4(0, 0, 0, 0);
+  }
 };
 
 template <class T>
@@ -122,69 +122,69 @@ template <> struct size_of<float       > {static constexpr unsigned value = 4;};
 namespace mma {
 template <typename T, int size>
 struct __align__(4) __frag_base {
-	T x[size];
-	enum {num_elements = size};
+  T x[size];
+  enum {num_elements = size};
 };
 
 template <class T>
 __device__ inline void fill_fragment(__frag_base<half, 8>& f, const T v) {
 #pragma unroll
-	for (unsigned i = 0; i < f.num_elements; i++)
-		f.x[i] = v;
+  for (unsigned i = 0; i < f.num_elements; i++)
+    f.x[i] = v;
 }
 template <class T>
 __device__ inline void fill_fragment(__frag_base<half, 4>& f, const T v) {
 #pragma unroll
-	for (unsigned i = 0; i < f.num_elements; i++)
-		f.x[i] = v;
+  for (unsigned i = 0; i < f.num_elements; i++)
+    f.x[i] = v;
 }
 template <class T>
 __device__ inline void fill_fragment(__frag_base<half, 2>& f, const T v) {
 #pragma unroll
-	for (unsigned i = 0; i < f.num_elements; i++)
-		f.x[i] = v;
+  for (unsigned i = 0; i < f.num_elements; i++)
+    f.x[i] = v;
 }
 template <class T>
 __device__ inline void fill_fragment(__frag_base<float, 2>& f, const T v) {
 #pragma unroll
-	for (unsigned i = 0; i < f.num_elements; i++)
-		f.x[i] = v;
+  for (unsigned i = 0; i < f.num_elements; i++)
+    f.x[i] = v;
 }
 template <class T>
 __device__ inline void fill_fragment(__frag_base<float, 4>& f, const T v) {
 #pragma unroll
-	for (unsigned i = 0; i < f.num_elements; i++)
-		f.x[i] = v;
+  for (unsigned i = 0; i < f.num_elements; i++)
+    f.x[i] = v;
 }
 template <class T>
 __device__ inline void fill_fragment(__frag_base<std::uint8_t, 4>& f, const T v) {
 #pragma unroll
-	for (unsigned i = 0; i < f.num_elements; i++)
-		f.x[i] = v;
+  for (unsigned i = 0; i < f.num_elements; i++)
+    f.x[i] = v;
 }
 template <class T>
 __device__ inline void fill_fragment(__frag_base<std::int8_t, 4>& f, const T v) {
 #pragma unroll
-	for (unsigned i = 0; i < f.num_elements; i++)
-		f.x[i] = v;
+  for (unsigned i = 0; i < f.num_elements; i++)
+    f.x[i] = v;
 }
 template <class T>
 __device__ inline void fill_fragment(__frag_base<std::uint8_t, 2>& f, const T v) {
 #pragma unroll
-	for (unsigned i = 0; i < f.num_elements; i++)
-		f.x[i] = v;
+  for (unsigned i = 0; i < f.num_elements; i++)
+    f.x[i] = v;
 }
 template <class T>
 __device__ inline void fill_fragment(__frag_base<std::int8_t, 2>& f, const T v) {
 #pragma unroll
-	for (unsigned i = 0; i < f.num_elements; i++)
-		f.x[i] = v;
+  for (unsigned i = 0; i < f.num_elements; i++)
+    f.x[i] = v;
 }
 template <class T>
 __device__ inline void fill_fragment(__frag_base<std::int32_t, 4>& f, const T v) {
 #pragma unroll
-	for (unsigned i = 0; i < f.num_elements; i++)
-		f.x[i] = v;
+  for (unsigned i = 0; i < f.num_elements; i++)
+    f.x[i] = v;
 }
 
 template <class Use, int m, int n, int k, class T, class Layout = void>
@@ -192,27 +192,27 @@ class fragment;
 
 template <class Use, int M, int N, int K, class T, class Layout>
 __device__ inline void fill_zero(mtk::wmma::mma::fragment<Use, M, N, K, T, Layout>& frag) {
-	constexpr unsigned size = detail::size_of<typename detail::common::storage_t<T>::type>::value * mtk::wmma::mma::fragment<Use, M, N, K, T, Layout>::num_elements;
-	detail::fill_zero_core<size, T>{}(reinterpret_cast<T*>(frag.x));
+  constexpr unsigned size = detail::size_of<typename detail::common::storage_t<T>::type>::value * mtk::wmma::mma::fragment<Use, M, N, K, T, Layout>::num_elements;
+  detail::fill_zero_core<size, T>{}(reinterpret_cast<T*>(frag.x));
 }
 } // namespace mma
 
 template <class Use, int M, int N, int K, class Layout>
 __device__ inline void fill_zero(nvcuda::wmma::fragment<Use, M, N, K, float, Layout>& frag) {
-	const unsigned size = 4 * nvcuda::wmma::fragment<Use, M, N, K, float, Layout>::num_elements;
-	detail::fill_zero_core<size, float>{}(reinterpret_cast<float*>(frag.x));
+  const unsigned size = 4 * nvcuda::wmma::fragment<Use, M, N, K, float, Layout>::num_elements;
+  detail::fill_zero_core<size, float>{}(reinterpret_cast<float*>(frag.x));
 }
 template <class Use, int M, int N, int K, class Layout>
 __device__ inline void fill_zero(nvcuda::wmma::fragment<Use, M, N, K, half, Layout>& frag) {
-	const unsigned size = 2 * nvcuda::wmma::fragment<Use, M, N, K, half, Layout>::num_elements;
-	detail::fill_zero_core<size, half>{}(reinterpret_cast<half*>(frag.x));
+  const unsigned size = 2 * nvcuda::wmma::fragment<Use, M, N, K, half, Layout>::num_elements;
+  detail::fill_zero_core<size, half>{}(reinterpret_cast<half*>(frag.x));
 }
 
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 800
 template <class Use, int M, int N, int K, class Layout>
 __device__ inline void fill_zero(nvcuda::wmma::fragment<Use, M, N, K, nvcuda::wmma::precision::tf32, Layout>& frag) {
-	const unsigned size = 4 * nvcuda::wmma::fragment<Use, M, N, K, nvcuda::wmma::precision::tf32, Layout>::num_elements;
-	detail::fill_zero_core<size, float>{}(reinterpret_cast<float*>(frag.x));
+  const unsigned size = 4 * nvcuda::wmma::fragment<Use, M, N, K, nvcuda::wmma::precision::tf32, Layout>::num_elements;
+  detail::fill_zero_core<size, float>{}(reinterpret_cast<float*>(frag.x));
 }
 #endif
 } // namespace wmma
