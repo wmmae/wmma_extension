@@ -1,6 +1,6 @@
 # WMMA Extension for single precision matmul using Tensor Cores and error correction technique (TCEC)
 
-## Correction technique
+## Error correction technique
 See [our paper](https://arxiv.org/abs/2203.03341).
 
 ## Requirements
