@@ -3,12 +3,11 @@
 # WMMA API Extension
 
 This extension provides features for
-- mapping between memory and fragment (primitive functions)
+- mapping between memory and fragment (**primitive functions**)
 - operationf for vectors
     - loading a vector as a fragment
     - storing a fragment as a vector
-- making eye matrix fragment
-- C++ interface for `mma` instructions
+- C++ interface for `mma` instructions [[detail](./docs/mma.md)]
 - Error Correction (TCEC) for SGEMM emulation [[detail](./docs/mma_f32.md)]
 - arithmetic operators for fragments (`+, -, *, /, fma`) [[detail](./docs/ops.md)]
 - utils [[detail](./docs/utils.md)]
@@ -17,9 +16,8 @@ This extension provides features for
 without using extra shared memory.
 
 > [!IMPORTANT]
-> WMMA API does not have backward compatibility.
-> Please specify an appropriate virtual architecture for real GPU when you use this library.
-> For instance, a program which is compiled with `-arch=sm_70` may not work correctly on Ampere GPUs.
+> Please specify an appropriate virtual architecture for real GPU.
+> For instance, a program which is compiled with `-arch=sm_70` will not work correctly on Ampere GPUs.
 
 ## Requirements
 - CUDA (10.2 or later)
@@ -136,53 +134,13 @@ __global__ void kernel() {
 - Argument
   - dst_fragment : Destination fragment
 
-### Debug functions
+## Debugging functions
 
 #### print_fragment
 This function output the elements of a fragment.
 - Arguments
   - frag : Target fragment
   - name : printing name of fragment (`char*`, optional)
-
-## C++ interface of `mma` instructions
-
-```cpp
-#include <wmma_extension/wmma_mma.hpp>
-
-__global__ void kernel(float* const d, const half* const a, const half* const b, const float* const c) {
-    mtk::wmma::mma::fragment<nvcuda::wmma::matrix_a   , 16, 8, 16, half, nvcuda::wmma::col_major> frag_a;
-    mtk::wmma::mma::fragment<nvcuda::wmma::matrix_b   , 16, 8, 16, half, nvcuda::wmma::col_major> frag_b;
-    mtk::wmma::mma::fragment<nvcuda::wmma::accumulator, 16, 8, 16, float> frag_c;
-    mtk::wmma::mma::fragment<nvcuda::wmma::accumulator, 16, 8, 16, float> frag_d;
-
-    mtk::wmma::mma::load_matrix_sync(frag_a, a, 16);
-    mtk::wmma::mma::load_matrix_sync(frag_b, b, 8);
-    mtk::wmma::mma::load_matrix_sync(frag_c, c, 16, nvcuda::wmma::mem_col_major);
-
-    mtk::wmma::mma::mma_sync(frag_d, frag_a, frag_b, frag_c);
-
-    mtk::wmma::mma::store_matrix_sync(d, frag_d, 16, nvcuda::wmma::mem_col_major);
-}
-```
-
-### Supported fragments
-
-| shape    |  A,B type            |  C, D type           | arch            |
-|:-------- |:-------------------- |:-------------------- |:--------------- |
-| m16n8k16 | `half`               | `float` / `half`     | sm_80 or higher |
-| m16n8k8  | `half`               | `float` / `half`     | sm_75 or higher |
-| m16n8k8  | `nvcuda::wmma::tf32` | `float`              | sm_80 or higher |
-| m8n8k4   | `half`               | `float` / `half`     | sm_70, sm_75    |
-| m16n8k16 | `int8` / `uint8`     | `int32`              | sm_80 or higher |
-| m16n8k32 | `int8` / `uint8`     | `int32`              | sm_80 or higher |
-
-### Supported functions
-- `foreach`
-- `foreach_v`
-- `load_matrix_sync`
-- `store_matrix_sync`
-- `fill_fragment`
-- `fill_zero`
 
 # Publication
 ```bibtex
