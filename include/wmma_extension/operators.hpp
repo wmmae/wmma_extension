@@ -38,7 +38,8 @@ __device__ nvcuda::wmma::fragment<Use, M, N, K, Type, Layout> fma(
     const typename nvcuda::wmma::fragment<Use, M, N, K, Type, Layout>::storage_element_type alpha,
     const nvcuda::wmma::fragment<Use, M, N, K, Type, Layout>& a,
     const nvcuda::wmma::fragment<Use, M, N, K, Type, Layout>& b) {
-  return mtk::wmma::ops::fma<Use, M, N, K, Type, Layout>{}(alpha, a, b);
+  using A_Type = typename nvcuda::wmma::fragment<Use, M, N, K, Type, Layout>::storage_element_type;
+  return mtk::wmma::ops::fma<Use, M, N, K, Type, A_Type, Layout>{}(alpha, a, b);
 }
 
 template <class Use, int M, int N, int K, class Type, class Layout>
@@ -46,7 +47,8 @@ __device__ nvcuda::wmma::fragment<Use, M, N, K, Type, Layout> fma(
     const nvcuda::wmma::fragment<Use, M, N, K, Type, Layout>& a,
     const typename nvcuda::wmma::fragment<Use, M, N, K, Type, Layout>::storage_element_type alpha,
     const nvcuda::wmma::fragment<Use, M, N, K, Type, Layout>& b) {
-  return mtk::wmma::ops::fma<Use, M, N, K, Type, Layout>{}(alpha, a, b);
+  using A_Type = typename nvcuda::wmma::fragment<Use, M, N, K, Type, Layout>::storage_element_type;
+  return mtk::wmma::ops::fma<Use, M, N, K, Type, A_Type, Layout>{}(alpha, b, a);
 }
 } // namespace wmma
 } // namespace mtk
