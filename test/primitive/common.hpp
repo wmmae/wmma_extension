@@ -9,6 +9,7 @@ template <class T>
 std::string get_string();
 template <> std::string get_string<float>() {return "float";}
 template <> std::string get_string<half >() {return "half";}
+template <> std::string get_string<__nv_bfloat16>() {return "bfloat16";}
 template <> std::string get_string<std::uint8_t>() {return "uint8";}
 template <> std::string get_string<std::int8_t>() {return "int8";}
 template <> std::string get_string<std::int32_t>() {return "int32";}
