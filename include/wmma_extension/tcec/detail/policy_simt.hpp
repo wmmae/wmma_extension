@@ -16,8 +16,8 @@ namespace detail {
 // ===================================
 // Default policy selector
 // ===================================
-template <class T>
-struct default_policy<T                            , mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt> {
+template <class T, class Sm>
+struct default_policy<T                            , mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt, Sm> {
   using type = mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_simt, mtk::wmma::tcec::without_ec, 16, 16, 16>;
 };
 

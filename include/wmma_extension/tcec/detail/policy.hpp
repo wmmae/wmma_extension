@@ -23,7 +23,29 @@ struct sm_70;
 struct sm_75;
 struct sm_80;
 struct sm_86;
+struct sm_89;
+struct sm_90;
 struct sm_not_specified;
+
+#ifdef __CUDA_ARCH__
+# if __CUDA_ARCH__ <= 600
+#error "CC <= 6.0 is not supported"
+# elif __CUDA_ARCH__ < 750
+using sm_auto = sm_70;
+# elif __CUDA_ARCH__ < 800
+using sm_auto = sm_75;
+# elif __CUDA_ARCH__ < 860
+using sm_auto = sm_80;
+# elif __CUDA_ARCH__ < 890
+using sm_auto = sm_86;
+# elif __CUDA_ARCH__ < 900
+using sm_auto = sm_89;
+# else
+using sm_auto = sm_90;
+# endif
+#else
+using sm_auto = sm_not_specified;
+#endif
 
 template <class Op, class ErrorCorrection, int m_, int n_, int k_>
 struct Policy {
@@ -38,7 +60,7 @@ namespace detail {
 // ===================================
 // Default policy selector
 // ===================================
-template <class T, class ErrorCorrection = mtk::wmma::tcec::with_ec, class Op = mtk::wmma::tcec::op_wmma, class Sm = mtk::wmma::tcec::sm_not_specified>
+template <class T, class ErrorCorrection = mtk::wmma::tcec::with_ec, class Op = mtk::wmma::tcec::op_wmma, class Sm = mtk::wmma::tcec::sm_auto>
 struct default_policy;
 
 template <class ErrorCorrection, class Sm>
@@ -79,8 +101,8 @@ struct default_fragment<Use, T, Layout, Policy<op_mma , ErrorCorrection, fm, fn,
 };
 } // namespace detail
 
-template <class T, class ErrorCorrection = mtk::wmma::tcec::with_ec, class Op = mtk::wmma::tcec::op_wmma>
-using default_policy = detail::default_policy<T, ErrorCorrection, Op>;
+template <class T, class ErrorCorrection = mtk::wmma::tcec::with_ec, class Op = mtk::wmma::tcec::op_wmma, class Sm = mtk::wmma::tcec::sm_auto>
+using default_policy = detail::default_policy<T, ErrorCorrection, Op, Sm>;
 
 } // namespace tcec
 } // namespace wmma
