@@ -4,7 +4,8 @@
 #include <cmath>
 #include "common.hpp"
 
-//#define TEST_TF32
+#define TEST_TF32
+#define TEST_BF16
 
 constexpr unsigned warp_size = 32;
 
@@ -193,7 +194,18 @@ void test() {
 				const storage_t a,
 				const storage_t b
 				) {return mtk::wmma::detail::common::cast<float>(a) * mtk::wmma::detail::common::cast<float>(3.0f) + mtk::wmma::detail::common::cast<float>(b);},
-			"fma"
+			"fma(a*A+B)"
+			);
+	test_core<Use, M, N, K, T, Layout>(
+			[]__device__(
+				const nvcuda::wmma::fragment<Use, M, N, K, T, typename layout_switch<Use, Layout>::type>& a,
+				const nvcuda::wmma::fragment<Use, M, N, K, T, typename layout_switch<Use, Layout>::type>& b
+				) {return mtk::wmma::fma(a, mtk::wmma::detail::common::cast<typename nvcuda::wmma::fragment<Use, M, N, K, T, typename layout_switch<Use, Layout>::type>::storage_element_type>(3), b);},
+			[](
+				const storage_t a,
+				const storage_t b
+				) {return mtk::wmma::detail::common::cast<float>(b) * mtk::wmma::detail::common::cast<float>(3.0f) + mtk::wmma::detail::common::cast<float>(a);},
+			"fma(A+a*B)"
 			);
 	test_core<Use, M, N, K, T, Layout>(
 			[]__device__(
@@ -222,5 +234,11 @@ int main() {
 	test<nvcuda::wmma::matrix_b, 16, 16,  8, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major>();
 	test<nvcuda::wmma::matrix_a, 16, 16,  8, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major>();
 	test<nvcuda::wmma::matrix_b, 16, 16,  8, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major>();
+#endif
+#ifdef TEST_BF16
+	test<nvcuda::wmma::matrix_a, 16, 16, 16, __nv_bfloat16, nvcuda::wmma::col_major>();
+	test<nvcuda::wmma::matrix_b, 16, 16, 16, __nv_bfloat16, nvcuda::wmma::col_major>();
+	test<nvcuda::wmma::matrix_a, 16, 16, 16, __nv_bfloat16, nvcuda::wmma::row_major>();
+	test<nvcuda::wmma::matrix_b, 16, 16, 16, __nv_bfloat16, nvcuda::wmma::row_major>();
 #endif
 }
