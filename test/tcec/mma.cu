@@ -1,611 +1,3528 @@
+#include "utils.hpp"
 #include <iostream>
 #include <random>
-#include "utils.hpp"
 
 template <class T, class ErrorCorrection>
 constexpr double error_threshold = 0.0;
 template <>
-constexpr double error_threshold<half                         , mtk::wmma::tcec::with_ec   > = 1e-5;
+constexpr double error_threshold<half, mtk::wmma::tcec::with_ec> = 1e-5;
 template <>
-constexpr double error_threshold<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   > = 1e-5;
+constexpr double
+    error_threshold<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec> =
+        1e-5;
 template <>
-constexpr double error_threshold<half                         , mtk::wmma::tcec::without_ec> = 1e-2;
+constexpr double error_threshold<half, mtk::wmma::tcec::without_ec> = 1e-2;
 template <>
-constexpr double error_threshold<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec> = 1e-2;
+constexpr double error_threshold<nvcuda::wmma::precision::tf32,
+                                 mtk::wmma::tcec::without_ec> = 1e-2;
 template <>
-constexpr double error_threshold<float                        , mtk::wmma::tcec::without_ec> = 1e-5;
+constexpr double error_threshold<float, mtk::wmma::tcec::without_ec> = 1e-5;
 
-template <unsigned N, class T, class A_Layout, class B_Layout, class MEM_A_Layout, class MEM_B_Layout, class Policy>
-__global__ void mma_kernel_abcd(float* const d_ptr, const float* const a_ptr, const float* const b_ptr, const float* const c_ptr, const nvcuda::wmma::layout_t cd_layout) {
-	constexpr unsigned LD = N;
-	__shared__ float smem[N * LD];
-	mtk::test_utils::fill_zero(smem, N * LD);
+template <unsigned N, class T, class A_Layout, class B_Layout,
+          class MEM_A_Layout, class MEM_B_Layout, class Policy>
+__global__ void mma_kernel_abcd(float *const d_ptr, const float *const a_ptr,
+                                const float *const b_ptr,
+                                const float *const c_ptr,
+                                const nvcuda::wmma::layout_t cd_layout) {
+  constexpr unsigned LD = N;
+  __shared__ float smem[N * LD];
+  mtk::test_utils::fill_zero(smem, N * LD);
 
-	mtk::wmma::tcec::fragment<nvcuda::wmma::matrix_a   , N, N, N, T, A_Layout, Policy> frag_a;
-	mtk::wmma::tcec::fragment<nvcuda::wmma::matrix_b   , N, N, N, T, B_Layout, Policy> frag_b;
-	mtk::wmma::tcec::fragment<nvcuda::wmma::accumulator, N, N, N, T, void    , Policy> frag_c, frag_d;
-	// Load A
-	mtk::test_utils::copy_matrix(smem, LD, a_ptr, N, N, N);
-	mtk::wmma::tcec::load_matrix_sync<MEM_A_Layout>(frag_a, smem, LD);
+  mtk::wmma::tcec::fragment<nvcuda::wmma::matrix_a, N, N, N, T, A_Layout,
+                            Policy>
+      frag_a;
+  mtk::wmma::tcec::fragment<nvcuda::wmma::matrix_b, N, N, N, T, B_Layout,
+                            Policy>
+      frag_b;
+  mtk::wmma::tcec::fragment<nvcuda::wmma::accumulator, N, N, N, T, void, Policy>
+      frag_c, frag_d;
+  // Load A
+  mtk::test_utils::copy_matrix(smem, LD, a_ptr, N, N, N);
+  mtk::wmma::tcec::load_matrix_sync<MEM_A_Layout>(frag_a, smem, LD);
 
-	// Load B
-	mtk::test_utils::copy_matrix(smem, LD, b_ptr, N, N, N);
-	mtk::wmma::tcec::load_matrix_sync<MEM_B_Layout>(frag_b, smem, LD);
+  // Load B
+  mtk::test_utils::copy_matrix(smem, LD, b_ptr, N, N, N);
+  mtk::wmma::tcec::load_matrix_sync<MEM_B_Layout>(frag_b, smem, LD);
 
-	// Load C
-	mtk::test_utils::copy_matrix(smem, LD, c_ptr, N, N, N);
-	mtk::wmma::tcec::load_matrix_sync(frag_c, smem, LD, cd_layout);
+  // Load C
+  mtk::test_utils::copy_matrix(smem, LD, c_ptr, N, N, N);
+  mtk::wmma::tcec::load_matrix_sync(frag_c, smem, LD, cd_layout);
 
-	// Fill D
-	mtk::wmma::tcec::fill_fragment(frag_d, 0.0f);
+  // Fill D
+  mtk::wmma::tcec::fill_fragment(frag_d, 0.0f);
 
-	// mma
-	mtk::wmma::tcec::mma_sync(frag_d, frag_a, frag_b, frag_c);
+  // mma
+  mtk::wmma::tcec::mma_sync(frag_d, frag_a, frag_b, frag_c);
 
-	// Store D
-	mtk::wmma::tcec::store_matrix_sync(smem, frag_d, LD, cd_layout);
-	mtk::test_utils::copy_matrix(d_ptr, N, smem, LD, N, N);
+  // Store D
+  mtk::wmma::tcec::store_matrix_sync(smem, frag_d, LD, cd_layout);
+  mtk::test_utils::copy_matrix(d_ptr, N, smem, LD, N, N);
 
-	// Test for fill_zero
-	mtk::wmma::tcec::fill_zero(frag_d);
+  // Test for fill_zero
+  mtk::wmma::tcec::fill_zero(frag_d);
 }
 
-template <unsigned N, class T, class A_Layout, class B_Layout, class MEM_A_Layout, class MEM_B_Layout, class Policy>
-__global__ void mma_kernel_abd(float* const d_ptr, const float* const a_ptr, const float* const b_ptr, const nvcuda::wmma::layout_t c_layout) {
-	constexpr unsigned LD = N;
-	__shared__ float smem[N * LD];
-	mtk::test_utils::fill_zero(smem, N * LD);
+template <unsigned N, class T, class A_Layout, class B_Layout,
+          class MEM_A_Layout, class MEM_B_Layout, class Policy>
+__global__ void mma_kernel_abd(float *const d_ptr, const float *const a_ptr,
+                               const float *const b_ptr,
+                               const nvcuda::wmma::layout_t c_layout) {
+  constexpr unsigned LD = N;
+  __shared__ float smem[N * LD];
+  mtk::test_utils::fill_zero(smem, N * LD);
 
-	mtk::wmma::tcec::fragment<nvcuda::wmma::matrix_a   , N, N, N, T, A_Layout, Policy> frag_a;
-	mtk::wmma::tcec::fragment<nvcuda::wmma::matrix_b   , N, N, N, T, B_Layout, Policy> frag_b;
-	mtk::wmma::tcec::fragment<nvcuda::wmma::accumulator, N, N, N, T, void    , Policy> frag_d;
-	// Load A
-	mtk::test_utils::copy_matrix(smem, LD, a_ptr, N, N, N);
-	mtk::wmma::tcec::load_matrix_sync<MEM_A_Layout>(frag_a, smem, LD);
+  mtk::wmma::tcec::fragment<nvcuda::wmma::matrix_a, N, N, N, T, A_Layout,
+                            Policy>
+      frag_a;
+  mtk::wmma::tcec::fragment<nvcuda::wmma::matrix_b, N, N, N, T, B_Layout,
+                            Policy>
+      frag_b;
+  mtk::wmma::tcec::fragment<nvcuda::wmma::accumulator, N, N, N, T, void, Policy>
+      frag_d;
+  // Load A
+  mtk::test_utils::copy_matrix(smem, LD, a_ptr, N, N, N);
+  mtk::wmma::tcec::load_matrix_sync<MEM_A_Layout>(frag_a, smem, LD);
 
-	// Load B
-	mtk::test_utils::copy_matrix(smem, LD, b_ptr, N, N, N);
-	mtk::wmma::tcec::load_matrix_sync<MEM_B_Layout>(frag_b, smem, LD);
+  // Load B
+  mtk::test_utils::copy_matrix(smem, LD, b_ptr, N, N, N);
+  mtk::wmma::tcec::load_matrix_sync<MEM_B_Layout>(frag_b, smem, LD);
 
-	// mma
-	mtk::wmma::tcec::mma_sync(frag_d, frag_a, frag_b);
+  // mma
+  mtk::wmma::tcec::mma_sync(frag_d, frag_a, frag_b);
 
-	// Store D
-	mtk::wmma::tcec::store_matrix_sync(smem, frag_d, LD, c_layout);
-	mtk::test_utils::copy_matrix(d_ptr, N, smem, LD, N, N);
+  // Store D
+  mtk::wmma::tcec::store_matrix_sync(smem, frag_d, LD, c_layout);
+  mtk::test_utils::copy_matrix(d_ptr, N, smem, LD, N, N);
 }
 
-template <unsigned N, class T, class A_Layout, class B_Layout, class MEM_A_Layout, class MEM_B_Layout, class Policy, bool AddC>
+template <unsigned N, class T, class A_Layout, class B_Layout,
+          class MEM_A_Layout, class MEM_B_Layout, class Policy, bool AddC>
 unsigned test_mma(const nvcuda::wmma::layout_t cd_layout) {
-	float *hA, *hB, *hC, *hD;
-	cudaMallocHost(&hA, N * N * sizeof(float));
-	cudaMallocHost(&hB, N * N * sizeof(float));
-	cudaMallocHost(&hC, N * N * sizeof(float));
-	cudaMallocHost(&hD, N * N * sizeof(float));
+  float *hA, *hB, *hC, *hD;
+  cudaMallocHost(&hA, N * N * sizeof(float));
+  cudaMallocHost(&hB, N * N * sizeof(float));
+  cudaMallocHost(&hC, N * N * sizeof(float));
+  cudaMallocHost(&hD, N * N * sizeof(float));
 
-	std::mt19937 mt(std::random_device{}());
-	std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
+  std::mt19937 mt(std::random_device{}());
+  std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
 
-	for (unsigned i = 0; i < N * N; i++) {
-			hA[i] = dist(mt);
-			hB[i] = dist(mt);
-			hC[i] = dist(mt);
-	}
-	cudaDeviceSynchronize();
+  for (unsigned i = 0; i < N * N; i++) {
+    hA[i] = dist(mt);
+    hB[i] = dist(mt);
+    hC[i] = dist(mt);
+  }
+  cudaDeviceSynchronize();
 
-	if (AddC)
-		mma_kernel_abcd<N, T, A_Layout, B_Layout, MEM_A_Layout, MEM_B_Layout, Policy><<<1, mtk::test_utils::warp_size>>>(hD, hA, hB, hC, cd_layout);
-	else
-		mma_kernel_abd <N, T, A_Layout, B_Layout, MEM_A_Layout, MEM_B_Layout, Policy><<<1, mtk::test_utils::warp_size>>>(hD, hA, hB, cd_layout);
+  if (AddC)
+    mma_kernel_abcd<N, T, A_Layout, B_Layout, MEM_A_Layout, MEM_B_Layout,
+                    Policy>
+        <<<1, mtk::test_utils::warp_size>>>(hD, hA, hB, hC, cd_layout);
+  else
+    mma_kernel_abd<N, T, A_Layout, B_Layout, MEM_A_Layout, MEM_B_Layout, Policy>
+        <<<1, mtk::test_utils::warp_size>>>(hD, hA, hB, cd_layout);
 
-	const auto stat = cudaDeviceSynchronize();
-	if (stat != cudaSuccess) {
-		std::printf("[error] %s\n", cudaGetErrorString(stat));
-	}
+  const auto stat = cudaDeviceSynchronize();
+  if (stat != cudaSuccess) {
+    std::printf("[error] %s\n", cudaGetErrorString(stat));
+  }
 
-	double max_error = 0.;
-	for (unsigned m = 0; m < N; m++) {
-		for (unsigned n = 0; n < N; n++) {
-			double cor_d = 0.;
-			for (unsigned k = 0; k < N; k++) {
-				const auto a_mem_index = std::is_same<MEM_A_Layout, nvcuda::wmma::col_major>::value ? (k * N + m) : (m * N + k);
-				const auto b_mem_index = std::is_same<MEM_B_Layout, nvcuda::wmma::col_major>::value ? (k + n * N) : (n + k * N);
-				cor_d += static_cast<double>(hA[a_mem_index]) * static_cast<double>(hB[b_mem_index]);
-			}
-			const auto c_mem_index = (cd_layout == nvcuda::wmma::mem_col_major) ? (m + n * N) : (n + m * N);
-			if (AddC)
-				cor_d += hC[c_mem_index];
+  double max_error = 0.;
+  for (unsigned m = 0; m < N; m++) {
+    for (unsigned n = 0; n < N; n++) {
+      double cor_d = 0.;
+      for (unsigned k = 0; k < N; k++) {
+        const auto a_mem_index =
+            std::is_same<MEM_A_Layout, nvcuda::wmma::col_major>::value
+                ? (k * N + m)
+                : (m * N + k);
+        const auto b_mem_index =
+            std::is_same<MEM_B_Layout, nvcuda::wmma::col_major>::value
+                ? (k + n * N)
+                : (n + k * N);
+        cor_d += static_cast<double>(hA[a_mem_index]) *
+                 static_cast<double>(hB[b_mem_index]);
+      }
+      const auto c_mem_index = (cd_layout == nvcuda::wmma::mem_col_major)
+                                   ? (m + n * N)
+                                   : (n + m * N);
+      if (AddC)
+        cor_d += hC[c_mem_index];
 
-			max_error = std::max(max_error, std::abs(cor_d - hD[c_mem_index]));
-		}
-	}
+      max_error = std::max(max_error, std::abs(cor_d - hD[c_mem_index]));
+    }
+  }
 
-	std::printf(
-			"[Type:%5s, N:%3u, A_Layout:%10s, B_Layout:%10s, MEM_A_Layout:%10s, MEM_B_Layout:%10s, C_Layout:%10s, Policy<%7s,%9s,%2u,%2u,%2u>, AddC:%3s] max_error: %e (%6s)\n",
-			mtk::test_utils::to_string<T>().c_str(),
-			N,
-			mtk::test_utils::to_string<A_Layout>().c_str(),
-			mtk::test_utils::to_string<B_Layout>().c_str(),
-			mtk::test_utils::to_string<MEM_A_Layout>().c_str(),
-			mtk::test_utils::to_string<MEM_B_Layout>().c_str(),
-			(cd_layout == nvcuda::wmma::mem_col_major) ? mtk::test_utils::to_string<nvcuda::wmma::col_major>().c_str() : mtk::test_utils::to_string<nvcuda::wmma::row_major>().c_str(),
-			mtk::test_utils::to_string<typename Policy::op>().c_str(),
-			std::is_same<typename Policy::error_correction, mtk::wmma::tcec::with_ec>::value ? "{w/ ec}" : "{w/o ec}",
-			Policy::m,
-			Policy::n,
-			Policy::k,
-			(AddC ? "Yes" : "No"),
-			max_error,
-			(max_error < error_threshold<T, typename Policy::error_correction> ? "PASSED" : "FAILED")
-			);
+  std::printf(
+      "[Type:%5s, N:%3u, A_Layout:%10s, B_Layout:%10s, MEM_A_Layout:%10s, "
+      "MEM_B_Layout:%10s, C_Layout:%10s, Policy<%7s,%9s,%2u,%2u,%2u>, "
+      "AddC:%3s] max_error: %e (%6s)\n",
+      mtk::test_utils::to_string<T>().c_str(), N,
+      mtk::test_utils::to_string<A_Layout>().c_str(),
+      mtk::test_utils::to_string<B_Layout>().c_str(),
+      mtk::test_utils::to_string<MEM_A_Layout>().c_str(),
+      mtk::test_utils::to_string<MEM_B_Layout>().c_str(),
+      (cd_layout == nvcuda::wmma::mem_col_major)
+          ? mtk::test_utils::to_string<nvcuda::wmma::col_major>().c_str()
+          : mtk::test_utils::to_string<nvcuda::wmma::row_major>().c_str(),
+      mtk::test_utils::to_string<typename Policy::op>().c_str(),
+      std::is_same<typename Policy::error_correction,
+                   mtk::wmma::tcec::with_ec>::value
+          ? "{w/ ec}"
+          : "{w/o ec}",
+      Policy::m, Policy::n, Policy::k, (AddC ? "Yes" : "No"), max_error,
+      (max_error < error_threshold<T, typename Policy::error_correction>
+           ? "PASSED"
+           : "FAILED"));
 
-	cudaFreeHost(hA);
-	cudaFreeHost(hB);
-	cudaFreeHost(hC);
-	cudaFreeHost(hD);
+  cudaFreeHost(hA);
+  cudaFreeHost(hB);
+  cudaFreeHost(hC);
+  cudaFreeHost(hD);
 
-  return max_error < error_threshold<T, typename Policy::error_correction> ? 1 : 0;
+  return max_error < error_threshold<T, typename Policy::error_correction> ? 1
+                                                                           : 0;
 }
 
 int main() {
   unsigned num_passed = 0, num_tests = 0;
-	// wmma FP16 test
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
+  // wmma FP16 test
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
 
-	// mma FP16 test
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma >::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma >::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma >::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma >::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma >::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma >::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma >::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma >::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma >::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma >::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma >::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma >::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma >::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma >::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma >::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma >::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma >::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma >::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma >::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma >::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma >::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma >::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma >::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma >::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma >::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma >::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma >::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma >::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma >::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma >::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma >::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma >::type, false>(nvcuda::wmma::mem_row_major);
+  // mma FP16 test
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          half, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_row_major);
 
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma , mtk::wmma::tcec::with_ec   , 16, 8, 8>, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma , mtk::wmma::tcec::without_ec, 16, 8, 8>, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma , mtk::wmma::tcec::with_ec   , 16, 8, 8>, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma , mtk::wmma::tcec::without_ec, 16, 8, 8>, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma , mtk::wmma::tcec::with_ec   , 16, 8, 8>, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma , mtk::wmma::tcec::without_ec, 16, 8, 8>, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma , mtk::wmma::tcec::with_ec   , 16, 8, 8>, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma , mtk::wmma::tcec::without_ec, 16, 8, 8>, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma , mtk::wmma::tcec::with_ec   , 16, 8, 8>, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma , mtk::wmma::tcec::without_ec, 16, 8, 8>, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma , mtk::wmma::tcec::with_ec   , 16, 8, 8>, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma , mtk::wmma::tcec::without_ec, 16, 8, 8>, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma , mtk::wmma::tcec::with_ec   , 16, 8, 8>, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma , mtk::wmma::tcec::without_ec, 16, 8, 8>, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma , mtk::wmma::tcec::with_ec   , 16, 8, 8>, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma , mtk::wmma::tcec::without_ec, 16, 8, 8>, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma , mtk::wmma::tcec::with_ec   , 16, 8, 8>, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma , mtk::wmma::tcec::without_ec, 16, 8, 8>, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma , mtk::wmma::tcec::with_ec   , 16, 8, 8>, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma , mtk::wmma::tcec::without_ec, 16, 8, 8>, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma , mtk::wmma::tcec::with_ec   , 16, 8, 8>, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma , mtk::wmma::tcec::without_ec, 16, 8, 8>, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma , mtk::wmma::tcec::with_ec   , 16, 8, 8>, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma , mtk::wmma::tcec::without_ec, 16, 8, 8>, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma , mtk::wmma::tcec::with_ec   , 16, 8, 8>, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma , mtk::wmma::tcec::without_ec, 16, 8, 8>, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma , mtk::wmma::tcec::with_ec   , 16, 8, 8>, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma , mtk::wmma::tcec::without_ec, 16, 8, 8>, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma , mtk::wmma::tcec::with_ec   , 16, 8, 8>, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma , mtk::wmma::tcec::without_ec, 16, 8, 8>, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma , mtk::wmma::tcec::with_ec   , 16, 8, 8>, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma , mtk::wmma::tcec::without_ec, 16, 8, 8>, false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed +=
+      test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+               nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+               mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma,
+                                       mtk::wmma::tcec::with_ec, 16, 8, 8>,
+               true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed +=
+      test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+               nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+               mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma,
+                                       mtk::wmma::tcec::without_ec, 16, 8, 8>,
+               true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed +=
+      test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+               nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+               mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma,
+                                       mtk::wmma::tcec::with_ec, 16, 8, 8>,
+               true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed +=
+      test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+               nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+               mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma,
+                                       mtk::wmma::tcec::without_ec, 16, 8, 8>,
+               true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed +=
+      test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+               nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+               mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma,
+                                       mtk::wmma::tcec::with_ec, 16, 8, 8>,
+               false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed +=
+      test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+               nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+               mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma,
+                                       mtk::wmma::tcec::without_ec, 16, 8, 8>,
+               false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed +=
+      test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+               nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+               mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma,
+                                       mtk::wmma::tcec::with_ec, 16, 8, 8>,
+               false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed +=
+      test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+               nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+               mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma,
+                                       mtk::wmma::tcec::without_ec, 16, 8, 8>,
+               false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed +=
+      test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+               nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+               mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma,
+                                       mtk::wmma::tcec::with_ec, 16, 8, 8>,
+               true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed +=
+      test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+               nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+               mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma,
+                                       mtk::wmma::tcec::without_ec, 16, 8, 8>,
+               true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed +=
+      test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+               nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+               mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma,
+                                       mtk::wmma::tcec::with_ec, 16, 8, 8>,
+               true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed +=
+      test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+               nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+               mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma,
+                                       mtk::wmma::tcec::without_ec, 16, 8, 8>,
+               true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed +=
+      test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+               nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+               mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma,
+                                       mtk::wmma::tcec::with_ec, 16, 8, 8>,
+               false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed +=
+      test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+               nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+               mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma,
+                                       mtk::wmma::tcec::without_ec, 16, 8, 8>,
+               false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed +=
+      test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+               nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+               mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma,
+                                       mtk::wmma::tcec::with_ec, 16, 8, 8>,
+               false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed +=
+      test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+               nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+               mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma,
+                                       mtk::wmma::tcec::without_ec, 16, 8, 8>,
+               false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed +=
+      test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+               nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+               mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma,
+                                       mtk::wmma::tcec::with_ec, 16, 8, 8>,
+               true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed +=
+      test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+               nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+               mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma,
+                                       mtk::wmma::tcec::without_ec, 16, 8, 8>,
+               true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed +=
+      test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+               nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+               mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma,
+                                       mtk::wmma::tcec::with_ec, 16, 8, 8>,
+               true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed +=
+      test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+               nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+               mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma,
+                                       mtk::wmma::tcec::without_ec, 16, 8, 8>,
+               true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed +=
+      test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+               nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+               mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma,
+                                       mtk::wmma::tcec::with_ec, 16, 8, 8>,
+               false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed +=
+      test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+               nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+               mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma,
+                                       mtk::wmma::tcec::without_ec, 16, 8, 8>,
+               false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed +=
+      test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+               nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+               mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma,
+                                       mtk::wmma::tcec::with_ec, 16, 8, 8>,
+               false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed +=
+      test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+               nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+               mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma,
+                                       mtk::wmma::tcec::without_ec, 16, 8, 8>,
+               false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed +=
+      test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+               nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+               mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma,
+                                       mtk::wmma::tcec::with_ec, 16, 8, 8>,
+               true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed +=
+      test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+               nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+               mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma,
+                                       mtk::wmma::tcec::without_ec, 16, 8, 8>,
+               true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed +=
+      test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+               nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+               mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma,
+                                       mtk::wmma::tcec::with_ec, 16, 8, 8>,
+               true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed +=
+      test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+               nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+               mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma,
+                                       mtk::wmma::tcec::without_ec, 16, 8, 8>,
+               true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed +=
+      test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+               nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+               mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma,
+                                       mtk::wmma::tcec::with_ec, 16, 8, 8>,
+               false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed +=
+      test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+               nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+               mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma,
+                                       mtk::wmma::tcec::without_ec, 16, 8, 8>,
+               false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed +=
+      test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+               nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+               mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma,
+                                       mtk::wmma::tcec::with_ec, 16, 8, 8>,
+               false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed +=
+      test_mma<32, half, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+               nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+               mtk::wmma::tcec::Policy<mtk::wmma::tcec::op_mma,
+                                       mtk::wmma::tcec::without_ec, 16, 8, 8>,
+               false>(nvcuda::wmma::mem_row_major);
 #ifdef TEST_SIMT
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, float, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type, false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, float, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<
+          float, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_simt>::type,
+      false>(nvcuda::wmma::mem_row_major);
 #endif
 #ifdef TEST_TF32
-	// wmma TF32 test
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_wmma>::type, false>(nvcuda::wmma::mem_row_major);
+  // wmma TF32 test
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::col_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::row_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_wmma>::type,
+      false>(nvcuda::wmma::mem_row_major);
 
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type, true >(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type, true >(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type, false>(nvcuda::wmma::mem_col_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::with_ec   , mtk::wmma::tcec::op_mma>::type, false>(nvcuda::wmma::mem_row_major);
-	num_tests++;num_passed += test_mma<32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major, typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32, mtk::wmma::tcec::without_ec, mtk::wmma::tcec::op_mma>::type, false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::col_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::col_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      true>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_col_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::with_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_row_major);
+  num_tests++;
+  num_passed += test_mma<
+      32, nvcuda::wmma::precision::tf32, nvcuda::wmma::row_major,
+      nvcuda::wmma::col_major, nvcuda::wmma::row_major, nvcuda::wmma::row_major,
+      typename mtk::wmma::tcec::default_policy<nvcuda::wmma::precision::tf32,
+                                               mtk::wmma::tcec::without_ec,
+                                               mtk::wmma::tcec::op_mma>::type,
+      false>(nvcuda::wmma::mem_row_major);
 #endif
   std::printf("passed: %u / %u\n", num_passed, num_tests);
 }

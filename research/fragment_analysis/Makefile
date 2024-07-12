@@ -1,4 +1,4 @@
-SM=70
+SM=89
 NVCC=nvcc
 NVCCFLAGS=-std=c++14 -arch=sm_${SM} -DARCH=${SM} -I../../include
 

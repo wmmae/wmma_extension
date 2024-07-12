@@ -91,14 +91,14 @@ using policy = mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec, m
 | 16 | 8  | 16 | row     | col     | half  | mma            | sm_80 or later |
 
 ### Note
-To get detault policy for `sm_75` and `op_mma`, specify the architecture as follows:
+To get default policy for `sm_75` and `op_mma`, specify the architecture as follows:
 ```cuda
 using policy = mtk::wmma::tcec::default_policy<half, mtk::wmma::tcec::with_ec, mtk::wmma::tcec::op_mma, mtk::wmma::tcec::sm_75>::type;
 ```
 
 ### Member variables/functions
 - Member variable `element_type` is `float`
-- Member function `x(index)` and `dx(index)` return the referrence of a elements.
+- Member function `x(index)` and `dx(index)` return the reference of a elements.
 
 ## Functions
 - `mtk::wmma::tcec::fill_fragment`

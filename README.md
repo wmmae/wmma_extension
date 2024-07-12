@@ -23,7 +23,7 @@ without using extra shared memory.
 - CUDA (10.2 or later)
 - C++ (17 or later)
 
-## Supported architecures / fragment
+## Supported architectures / fragment
 - [x] sm_70: ((16, 16, 16), fp16/fp32)
 - [x] sm_75: ((16, 16, 16), fp16/fp32)
 - [x] sm_80: ((16, 16, 16), fp16/fp32), ((16, 16, 8), tf32/fp32)
