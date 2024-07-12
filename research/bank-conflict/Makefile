@@ -7,6 +7,6 @@ TARGET=bank-conflict.test
 
 $(TARGET):main.cu
 	$(NVCC) $< -o $@ $(NVCCFLAGS)
-  
+
 clean:
 	rm -f $(TARGET)
